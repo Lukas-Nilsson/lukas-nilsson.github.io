@@ -1,13 +1,126 @@
 
-header {
-    max-width: max-content;
+
+.banner-img {
+    max-width: 100vw;
+    height: auto;
+    margin: auto;
+    align-self: center;
 }
+.logo-img {
+    max-width: 100px;
+    height: auto;
+    float: right;
+    margin: 0;
+    margin-left: -10px;
+    padding: 0;
+    color: #007bff;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* This ensures that the items are aligned vertically in the center */
+    padding: 0; /* Optional: Adds some padding on the sides */
+    margin: 0px;
+    height: 100px;
+    padding-bottom: 10vh;
+}
+
+
+.featured {
+    display: flex;
+    max-width:80vw;
+    align-items: center; /* Vertical centering */
+    margin: auto; /* Set left and right margins to auto */
+}
+.left-featured {
+    width: 40vw;
+    padding: 40px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: x-large;
+
+}
+
+
+.left-featured h2 {
+    white-space: nowrap;
+}
+
+.right-featured {
+    max-width: 40vw;
+    height: auto;
+    padding: 40px;
+}
+
+
+
+.featured-img {
+    width: 40vw;
+    height: auto;
+}
+
+.left, .right {
+    flex: 1; /* Optional: Allows both elements to grow and take up equal space if needed */
+}
+
 body {
-    background-color: #f0f0f2;
+    background: linear-gradient(0deg, rgba(0,125,255,1) 0%, rgba(0,255,222,1) 30%, rgba(255,0,189,1) 100%, rgba(0,95,255,1) 70%);
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
 }
 
 
 h1 {
-    color: #333;
-    text-align: center;
+    color: #007bff;
+    text-align: left;
+    font-size: 140px;
+    font-family:Arial, Helvetica, sans-serif;
+    margin-top: 97px;
+    margin-left: -11px;
+    padding: 0;
+    letter-spacing: -10px;
+    line-height: 0.8;
+    white-space:nowrap;
+}
+
+@media screen and (max-width: 1000px) {
+h1 {
+    font-size: 72px; /* half the font size when text wraps */
+    margin-top: 48px;
+    line-height: 0.71;
+    margin-left: -6px;
+    letter-spacing: -5px;
+    white-space:normal;
+    }
+    .featured {
+        display: flex;
+        max-width:100vw;
+        align-items: center; /* Vertical centering */
+        margin: auto; /* Set left and right margins to auto */
+    }
+    .left-featured {
+        width: 50vw;
+        background-color: aqua;
+        padding: 40px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: x-large;
+    
+    }
+    
+    
+    .left-featured h2 {
+        white-space: nowrap;
+    }
+    
+    .right-featured {
+        max-width: 50vw;
+        height: auto;
+        padding: 0px;
+        background-color: bisque;
+    }
+    
+    
+
 }
