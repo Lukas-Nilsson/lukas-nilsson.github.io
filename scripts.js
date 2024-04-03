@@ -103,33 +103,39 @@
 
 // });
 
-
-document.addEventListener('DOMContentLoaded', function() {
-    let observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                // Entry is in viewport
-                entry.target.classList.add('active-parallax');
-            } else {
-                // Entry is not in viewport
-                entry.target.classList.remove('active-parallax');
-            }
-        });
-    }, { threshold: 0.01 });
-
-    // Selecting elements that should have parallax effect
-    const parallaxElements = document.querySelectorAll('.parallaxCollage .pc-flyer-img, .parallaxCollage .pc-layer-img, .parallaxCollage .pc-stars-img');
-        parallaxElements.forEach(element => {
-        observer.observe(element);
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const highQualitySrc = img.dataset.src;
+          img.src = highQualitySrc;
+          img.onload = () => {
+            img.removeAttribute('data-src');
+            img.classList.add('loaded'); // Add a 'loaded' class after the image is loaded
+          };
+          observer.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.5,
+      rootMargin: '200px' // Adjust the value to load the content slightly earlier
     });
-
-    // Applying the parallax effect on scroll to elements that have the `active-parallax` class
-    document.addEventListener('scroll', () => {
-        document.querySelectorAll('.active-parallax').forEach(element => {
-            // Using data-speed attribute to control the rate of parallax effect
-            const speed = parseFloat(element.getAttribute('data-speed'));
-            const yPos = ((window.scrollY - element.getBoundingClientRect().top) * speed);
-            element.style.transform = `translateY(${yPos}px)`;
-        });
+  
+    document.querySelectorAll('img[data-src]').forEach(img => {
+      observer.observe(img);
     });
-});
+  
+    const applyParallaxEffect = (element) => {
+      // Apply the parallax effect only if the image is loaded
+      if (element.classList.contains('loaded')) {
+        const speed = parseFloat(element.getAttribute('data-speed'));
+        const yPos = -(window.scrollY - element.getBoundingClientRect().top) * speed;
+        element.style.transform = `translateY(${yPos}px)`;
+      }
+    };
+  
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.parallaxCollage .pc-layer-img, .parallaxCollage .pc-stars-img, .parallaxCollage .pc-flyer-img').forEach(applyParallaxEffect);
+    });
+  });
