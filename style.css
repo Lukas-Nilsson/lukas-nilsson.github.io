@@ -48,8 +48,6 @@ header h1 {
     width: 100vw;
     height: 1000px;
     margin-left: 0px;
-    border-top: 2px solid red;
-    border-bottom: 2px solid red;
     z-index: -1;
 }
 
@@ -234,8 +232,7 @@ body {
     max-width: 1440px;
     margin-left: auto;
     margin-right: auto;
-    border-top: 5px solid #e600ff;
-    border-bottom: 5px solid #e600ff;
+
 }
 
 .pc-stars-img {
@@ -253,10 +250,7 @@ body {
     left: 0;
     will-change: transform;
     filter: drop-shadow(5px 5px 5px #222);
-
     filter: saturate(180%);
-  
-
 }
 
 .pc-flyer-img {
@@ -306,8 +300,7 @@ body {
 } */
 
 .pc3 {
-    height: 10000px;
-    border: 5px solid red;
+    height: 1000px;
 }
 
 /* GALLERY */
