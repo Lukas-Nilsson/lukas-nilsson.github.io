@@ -224,7 +224,23 @@ body {
 }
 
 /* MY PHILOSOPHY */
+.philosophy h1 {
+    text-align: justify;
+    font-size: 5vw;
+    line-height: 0.72;
+    color: #00ffff;
+}
 
+.philosophy h2 {
+    text-align: justify;
+    font-size: 5vw;
+    line-height: 0.715;
+    letter-spacing: 0.1vw;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: -0.5vw;
+    padding: 0;
+}
 /* PARRELAX COLLAGE */
 
 .parallaxCollage {
@@ -300,7 +316,7 @@ body {
 } */
 
 .pc3 {
-    height: 1000px;
+    height: 1500px;
 }
 
 /* GALLERY */
