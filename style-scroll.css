@@ -1,7 +1,6 @@
 
-.scroll-container, .welcome , .guide, .intro, .about {
-    width: 100vw;
-    height: 100vh;
+body {
+    scroll-snap-type: none;
 }
 
 .scroll-container {
@@ -9,8 +8,33 @@
     overflow-y: auto;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
+    scroll-snap-stop:normal;
+    height: 100vh;
+    width: 100vw;
+
 }
 
-.welcome , .guide , .intro, .about {
-scroll-snap-align: start;
+.no-scroll-container {
+    height: 400vh;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    scroll-snap-type: y mandatory;
+}
+
+
+.welcome,
+.guide,
+.intro,
+.about,
+.contact {
+    scroll-snap-align: start;
+}
+
+.no-scroll-container {
+    scroll-snap-align: start;
+    scroll-behavior: smooth;
+    top: -2000px;
+    padding-top: 2000px;
+    /* position: sticky; */
 }
