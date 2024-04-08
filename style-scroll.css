@@ -1,0 +1,16 @@
+
+.scroll-container, .welcome , .guide, .intro, .about {
+    width: 100vw;
+    height: 100vh;
+}
+
+.scroll-container {
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+.welcome , .guide , .intro, .about {
+scroll-snap-align: start;
+}

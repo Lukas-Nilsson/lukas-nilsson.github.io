@@ -1,0 +1,253 @@
+
+
+
+.caveat-font {
+  font-family: "Caveat", cursive;
+  font-optical-sizing: auto;
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* BODY */
+
+body {
+    overflow: hidden;
+}
+
+/* HEADER */
+
+header {
+    position: -webkit-sticky; /* Safari */
+    position: sticky;
+    top: 0;
+    height: 100px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    z-index: 1000;
+    /* ADD FADE IN ANIMATION */
+}
+
+.header-left {
+    margin: 10px;
+    
+}
+
+.header-left-gif {
+    width: 100px;
+    height: 100px;
+    opacity: 80%;
+}
+
+.header-right {
+    margin: 10px;
+}
+
+.header-right-img {
+    width: 100px;
+    height: 100px;
+}
+
+/* WELCOME */
+
+.welcome {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    scroll-snap-align: start;
+
+    /* ADD FADE IN ANIMATION */
+
+}
+
+.welcome h1 {
+
+}
+
+.welcome-scroll-gif {
+    width: 100px;
+    height: auto;
+    
+}
+
+
+/* GUIDE */
+
+.guide {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    left: 0;
+    top: -100px;
+    z-index: 2;
+    scroll-snap-align: start;
+}
+
+.guide h3 {
+    z-index: 2;
+
+}
+
+.guide h4 {
+    z-index: 2;
+
+}
+
+
+
+/* INTRO */
+
+.intro {
+    position: relative;
+    width: 100vw;
+    height: 110vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+.intro-background {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    left: 0;
+    top: 0;
+    justify-content:space-between; 
+}
+
+.intro-background-backdrop img{
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    left: 0;
+    top: 0;
+    margin-left: auto;
+    margin-right: auto;
+
+}
+
+.intro-background-profile img{
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    left: 0;
+    top: 0;
+    margin-left: auto;
+    margin-right: auto;
+
+}
+
+.intro-foreground {
+    position: absolute;
+    top: 30vh;
+    width: 100vw;
+    height: 50vh;
+    bottom: 10vh;
+    margin-left: auto;
+    margin-right: auto;
+
+}
+
+.intro-foreground h1 {
+    font-size: 5vw;
+    filter: blur(0px);
+    color: #1586D1;
+    text-align: center;
+}
+
+.intro-foreground h2 {
+    font-size: 5vw;
+    filter: blur(0px);
+    color: #1586D1;
+    text-align: center;
+
+}
+
+/* ABOUT */
+
+.about {
+    position: relative;
+    margin-left: 0px;
+    width: 100vw;
+    height: 100vw;
+    align-items: center;
+    color: #000;
+}
+
+
+
+.about h1 {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 5vw;
+    line-height: 0.72;
+    color: #1586D1;
+}
+
+.about h2 {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    filter: drop-shadow(1px 1px 1px #222);
+}
+
+
+
+/* PHILOSOPHY */
+.philosophy {
+    height: 100vh;
+
+}
+
+.philosophy h1 {
+    text-align: justify;
+    font-size: 5vw;
+    line-height: 0.72;
+    color: #00ffff;
+}
+
+.philosophy h2 {
+    text-align: justify;
+    font-size: 5vw;
+    line-height: 0.715;
+    letter-spacing: 0.1vw;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: -0.5vw;
+    padding: 0;
+}
+
+.pc3 {
+    height: 1500px;
+}
+
+/* TRANSITION */
+
+/* TIMELINE */
+
+/* CONCLUSION */
+
+/* CONTACT */
+
+/* FOOTER */
+
+
+
+
