@@ -26,30 +26,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   });
 
-  let snapDivTop = document.querySelector('.no-scroll-container').getBoundingClientRect().top;
-  let snapDivBottom = document.querySelector('.no-scroll-container').getBoundingClientRect().bottom;
+  // let snapDivTop = document.querySelector('.no-scroll-container').getBoundingClientRect().top;
+  // let snapDivBottom = document.querySelector('.no-scroll-container').getBoundingClientRect().bottom;
   
-  let lastScrollTop = window.scrollY;
-  let ticking = false;
+  // let lastScrollTop = window.scrollY;
+  // let ticking = false;
   
-  window.addEventListener('scroll', () => {
-    lastScrollTop = window.scrollY;
+  // window.addEventListener('scroll', () => {
+  //   lastScrollTop = window.scrollY;
   
-    if (!ticking) {
-      window.requestAnimationFrame(() => {
-        updateScrollPosition();
-        ticking = false;
-      });
-      ticking = true;
-    }
-  });
+  //   if (!ticking) {
+  //     window.requestAnimationFrame(() => {
+  //       updateScrollPosition();
+  //       ticking = false;
+  //     });
+  //     ticking = true;
+  //   }
+  // });
   
-  function updateScrollPosition() {
-    let scrollTop = lastScrollTop;
-    let scrollHeight = document.documentElement.scrollHeight;
-    let windowHeight = window.innerHeight;
+  // function updateScrollPosition() {
+  //   let scrollTop = lastScrollTop;
+  //   let scrollHeight = document.documentElement.scrollHeight;
+  //   let windowHeight = window.innerHeight;
   
-    if (scrollTop < snapDivTop || scrollTop + windowHeight >= snapDivBottom) {
-      window.scrollTo(0, scrollTop + ((scrollHeight - snapDivBottom + windowHeight) * (scrollTop - snapDivTop) / (windowHeight - snapDivTop)));
-    }
-  }
+  //   if (scrollTop < snapDivTop || scrollTop + windowHeight >= snapDivBottom) {
+  //     window.scrollTo(0, scrollTop + ((scrollHeight - snapDivBottom + windowHeight) * (scrollTop - snapDivTop) / (windowHeight - snapDivTop)));
+  //   }
+  // }
