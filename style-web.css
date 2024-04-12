@@ -1,5 +1,5 @@
 
-/* FONT */
+/* FONT DEFAULTS */
 
 .caveat-font {
   font-family: "Caveat", cursive;
@@ -8,12 +8,41 @@
   font-style: normal;
 }
 
+h1 {
+    font-size: 5em;
+    color: white;
+}
+
+h1, h2 {
+
+  }
+  
+    
+  .h2 {
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+  }
+
 /* BODY */
 
 body {
-    width: 100vw;
-    margin: 0;
-    padding: 0;
+    height: 100%;
+    background-color: black;
+}
+
+.scroll-container {
+
+}
+
+.stars {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    min-width: 100vw;
+    max-height: 300vh;
 }
 
 /* HEADER */
@@ -24,6 +53,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     top: 0;
     height: 120px;
     padding: 10;
@@ -55,33 +85,209 @@ header {
 /* WELCOME */
 
 .welcome {
-    height: 100vh;
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+
+    height: 100vh;
+    width: 100vw;
     padding: 0;
-    margin: 0;
+    margin-top: -120;
+
     scroll-snap-align: start;
     /* ADD FADE IN ANIMATION */
+    /* border: 5px solid blue; */
+
 }
 
-.welcome h1 {
-    font-size: 10em;
+.earth {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+    padding: 0;
+
+    scroll-snap-align: start;
+    /* ADD FADE IN ANIMATION */
+    border-bottom: 50px solid linear-gradient(rgba(255,255,255,0.1),rgba(255,255,255,0));
+    ;
+}
+
+.earth-img {
+    position: absolute;
+    height: 100vh;
+    top: 0;
+}
+
+.earth h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
     z-index: 200;
-    color: #000000;
-    padding-top: 20vh;
-    padding-bottom: 15vh;
+
+    font-size: 10em;
+    color: white;
+
+}
+
+.earth h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+}
+
+.clouds {
+    position: relative;
+    height: 60vh;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: -10vh;
+    /* ADD FADE IN ANIMATION */
+    /* border: 5px solid rgb(255, 0, 230); */
+
+}
+
+
+.clouds-bg {
+    position: absolute;
+    width: 100vw;
+    min-height: 400px;
+
+    height: auto;
+    bottom: -100px;
+    left: 0;
+}
+
+.clouds-fg {
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    min-height: 400px;
+    bottom: 0px;
+    left: 0;
+}
+
+.clouds-front {
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    min-height: 400px;
+    bottom: -400px;
+    left: 0;
+}
+
+.moon-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.uluru {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+    scroll-snap-align: start;
+    /* ADD FADE IN ANIMATION */
+    border: 5px solid blue;
+}
+
+
+
+.uluru-bg-img {
+    position: absolute;
+    top: 0;
+    height: 100vh;
+    min-width: 100vw;
+}
+
+
+.uluru-fg-img {
+    top: 0;
+    position: absolute;
+    height: 100vh;
+    min-width: 100vw;
+}
+
+.uluru h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.uluru h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
+
+
+
+
+
+
+.welcome h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
 }
 
 .welcome h2 {
+    position: absolute;
+    top: 50vh;
+
     font-size: 3em;
     z-index: 200;
-    color: #00ccff;
-    padding-top: 20vh;
+    color: white;
+
+
 }
 
 .welcome-scroll-gif {
+    position: absolute;
+    top: 70vh;
+
     width: 100px;
     height: auto;
 }
@@ -97,10 +303,11 @@ header {
     justify-content: center;
     align-items: center;
     padding: 0;
-    margin-top: -120px;
     left: 0;
     top: 0;
     scroll-snap-align: start;
+    border: 5px solid red;
+
 }
 
 .guide h3 {
@@ -127,24 +334,16 @@ header {
     align-items: center;
     padding: 0;
     margin: 0;
+    scroll-snap-align: start;
+
 }
 
-/* .intro-background {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    left: 0;
-    top: 0;
-    justify-content:space-between; 
-} */
 
 .intro-background-backdrop img{
     position: absolute;
-    height: auto;
     left: 0;
     top: 0;
-    height: auto;
-    width: 100vw;
+    width: 0vw;
 }
 
 .intro-background-profile img{
@@ -159,7 +358,7 @@ header {
 .intro h1 {
     z-index: 2;
 }
-/* .intro-foreground {
+.intro-foreground {
     position: absolute;
     flex-direction: column;
     justify-content: center;
@@ -180,8 +379,7 @@ header {
     font-size: 5vw;
     color: #1586D1;
     text-align: center;
-
-} */
+}
 
 /* ABOUT */
 
@@ -192,6 +390,8 @@ header {
     height: 100vw;
     align-items: center;
     color: #000;
+    scroll-snap-align: start;
+
 }
 
 

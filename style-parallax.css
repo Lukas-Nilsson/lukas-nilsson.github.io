@@ -1,65 +1,91 @@
 /* DEFAULTS */
 
 
-h1, h2 {
-    font-weight: 100;
-    margin: 0;
-  }
-  
-  h1 {
-      font-size: 5em;
-      transform: translateZ(0.2px) scale(0.8);
-      z-index: 200;
-      color: #000000;
-  }
-  
-  .h2 {
-    font-size: 3em;
-    transform: translateZ(0.2px) scale(0.8);
-    z-index: 200;
-    color: #000000;
-
-  }
-
-
 /* BODY */
 
 body {
     font-family: Caveat;
     font-weight: 100;
     line-height: 1;
-    
   }
   
 
-    /* HEADER */
+    /* TEST */
+
+    
+.space {
+
+}
+
+.sun {
+    transform: translateZ(-3px) scale(3.5);
+
+}
+
+.earth {
+    z-index: 1;
+}
+
+.earth-img {
+    transform: translateZ(-1px) scale(2);
+}
+
+
+.clouds {
+    z-index: 3;
+}
+
+.clouds-bg {
+
+}
+
+.clouds-fg {
+    transform: translateZ(0.3px) scale(1.1);
+
+}
+
+.clouds-front {
+    transform: translateZ(0.5px) scale(0.6);
+}
+
+.moon-img {
+    transform: translateZ(-1px) scale(1);
+    z-index: 2;
+
+}
+
+.uluru {
+    z-index: 2;
+
+}
+
+.uluru-bg-img {
+    z-index: -3;
+
+
+}
+
+
+.uluru-fg-img {
+    z-index: 3;
+}
+
+
+
+
+
 
     /* WELCOME */
 
 .welcome h1 {
-    font-size: 10em;
-    transform: translateZ(-2.4px) scale(3.9);
-    z-index: 200;
-    color: #000000;
-    padding-top: 20vh;
-    padding-bottom: 15vh;
+
 }
 
-      
 .welcome h2 {
-font-size: 3em;
-transform: translateZ(-1px) scale(1.5);
-z-index: 200;
-color: #00ccff;
-padding-top: 20vh;
 
 }
 
 .welcome img {
-transform: translateZ(-1px) scale(1.5);
-z-index: 200;
-color: #000000;
-padding-top: 5vh;
 
 }
 
@@ -80,18 +106,22 @@ padding-top: 5vh;
  /* INTRO */
 
  .intro {
+    position: absolute;
+    height: 100vh;
     margin: 0;
 }
 
  .intro-background-backdrop img{
-    transform: translateZ(-0.9px) scale(1);
+    position: relative;
+
     z-index: -400;
     top: 0px;
     left: 0px;
 }
 
 .intro-background-profile img{
-    transform: translateZ(-0.7px) scale(1.1);
+    position: relative;
+
     z-index: -400;
     top: 0px;
     left: 0px;
@@ -101,12 +131,10 @@ padding-top: 5vh;
 }
 
 .intro-foreground h1 {
-    transform: translateZ(0.5px) scale(1);
 
 }
 
 .intro-foreground h2 {
-    transform: translateZ(0.3px) scale(0.8);
     margin-top: 15vh;
 
 }
@@ -125,6 +153,7 @@ padding-top: 5vh;
     border: 1px solid rgba(255,255,255,0.1);
     box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
   }
+  /*
 .words-1 h2 {
     font-size: 3vw;
     letter-spacing: 0.2vw;
@@ -514,7 +543,7 @@ padding-top: 5vh;
 }
 
 
-
+*/
 
 /* PARRELAX COLLAGE */
 
@@ -547,6 +576,8 @@ padding-top: 5vh;
     transform: translateZ(-2px) scale(3);
 
 } 
+
+/*
 
 .pc-1-1 img {
     position: absolute;
@@ -711,7 +742,7 @@ padding-top: 5vh;
     left: 0;
     transform: translateZ(-0.2px) scale(1.2);
   }
-
+*/
 
 /* 
 .parallax-container :nth-child(1) {

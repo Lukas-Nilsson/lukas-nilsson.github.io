@@ -1,16 +1,11 @@
 
 body {
-    scroll-snap-type: none;
 }
 
 .scroll-container {
-    overflow-x: hidden;
-    overflow-y: auto;
+height: 100vh;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
-    scroll-snap-stop:normal;
-
-
 }
 
 .no-scroll-container {
@@ -21,16 +16,16 @@ body {
 
 
 .welcome,
-.guide,
-.intro,
+.earth,
+.uluru,
 .about,
+.philosophy,
+.transition,
+.timeline,
+.conclusion,
 .contact {
-    scroll-snap-align: start;
+    align-items: center;
+    height: 100vh;
+    scroll-snap-align: end;
 }
 
-.no-scroll-container {
-    scroll-snap-align: start;
-    scroll-behavior: smooth;
-
-    /* position: sticky; */
-}

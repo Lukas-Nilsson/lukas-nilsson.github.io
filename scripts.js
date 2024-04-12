@@ -53,3 +53,10 @@
   //     window.scrollTo(0, scrollTop + ((scrollHeight - snapDivBottom + windowHeight) * (scrollTop - snapDivTop) / (windowHeight - snapDivTop)));
   //   }
   // }
+
+
+  // window.addEventListener("scroll", function() {
+  //   var scroll = window.scrollY;
+  //   var speed = 3; // greater than 1 to scroll faster than page scroll
+  //   document.getElementById("moon").style.top = -(scroll * speed) + "px";
+  // });
