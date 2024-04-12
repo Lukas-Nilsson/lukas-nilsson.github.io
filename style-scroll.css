@@ -3,29 +3,34 @@ body {
 }
 
 .scroll-container {
-height: 100vh;
+    height: 100vh;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
 }
 
-.no-scroll-container {
+/* .no-scroll-container {
     margin: 0;
     padding: 0;
     scroll-snap-type: y mandatory;
-}
+} */
 
 
 .welcome,
 .earth,
-.uluru,
-.about,
-.philosophy,
 .transition,
 .timeline,
 .conclusion,
 .contact {
     align-items: center;
     height: 100vh;
-    scroll-snap-align: end;
+    scroll-snap-align: start;
 }
 
+
+.clouds {
+    scroll-snap-align: center;
+}
+
+.uluru {
+    scroll-snap-align: end;
+}

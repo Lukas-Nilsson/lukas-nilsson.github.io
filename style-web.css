@@ -96,7 +96,6 @@ header {
     padding: 0;
     margin-top: -120;
 
-    scroll-snap-align: start;
     /* ADD FADE IN ANIMATION */
     /* border: 5px solid blue; */
 
@@ -112,7 +111,6 @@ header {
     height: 100vh;
     padding: 0;
 
-    scroll-snap-align: start;
     /* ADD FADE IN ANIMATION */
     border-bottom: 50px solid linear-gradient(rgba(255,255,255,0.1),rgba(255,255,255,0));
     ;
@@ -164,7 +162,6 @@ header {
     position: absolute;
     width: 100vw;
     min-height: 400px;
-
     height: auto;
     bottom: -100px;
     left: 0;
@@ -190,23 +187,21 @@ header {
 
 .moon-img {
     position: absolute;
-    top: 50%;
+    /* top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%); */
 }
 
 .uluru {
-    position: absolute;
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-
-    height: 100vh;
+    height: 120vh;
     min-width: 100vw;
     padding: 0;
 
-    scroll-snap-align: start;
     /* ADD FADE IN ANIMATION */
     border: 5px solid blue;
 }
@@ -216,17 +211,12 @@ header {
 .uluru-bg-img {
     position: absolute;
     top: 0;
-    height: 100vh;
+    height: 120vh;
     min-width: 100vw;
 }
 
 
-.uluru-fg-img {
-    top: 0;
-    position: absolute;
-    height: 100vh;
-    min-width: 100vw;
-}
+
 
 .uluru h1 {
     position: absolute;
@@ -255,8 +245,96 @@ header {
 
 
 
+.bush {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 0;
+    min-width: 100vw;
+    padding: 0;
+
+    /* ADD FADE IN ANIMATION */
+    border: 5px solid orange;
+    background-color: white;
+    z-index: 4;
+}
+
+.bush-bg-img {
+    position: absolute;
+    bottom: -30vh;
+    height: auto;
+    min-width: 100vw;
+}
 
 
+.bush h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.bush h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
+
+
+.bush {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+    /* ADD FADE IN ANIMATION */
+    border: 5px solid green;
+}
+
+.bush h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.bush h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
 
 .welcome h1 {
     position: absolute;
@@ -305,7 +383,6 @@ header {
     padding: 0;
     left: 0;
     top: 0;
-    scroll-snap-align: start;
     border: 5px solid red;
 
 }
@@ -334,7 +411,6 @@ header {
     align-items: center;
     padding: 0;
     margin: 0;
-    scroll-snap-align: start;
 
 }
 
@@ -390,7 +466,6 @@ header {
     height: 100vw;
     align-items: center;
     color: #000;
-    scroll-snap-align: start;
 
 }
 

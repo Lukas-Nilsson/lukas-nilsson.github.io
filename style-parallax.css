@@ -70,7 +70,10 @@ body {
     z-index: 3;
 }
 
+.bush-bg-img {
+    transform: translateZ(0.5px) scale(0.6);
 
+}
 
 
 
