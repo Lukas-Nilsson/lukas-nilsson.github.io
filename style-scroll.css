@@ -17,6 +17,8 @@ body {
 
 .welcome,
 .earth,
+.bush,
+.me,
 .transition,
 .timeline,
 .conclusion,
@@ -24,11 +26,6 @@ body {
     align-items: center;
     height: 100vh;
     scroll-snap-align: start;
-}
-
-
-.clouds {
-    scroll-snap-align: center;
 }
 
 .uluru {

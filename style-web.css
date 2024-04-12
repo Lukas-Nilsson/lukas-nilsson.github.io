@@ -101,6 +101,41 @@ header {
 
 }
 
+.welcome h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.welcome h2 {
+    position: absolute;
+    top: 50vh;
+
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
+
+.welcome-scroll-gif {
+    position: absolute;
+    top: 70vh;
+
+    width: 100px;
+    height: auto;
+}
+
+
 .earth {
     position: relative;
     display: flex;
@@ -151,7 +186,7 @@ header {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin-bottom: -10vh;
+    margin-bottom: 0;
     /* ADD FADE IN ANIMATION */
     /* border: 5px solid rgb(255, 0, 230); */
 
@@ -163,7 +198,7 @@ header {
     width: 100vw;
     min-height: 400px;
     height: auto;
-    bottom: -100px;
+    bottom: 10vh;
     left: 0;
 }
 
@@ -172,7 +207,7 @@ header {
     width: 100vw;
     height: auto;
     min-height: 400px;
-    bottom: 0px;
+    bottom: 10vh;
     left: 0;
 }
 
@@ -181,7 +216,7 @@ header {
     width: 100vw;
     height: auto;
     min-height: 400px;
-    bottom: -400px;
+    bottom: -20vh;
     left: 0;
 }
 
@@ -198,24 +233,21 @@ header {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 120vh;
+    height: 100vh;
     min-width: 100vw;
     padding: 0;
 
     /* ADD FADE IN ANIMATION */
-    border: 5px solid blue;
 }
 
 
 
 .uluru-bg-img {
     position: absolute;
-    top: 0;
+    top: -20vh;
     height: 120vh;
     min-width: 100vw;
 }
-
-
 
 
 .uluru h1 {
@@ -252,69 +284,33 @@ header {
     justify-content: center;
     align-items: center;
 
-    height: 0;
-    min-width: 100vw;
-    padding: 0;
-
-    /* ADD FADE IN ANIMATION */
-    border: 5px solid orange;
-    background-color: white;
-    z-index: 4;
-}
-
-.bush-bg-img {
-    position: absolute;
-    bottom: -30vh;
-    height: auto;
-    min-width: 100vw;
-}
-
-
-.bush h1 {
-    position: absolute;
-    top: 30vh;
-    height: auto;    
-    width: auto;
-    text-align: center;
-
-    z-index: 200;
-
-    font-size: 10em;
-    color: white;
-
-
-}
-
-.bush h2 {
-    position: absolute;
-    top: 50vh;
-    font-size: 3em;
-    z-index: 200;
-    color: white;
-
-
-}
-
-
-.bush {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-
     height: 100vh;
     min-width: 100vw;
     padding: 0;
 
     /* ADD FADE IN ANIMATION */
-    border: 5px solid green;
+    z-index: 4;
 }
+
+.bush-bg-img {
+    position: absolute;
+    top: -25vh;
+    height: auto;
+    width: 100vw;
+}
+
+.bush-fg-img {
+    position: absolute;
+    top: -15vh;
+    height: auto;
+    width: 100vw;
+}
+
 
 .bush h1 {
     position: absolute;
-    top: 30vh;
-    height: auto;    
+    top: 0;
+    height: 100vh;    
     width: auto;
     text-align: center;
 
@@ -336,12 +332,26 @@ header {
 
 }
 
-.welcome h1 {
+
+/* .me {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+
+} */
+
+.me h1 {
     position: absolute;
-    top: 30vh;
     height: auto;    
     width: auto;
     text-align: center;
+    height: 100vh;
 
     z-index: 200;
 
@@ -351,10 +361,9 @@ header {
 
 }
 
-.welcome h2 {
+.me h2 {
     position: absolute;
     top: 50vh;
-
     font-size: 3em;
     z-index: 200;
     color: white;
@@ -362,13 +371,7 @@ header {
 
 }
 
-.welcome-scroll-gif {
-    position: absolute;
-    top: 70vh;
 
-    width: 100px;
-    height: auto;
-}
 
 
 /* GUIDE */
@@ -401,7 +404,7 @@ header {
 
 /* INTRO */
 
-.intro {
+.me {
     position: relative;
     height: 100vh;
     width: 100vw;
@@ -411,30 +414,10 @@ header {
     align-items: center;
     padding: 0;
     margin: 0;
-
+    z-index: 5;
 }
 
-
-.intro-background-backdrop img{
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 0vw;
-}
-
-.intro-background-profile img{
-    position: absolute;
-    height: auto;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    width: 100vw;
-}
-
-.intro h1 {
-    z-index: 2;
-}
-.intro-foreground {
+.me-background-backdrop {
     position: absolute;
     flex-direction: column;
     justify-content: center;
@@ -442,16 +425,49 @@ header {
     top: 0;
     left: 0;
     height: 100vh;
+    width: 100vw;
 
 }
 
-.intro-foreground h1 {
+.me-background-backdrop img{
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: 100vw;
+
+}
+
+.me-foreground img{
+    position: absolute;
+    height: auto;
+    bottom: 0;
+    left: 25vw;
+    height: auto;
+    width: 50vw;
+
+}
+
+.me h1 {
+    z-index: 2;
+}
+.me-foreground {
+    position: absolute;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    height: 100vh;
+}
+
+.me-foreground h1 {
     font-size: 5vw;    
     color: #1586D1;
     text-align: center;
 }
 
-.intro-foreground h2 {
+.me-foreground h2 {
     font-size: 5vw;
     color: #1586D1;
     text-align: center;

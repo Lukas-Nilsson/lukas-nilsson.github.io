@@ -71,10 +71,14 @@ body {
 }
 
 .bush-bg-img {
-    transform: translateZ(0.5px) scale(0.6);
+    transform: translateZ(0.1px) scale(1);
 
 }
 
+.bush-fg-img {
+    transform: translateZ(0.2px) scale(0.85);
+
+}
 
 
 
@@ -106,38 +110,33 @@ body {
     box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
     } 
 
- /* INTRO */
+ /* ME */
 
- .intro {
-    position: absolute;
-    height: 100vh;
-    margin: 0;
+
+
+ .me-background-img {
+    /* transform: translateZ(0.0px) scale(0.2); */
+ }
+
+.me-foreground-img {
+    /* transform: translateZ(0.01px) scale(0.8); */
 }
 
- .intro-background-backdrop img{
-    position: relative;
-
-    z-index: -400;
-    top: 0px;
-    left: 0px;
+.me-background-backdrop {
+        z-index: -1;
 }
 
-.intro-background-profile img{
-    position: relative;
 
-    z-index: -400;
-    top: 0px;
-    left: 0px;
-}
-
-.intro-foreground {
-}
-
-.intro-foreground h1 {
+.me-foreground {
+    z-index: 4;
 
 }
 
-.intro-foreground h2 {
+.me-foreground h1 {
+
+}
+
+.me-foreground h2 {
     margin-top: 15vh;
 
 }
