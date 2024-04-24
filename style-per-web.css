@@ -1,0 +1,759 @@
+
+/* FONT DEFAULTS */
+
+.caveat-font {
+  font-family: "Caveat", cursive;
+  font-optical-sizing: auto;
+  font-weight: normal;
+  font-style: normal;
+}
+
+h1 {
+    font-size: 5em;
+    color: white;
+}
+
+h1, h2 {
+
+  }
+  
+    
+.h2 {
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+  }
+
+/* BODY */
+
+body {
+    height: 100%;
+    background-color: black;
+}
+
+.scroll-container {
+
+}
+
+.stars {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    min-width: 100vw;
+    max-height: 300vh;
+}
+
+/* HEADER */
+
+header {
+    /* position: -webkit-sticky; Safari */
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    justify-content:end;
+    align-items: center;
+    width: 100vw;
+    z-index: 1000;
+    /* ADD FADE IN ANIMATION */
+}
+
+.header-left {
+    margin: 10px;
+}
+
+.header-left-gif {
+    width: 100px;
+    height: 100px;
+    opacity: 80%;
+}
+
+.header-right {
+    margin: 10px;
+}
+
+.header-right-img {
+    width: 100px;
+    height: 100px;
+    opacity: 80%;
+}
+
+.main-nav {
+    overflow: hidden;
+    position: relative;
+    align-self: center;
+    align-items: center;
+    /* background-color: rgb(255, 255, 255); */
+    z-index: 1; /* Optional - To ensure your nav stays above all other elements */
+    
+}
+
+/* Navbar links */
+.main-nav a {
+    float: left;
+    display: block;
+    color: #ffffff;
+    text-align: center;
+    font-size: 2em;
+    text-decoration: none;
+    padding-left: 50px;
+    padding-right: 50px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    /* box-shadow: rgba(0, 0, 0, 0.07) 0px 1px 1px, rgba(0, 0, 0, 0.07) 0px 2px 2px, rgba(0, 0, 0, 0.07) 0px 4px 4px, rgba(0, 0, 0, 0.07) 0px 8px 8px, rgba(0, 0, 0, 0.07) 0px 16px 16px;    margin: 40px;
+    border-radius: 50px; */
+  }
+
+ul {
+    position: relative;
+    list-style-type: none;
+    display: inline;
+    margin-left: auto; 
+    margin-right: auto; 
+    padding: 0;
+}
+
+li {
+    float: left;
+
+
+}
+
+/* WELCOME */
+
+.welcome {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    
+    height: 100vh;
+    width: 100vw;
+    padding-top: 0px;
+    /* background-color: rgb(255, 255, 255); */
+    /* background-image: linear-gradient(to bottom, rgb(255, 255, 255), rgba(255, 255, 255), rgba(255, 255, 255, 0)); */
+    z-index: 200;
+    /* ADD FADE IN ANIMATION */
+    /* border: 5px solid blue; */
+
+}
+
+/* .left-rectangle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 10vw;
+    background-image: linear-gradient(to bottom, rgb(255, 255, 255),rgb(255, 255, 255), rgba(255, 255, 255, 0));
+}
+
+
+.right-rectangle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    width: 10vw;
+    background-image: linear-gradient(to bottom, rgb(255, 255, 255),rgb(255, 255, 255), rgba(255, 255, 255, 0));
+} */
+
+.center-rectangle {
+    position: absolute;
+    top: 0;
+    height: 100vh;
+    width: 100vw;
+    background-image: linear-gradient(to bottom, rgb(0, 0, 0), rgb(0, 0, 0), rgba(0, 0, 0, 0));
+    /* border-radius: 5px; */
+}
+.center-rectangle img {
+    position: absolute;
+    top: 0;
+    width: 100vw;
+    height: 110vh;
+    min-height: 1000px;
+    min-width: 1000px;
+
+    /* border-radius: 5px; */
+}
+.center-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 50vw;
+    background-color: rgb(20, 101, 40);
+    /* border-radius: 5px; */
+
+}
+
+.center-left-1 {
+    position: absolute;
+    left: 10vw;
+    top: 20vh;
+    height: 40vh;
+    width: 40vw;
+    background-color: rgb(0, 0, 0);
+    /* border-radius: 5px; */
+
+
+}
+
+.center-left-1 h3{
+    position: absolute;
+    top: 0;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 5em;
+    color: rgb(255, 255, 255); 
+}
+
+.center-right {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    width: 50vw;
+    background-color: rgb(205, 123, 41);
+    /* border-radius: 5px; */
+
+}
+
+.center-right img{
+    position: absolute;
+    bottom: 0px;
+    left: 0;
+    margin-top: auto;
+    width: auto;
+    height: 40vh;
+
+
+    /* border-radius: 5px; */
+
+}
+
+.welcome h1 {
+    position: absolute;
+    top: 50vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 5em;
+    color: rgb(255, 255, 255);
+
+
+}
+
+.welcome h2 {
+    position: absolute;
+    top: 50vh;
+
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+    padding: 100px;
+
+
+}
+
+.welcome-scroll-gif {
+    position: absolute;
+    top: 70vh;
+    width: 100px;
+    height: auto;
+    z-index: 3000;
+}
+
+.sun {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    
+    height: 100vh;
+    width: 100vw;
+    padding: 0;
+    margin-top: -120;
+    /* ADD FADE IN ANIMATION */
+    /* border: 5px solid blue; */
+
+}
+
+
+.sun h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.sun h2 {
+    position: absolute;
+    top: 50vh;
+
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+    padding: 100px;
+
+
+}
+
+.earth {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+    padding: 0;
+
+    /* ADD FADE IN ANIMATION */
+    border-bottom: 50px solid linear-gradient(rgba(255,255,255,0.1),rgba(255,255,255,0));
+    ;
+}
+
+.earth-img {
+    position: absolute;
+    height: 100vh;
+    top: 0;
+}
+
+.earth h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+}
+
+.earth h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+    padding: 100px;
+
+}
+
+.clouds {
+    position: relative;
+    height: 60vh;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0;
+    /* ADD FADE IN ANIMATION */
+    /* border: 5px solid rgb(255, 0, 230); */
+
+}
+
+
+.clouds-bg {
+    position: absolute;
+    width: 100vw;
+    min-height: 400px;
+    height: auto;
+    bottom: 10vh;
+    left: 0;
+}
+
+.clouds-fg {
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    min-height: 400px;
+    bottom: 10vh;
+    left: 0;
+}
+
+.clouds-front {
+    position: absolute;
+    width: 100vw;
+    height: auto;
+    min-height: 400px;
+    bottom: -20vh;
+    left: 0;
+}
+
+.moon-img {
+    position: absolute;
+    /* top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); */
+}
+
+.uluru {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+    /* ADD FADE IN ANIMATION */
+}
+
+
+
+.uluru-bg-img {
+    position: absolute;
+    top: -20vh;
+    height: 120vh;
+    min-width: 100vw;
+}
+
+
+.uluru h1 {
+    position: absolute;
+    top: 30vh;
+    height: auto;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.uluru h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+    padding: 100px;
+
+
+}
+
+
+
+.bush {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+    /* ADD FADE IN ANIMATION */
+    z-index: 4;
+}
+
+.bush-bg-img {
+    position: absolute;
+    top: -25vh;
+    height: auto;
+    width: 100vw;
+}
+
+.bush-fg-img {
+    position: absolute;
+    top: -15vh;
+    height: auto;
+    width: 100vw;
+}
+
+
+.bush h1 {
+    position: absolute;
+    top: 0;
+    height: 100vh;    
+    width: auto;
+    text-align: center;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.bush h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
+
+
+/* .me {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    min-width: 100vw;
+    padding: 0;
+
+
+} */
+
+.me h1 {
+    position: absolute;
+    height: auto;    
+    width: auto;
+    text-align: center;
+    height: 100vh;
+
+    z-index: 200;
+
+    font-size: 10em;
+    color: white;
+
+
+}
+
+.me h2 {
+    position: absolute;
+    top: 50vh;
+    font-size: 3em;
+    z-index: 200;
+    color: white;
+
+
+}
+
+
+
+
+/* GUIDE */
+
+.guide {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    left: 0;
+    top: 0;
+    border: 5px solid red;
+
+}
+
+.guide h3 {
+    z-index: 2;
+
+}
+
+.guide h4 {
+    z-index: 2;
+
+}
+
+
+
+/* INTRO */
+
+.me {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    z-index: 5;
+}
+
+.me-background-backdrop {
+    position: absolute;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+
+}
+
+.me-background-backdrop img{
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: 100vw;
+
+}
+
+.me-foreground img{
+    position: absolute;
+    height: auto;
+    bottom: 0;
+    left: 25vw;
+    height: auto;
+    width: 50vw;
+
+}
+
+.me h1 {
+    z-index: 2;
+}
+.me-foreground {
+    position: absolute;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    height: 100vh;
+}
+
+.me-foreground h1 {
+    font-size: 5vw;    
+    color: #1586D1;
+    text-align: center;
+}
+
+.me-foreground h2 {
+    font-size: 5vw;
+    color: #1586D1;
+    text-align: center;
+}
+
+/* ABOUT */
+
+.about {
+    position: relative;
+    margin-left: 0px;
+    width: 100vw;
+    height: 100vw;
+    align-items: center;
+    color: #000;
+
+}
+
+
+
+.about h1 {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 5vw;
+    line-height: 0.72;
+    color: #1586D1;
+}
+
+.about h2 {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    filter: drop-shadow(1px 1px 1px #222);
+}
+
+
+
+/* PHILOSOPHY */
+.philosophy {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    /* height: 500vh; */
+    border: 5px solid green;
+
+}
+
+.philosophy h1 {
+    position: absolute;
+    text-align: center;
+    font-size: 5vw;
+    line-height: 0.72;
+    color: #00ffff;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.philosophy h2 {
+    position: absolute;
+    text-align: center;
+    font-size: 5vw;
+    line-height: 0.715;
+    letter-spacing: 0.1vw;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
+}
+
+.pc3 {
+    height: 1500px;
+}
+
+/* TRANSITION */
+.transition {
+    height: 100vh;
+    width: 100vw;
+
+}
+/* TIMELINE */
+.timeline {
+    height: 100vh;
+    width: 100vw;
+
+}
+/* CONCLUSION */
+.conclusion {
+    height: 100vh;
+    width: 100vw;
+
+}
+/* CONTACT */
+.contact {
+    height: 100vh;
+    width: 100vw;
+
+}
+/* FOOTER */
+
+
+
+

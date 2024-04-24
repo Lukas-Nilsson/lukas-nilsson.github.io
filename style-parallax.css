@@ -17,7 +17,7 @@ body {
 
 }
 
-.sun {
+.sun-img {
     transform: translateZ(-3px) scale(3.5);
 
 }

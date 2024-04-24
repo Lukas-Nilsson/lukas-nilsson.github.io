@@ -1,0 +1,198 @@
+
+/* FONT DEFAULTS */
+
+/* .caveat-font {
+    font-family: "Caveat", cursive;
+    font-optical-sizing: auto;
+    font-weight: normal;
+    font-style: normal;
+  } */
+  
+  h1 {
+      font-size: 5em;
+      color: rgb(0, 0, 0);
+  }
+  
+  h1, h2 {
+    font-family: Arial, Helvetica, sans-serif;
+    }
+    
+      
+  .h2 {
+      font-size: 3em;
+      z-index: 200;
+      color: rgb(0, 0, 0);
+    }
+  
+  /* BODY */
+  
+  body {
+    justify-content: center;
+    align-items: center;
+      width: 100vw;
+      height: 300px;
+      background-color:#3FFFFF;
+        margin: 0;
+    }
+  
+  header {
+    height: 10vh;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #a09cff;
+    z-index: 1000; /* Optional - To ensure your nav stays above all other elements */
+}
+
+
+.main-nav {
+    overflow: hidden;
+    position: relative;
+    align-self: center;
+    align-items: center;
+    /* background-color: rgb(255, 255, 255); */
+    z-index: 1; 
+    
+}
+
+/* Navbar links */
+.main-nav a {
+    float: left;
+    display: block;
+    color: #ffffff;
+    text-align: center;
+    font-size: 2em;
+    font-family: Arial, Helvetica, sans-serif;
+    text-decoration: none;
+    padding-left: 50px;
+    padding-right: 50px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    /* box-shadow: rgba(0, 0, 0, 0.07) 0px 1px 1px, rgba(0, 0, 0, 0.07) 0px 2px 2px, rgba(0, 0, 0, 0.07) 0px 4px 4px, rgba(0, 0, 0, 0.07) 0px 8px 8px, rgba(0, 0, 0, 0.07) 0px 16px 16px;    margin: 40px;
+    border-radius: 50px; */
+  }
+
+  ul {
+    position: relative;
+    list-style-type: none;
+    display: inline;
+    margin-left: auto; 
+    margin-right: auto; 
+    padding: 0;
+}
+
+li {
+    float: left;
+
+
+}
+
+  .hero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+  }
+
+  .hero-left {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    /* justify-content: center;
+    align-items: center; */
+    flex-direction: column;
+    padding-left: 100px;
+    height: 90vh;
+    width: 30vw;
+    /* border: 5px solid #000000; */
+  }
+
+  .hero-right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+    width: 55vw;
+    min-width: 700px;
+    border: 5px solid #ff5f5f;
+  }
+
+  .hero-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding-right: 10vw;
+    height: 90vh;
+  }
+
+  .hero-bubble {
+    position: absolute;
+    top: 25vh;
+    left: 21vh;
+    width: 30vh;
+    height: auto;
+    filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
+  }
+
+
+
+.bubbles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+    width: 60vw;
+    min-width: 700px;
+    z-index: 100;
+}
+
+.hero-anz, .hero-swift, .hero-python, .hero-jira, .hero-html, .hero-css, .hero-wordpress, .hero-github, .hero-gpt, .hero-aem, .hero-adobe-analytics, .hero-anaconda, .hero-figma {
+    position: absolute;
+    height: 150px;
+    width: 150px;
+    filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
+}
+
+/* 
+.hero-swift {
+    top: 20vh;
+    left: 20vw;
+
+} 
+.hero-python {
+    top: 5vh;
+    left: 20vw;
+} 
+.hero-jira {
+    top: 3vh;
+    left: 20vw;
+}
+
+.hero-html {
+    top: 5vh;
+    left: 20vw;
+}
+.hero-css {
+    top: 10vh;
+    left: 20vw;
+} 
+.hero-wordpress {
+    top: 20vh;
+    left: 20vw;
+}
+
+.hero-github {
+    top: 40vh;
+    left: 20vw;
+}
+.hero-gpt {
+    top: 60vh;
+    left: 20vw;
+} */

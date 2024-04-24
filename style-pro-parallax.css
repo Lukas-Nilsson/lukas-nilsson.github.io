@@ -1,0 +1,95 @@
+
+.scroll-container {
+    perspective: 10px;
+    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+.scroll-container, .hero, .hero-right, .bubbles {
+transform-style: preserve-3d;
+}
+
+
+.hero-anz {
+    top: 53vh;
+    left: 43vh;
+    transform: translateZ(1px) scale(1.2);
+}
+
+.hero-swift {
+    top: 18vh;
+    left: 10vh;
+    transform: translateZ(2px) scale(1);
+} 
+
+.hero-python {
+    top: 12vh;
+    left: 50vh;
+    transform: translateZ(-2px) scale(1);
+}
+
+
+.hero-jira {
+    top: 38vh;
+    left: 48vh;
+    transform: translateZ(1.7px) scale(1);
+}
+
+.hero-html {
+    top: 55vh;
+    left: 4vh;
+    transform: translateZ(0.5px) scale(1);
+}
+
+.hero-css {
+    top: 35vh;
+    left: 0vh;
+    transform: translateZ(1px) scale(1);
+} 
+
+.hero-wordpress {
+    top: 2vh;
+    left: 70vh;
+    transform: translateZ(-1.5px)scale(0.8);
+}
+
+.hero-github {
+    top: 22vh;
+    left: 43vh;
+    transform: translateZ(2.3px) scale(1.1);
+
+}
+.hero-gpt {
+    top: 10vh;
+    left: 30vh;
+    transform: translateZ(-2.6px)scale(1);
+
+}
+
+.hero-aem {
+    top: 13vh;
+    left: 27vh;
+    transform: translateZ(2px) scale(0.8);
+
+}
+
+.hero-adobe-analytics{
+    top: 20vh;
+    left: 10vh;
+    transform: translateZ(-0.8px) scale(1);
+}
+
+.hero-anaconda {
+    top: 25vh;
+    left: 62vh;
+    transform: translateZ(-3px) scale(0.7);
+
+}
+
+.hero-figma {
+    top: 62vh;
+    left: 58vh;
+    transform: translateZ(0.3px)scale(0.6);
+
+}
