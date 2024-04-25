@@ -9,7 +9,7 @@
   } */
   
   h1 {
-      font-size: 5em;
+      font-size: 3em;
       color: rgb(0, 0, 0);
   }
   
@@ -40,8 +40,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #a09cff;
-    z-index: 1000; /* Optional - To ensure your nav stays above all other elements */
+    background-color: #0066FF;
+    /* border-bottom: 10px solid #ffffff; */
+
 }
 
 
@@ -104,9 +105,69 @@ li {
     flex-direction: column;
     padding-left: 100px;
     height: 90vh;
-    width: 30vw;
+    width: 40vw;
     /* border: 5px solid #000000; */
   }
+
+
+.hero h1 {
+    padding-top: 60px;
+    padding-bottom: 0px;
+    margin: 0px;
+    font-size: 3em;
+    color: #0075be;
+}
+
+.hero p {
+    padding-top: 20px;
+    margin: 0px;
+    color: #0075be;
+    font-size: 2em;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+    display: inline;
+}
+
+.connect {
+    margin-top: 20vh;
+    height: 100px;
+    width: 400px;
+    display: flex;
+    background-color: #FF8E6D;
+    border-radius: 25px;
+    border-width: 0;
+    transition: 0.2s;
+    cursor: pointer; /*this is what you need*/
+}
+
+.connect:hover {
+    margin-top: 20vh;
+    height: 100px;
+    width: 420px;
+    display: flex;
+    background-color: #ff6e42;
+    border-radius: 25px;
+    border-width: 0;
+    cursor: pointer; /*this is what you need*/
+}
+
+.connect h1 {
+    padding-top: 0px;
+    font-size: 3em;
+    color: #0075be;
+    margin: auto;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight:bolder;
+    text-align: center;
+}
+
+.connect img {
+    height: 50px;
+    width: 50px;
+    margin: auto;
+}
 
   .hero-right {
     position: absolute;
@@ -116,9 +177,8 @@ li {
     justify-content: center;
     align-items: center;
     height: 90vh;
-    width: 55vw;
+    width: 45vw;
     min-width: 700px;
-    border: 5px solid #ff5f5f;
   }
 
   .hero-img {
@@ -155,44 +215,24 @@ li {
 
 .hero-anz, .hero-swift, .hero-python, .hero-jira, .hero-html, .hero-css, .hero-wordpress, .hero-github, .hero-gpt, .hero-aem, .hero-adobe-analytics, .hero-anaconda, .hero-figma {
     position: absolute;
-    height: 150px;
-    width: 150px;
+    height: 13vh;
+    width: 13vh;
     filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
 }
 
-/* 
-.hero-swift {
-    top: 20vh;
-    left: 20vw;
 
-} 
-.hero-python {
-    top: 5vh;
-    left: 20vw;
-} 
-.hero-jira {
-    top: 3vh;
-    left: 20vw;
+.about {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    background-color: #FFFFFF;
 }
 
-.hero-html {
-    top: 5vh;
-    left: 20vw;
+.about-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding-right: 10vw;
+    height: 90vh;
+    background-color: #A09CFF;
 }
-.hero-css {
-    top: 10vh;
-    left: 20vw;
-} 
-.hero-wordpress {
-    top: 20vh;
-    left: 20vw;
-}
-
-.hero-github {
-    top: 40vh;
-    left: 20vw;
-}
-.hero-gpt {
-    top: 60vh;
-    left: 20vw;
-} */
