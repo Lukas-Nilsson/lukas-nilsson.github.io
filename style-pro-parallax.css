@@ -25,7 +25,7 @@ transform-style: preserve-3d;
 
 .hero-python {
     top: 12vh;
-    left: 50vh;
+    left: 55vh;
     transform: translateZ(-2px) scale(1);
 }
 
@@ -37,20 +37,20 @@ transform-style: preserve-3d;
 }
 
 .hero-html {
-    top: 55vh;
-    left: 4vh;
+    top: 45vh;
+    left: -8vh;
     transform: translateZ(0.5px) scale(1);
 }
 
 .hero-css {
-    top: 25vh;
-    left: -10vh;
+    top: 24vh;
+    left: -6vh;
     transform: translateZ(1px) scale(1);
 } 
 
 .hero-wordpress {
     top: 45vh;
-    left: 60vh;
+    left: 66vh;
     transform: translateZ(-3px) scale(0.7);
 }
 
@@ -62,13 +62,13 @@ transform-style: preserve-3d;
 }
 .hero-gpt {
     top: 5vh;
-    left: 30vh;
+    left: 33vh;
     transform: translateZ(-2.6px)scale(1);
 
 }
 
 .hero-aem {
-    top: 0vh;
+    top: 5vh;
     left: 25vh;
     transform: translateZ(2px) scale(0.8);
 
@@ -82,14 +82,14 @@ transform-style: preserve-3d;
 
 .hero-anaconda {
     top: 25vh;
-    left: 62vh;
+    left: 69vh;
     transform: translateZ(-3px) scale(0.7);
 
 }
 
 .hero-figma {
-    top: 40vh;
-    left: 0vh;
+    top: 35vh;
+    left: 4vh;
     transform: translateZ(-0.8px) scale(0.8);
 
 }

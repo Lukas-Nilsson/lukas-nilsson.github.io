@@ -1,28 +1,21 @@
 
 /* FONT DEFAULTS */
 
-/* .caveat-font {
-    font-family: "Caveat", cursive;
-    font-optical-sizing: auto;
-    font-weight: normal;
-    font-style: normal;
-  } */
-  
-  h1 {
-      font-size: 3em;
-      color: rgb(0, 0, 0);
-  }
-  
-  h1, h2 {
-    font-family: Arial, Helvetica, sans-serif;
-    }
+h1 {
+    font-size: 3em;
+    color: rgb(0, 0, 0);
+}
+
+h1, h2 {
+    font-family: Arial, Helvetica, sans-serif
+}
+
     
-      
-  .h2 {
-      font-size: 3em;
-      z-index: 200;
-      color: rgb(0, 0, 0);
-    }
+.h2 {
+    font-size: 3em;
+    z-index: 200;
+    color: rgb(0, 0, 0);
+}
   
   /* BODY */
   
@@ -40,9 +33,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #0066FF;
-    /* border-bottom: 10px solid #ffffff; */
-
+    background-color: #0075be;
 }
 
 
@@ -51,9 +42,7 @@
     position: relative;
     align-self: center;
     align-items: center;
-    /* background-color: rgb(255, 255, 255); */
     z-index: 1; 
-    
 }
 
 /* Navbar links */
@@ -69,8 +58,6 @@
     padding-right: 50px;
     padding-top: 20px;
     padding-bottom: 20px;
-    /* box-shadow: rgba(0, 0, 0, 0.07) 0px 1px 1px, rgba(0, 0, 0, 0.07) 0px 2px 2px, rgba(0, 0, 0, 0.07) 0px 4px 4px, rgba(0, 0, 0, 0.07) 0px 8px 8px, rgba(0, 0, 0, 0.07) 0px 16px 16px;    margin: 40px;
-    border-radius: 50px; */
   }
 
   ul {
@@ -84,8 +71,6 @@
 
 li {
     float: left;
-
-
 }
 
   .hero {
@@ -100,27 +85,28 @@ li {
     top: 0;
     left: 0;
     display: flex;
-    /* justify-content: center;
-    align-items: center; */
     flex-direction: column;
     padding-left: 100px;
     height: 90vh;
     width: 40vw;
-    /* border: 5px solid #000000; */
+    min-width: 500px;
+    background-color: #3FFFFF;
+    z-index: 1;
   }
 
 
 .hero h1 {
-    padding-top: 60px;
-    padding-bottom: 0px;
+    padding-top: 15vh;
+    padding-left: 2vw;
     margin: 0px;
     font-size: 3em;
     color: #0075be;
 }
 
 .hero p {
-    padding-top: 20px;
-    margin: 0px;
+    padding-top: 16px;
+    padding-bottom: 0;
+    padding-left: 2vw;
     color: #0075be;
     font-size: 2em;
     font-family: Arial, Helvetica, sans-serif;
@@ -131,7 +117,8 @@ a {
 }
 
 .connect {
-    margin-top: 20vh;
+    margin-top: 5vh;
+    margin-left: 2vw;
     height: 100px;
     width: 400px;
     display: flex;
@@ -139,22 +126,23 @@ a {
     border-radius: 25px;
     border-width: 0;
     transition: 0.2s;
-    cursor: pointer; /*this is what you need*/
+    cursor: pointer; 
 }
 
 .connect:hover {
-    margin-top: 20vh;
+    margin-top: 5vh;
     height: 100px;
     width: 420px;
     display: flex;
     background-color: #ff6e42;
     border-radius: 25px;
     border-width: 0;
-    cursor: pointer; /*this is what you need*/
+    cursor: pointer;
 }
 
 .connect h1 {
     padding-top: 0px;
+    padding-left: 0px;
     font-size: 3em;
     color: #0075be;
     margin: auto;
@@ -179,6 +167,8 @@ a {
     height: 90vh;
     width: 45vw;
     min-width: 700px;
+    z-index: 1;
+
   }
 
   .hero-img {
@@ -198,8 +188,6 @@ a {
     filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
   }
 
-
-
 .bubbles {
     position: absolute;
     top: 0;
@@ -217,22 +205,83 @@ a {
     position: absolute;
     height: 13vh;
     width: 13vh;
-    filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
+    filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.8));
 }
-
 
 .about {
     position: relative;
     height: 100vh;
     display: flex;
-    background-color: #FFFFFF;
+    background-color: #A5FAFF;
+    overflow: hidden;
+    min-height: 700px;
 }
 
-.about-img {
+.about-left {
     position: absolute;
     top: 0;
     left: 0;
-    padding-right: 10vw;
-    height: 90vh;
-    background-color: #A09CFF;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content:space-between;
+    height: 100vh;
+    width: 45vw;
+    background-color: #0075be;
+    min-height: 700px;
+
+}
+
+.about-img {
+    max-width: 40vw;
+    height: auto;
+    max-height: 600px;
+}
+.about-business-card-img {
+    padding-top: 15vh;
+    max-width: 20vw;
+}
+
+.about-right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+    height: 100vh;
+    width: 55vw;
+    background-color: #90ffeb;
+    min-height: 700px;
+
+}
+
+.about h1 {
+    padding-top: 15vh;
+    padding-bottom: 16px;
+    padding-left: 5vw;
+    padding-right: 3vw;
+    margin: 0px;
+    font-size: 5em;
+    text-align: left;
+    color: #0075be;
+}
+
+.about p {
+    padding-top: 16px;
+    padding-bottom: 0;
+    padding-left: 5vw;
+    padding-right: 3vw;
+    color: #0075be;
+    font-size: 2em;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.contact {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    background-color: #A5FAFF;
+    overflow: hidden;
+    min-height: 700px;
 }
