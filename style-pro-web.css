@@ -7,7 +7,7 @@ h1 {
 }
 
 h1, h2 {
-    font-family: Arial, Helvetica, sans-serif
+    font-family: Arial, Helvetica, sans-serif;
 }
 
     
@@ -24,7 +24,7 @@ h1, h2 {
     align-items: center;
       width: 100vw;
       height: 300px;
-      background-color:#3FFFFF;
+      background-color:#01A4FE;
         margin: 0;
     }
   
@@ -33,7 +33,7 @@ h1, h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #0075be;
+    background-color: #01A4FE;
 }
 
 
@@ -86,28 +86,27 @@ li {
     left: 0;
     display: flex;
     flex-direction: column;
-    padding-left: 100px;
-    height: 90vh;
+    margin: 50px;
+    padding: 40px;
+    height: 70vh;
     width: 40vw;
     min-width: 500px;
-    background-color: #3FFFFF;
+    border-radius: 20px;
+    background-color: #DDFF8F;
     z-index: 1;
   }
 
 
 .hero h1 {
-    padding-top: 15vh;
-    padding-left: 2vw;
+    padding-top: 0vh;
+    padding-left: 0vw;
     margin: 0px;
     font-size: 3em;
-    color: #0075be;
+    color: #000000;
 }
 
 .hero p {
-    padding-top: 16px;
-    padding-bottom: 0;
-    padding-left: 2vw;
-    color: #0075be;
+    color: #000000;
     font-size: 2em;
     font-family: Arial, Helvetica, sans-serif;
 }
@@ -118,11 +117,10 @@ a {
 
 .connect {
     margin-top: 5vh;
-    margin-left: 2vw;
     height: 100px;
     width: 400px;
     display: flex;
-    background-color: #FF8E6D;
+    background-color: #01A4FE;
     border-radius: 25px;
     border-width: 0;
     transition: 0.2s;
@@ -144,7 +142,7 @@ a {
     padding-top: 0px;
     padding-left: 0px;
     font-size: 3em;
-    color: #0075be;
+    color: #DDFF8F;
     margin: auto;
     font-family: Arial, Helvetica, sans-serif;
     font-weight:bolder;
@@ -173,19 +171,10 @@ a {
 
   .hero-img {
     position: absolute;
-    top: 0;
-    left: 0;
-    padding-right: 10vw;
+    top: 5vh;
+    right: 0vw;
+    padding-right: 7vw;
     height: 90vh;
-  }
-
-  .hero-bubble {
-    position: absolute;
-    top: 25vh;
-    left: 21vh;
-    width: 30vh;
-    height: auto;
-    filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.8));
   }
 
 .bubbles {
@@ -201,19 +190,21 @@ a {
     z-index: 100;
 }
 
-.hero-anz, .hero-swift, .hero-python, .hero-jira, .hero-html, .hero-css, .hero-wordpress, .hero-github, .hero-gpt, .hero-aem, .hero-adobe-analytics, .hero-anaconda, .hero-figma {
+.bubble1, .bubble2, .bubble3, .bubble4 {
     position: absolute;
-    height: 13vh;
-    width: 13vh;
-    filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.8));
+    height: 20vh;
+    width: 20vh;
+    background-color: #DDFF8F;
+    border-radius: 50%;
+    filter: drop-shadow(0px 0px 0px rgba(0, 0, 0, 0.8));
 }
 
 .about {
+    display: flex;
     position: relative;
     height: 100vh;
     display: flex;
-    background-color: #A5FAFF;
-    overflow: hidden;
+    background-color: #F3F3EA;
     min-height: 700px;
 }
 
@@ -223,23 +214,23 @@ a {
     left: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content:space-between;
-    height: 100vh;
-    width: 45vw;
-    background-color: #0075be;
-    min-height: 700px;
+    margin: 50px;
+    padding: 40px;
+    height: 70vh;
+    width: 40vw;
+    min-width: 500px;
+    border-radius: 20px;
+    background-color: #03A4FE;
+    z-index: 1;
 
 }
 
-.about-img {
-    max-width: 40vw;
-    height: auto;
-    max-height: 600px;
-}
-.about-business-card-img {
-    padding-top: 15vh;
-    max-width: 20vw;
+.abouthero-img {
+    position: absolute;
+    bottom: 0vw;
+    right: 0vw;
+    padding-right: 7vw;
+    height: 70vh;
 }
 
 .about-right {
@@ -247,32 +238,48 @@ a {
     top: 0;
     right: 0;
     display: flex;
-    flex-direction: column;
-    align-items: left;
-    height: 100vh;
-    width: 55vw;
-    background-color: #90ffeb;
-    min-height: 700px;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+    width: 45vw;
+    min-width: 700px;
+}
 
+.clouds {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+    width: 40vw;
+    min-width: 700px;
+    z-index: 100;
+}
+
+.cloud1-img, .cloud2-img, .cloud3-img {
+    position: absolute;
+    height: 40vh;
+    width: 40vh;
+    filter: drop-shadow(0px 0px 0px rgba(0, 0, 0, 0.8));
+}
+
+.daydream-img {
+    position: absolute;
+    height: 30vh;
+    width: 30vh;
+    filter: drop-shadow(0px 0px 0px rgba(0, 0, 0, 0.8));
 }
 
 .about h1 {
-    padding-top: 15vh;
-    padding-bottom: 16px;
-    padding-left: 5vw;
-    padding-right: 3vw;
-    margin: 0px;
     font-size: 5em;
     text-align: left;
-    color: #0075be;
+    color: #000000;
 }
 
 .about p {
-    padding-top: 16px;
-    padding-bottom: 0;
-    padding-left: 5vw;
-    padding-right: 3vw;
-    color: #0075be;
+    color: #000000;
     font-size: 2em;
     font-family: Arial, Helvetica, sans-serif;
 }

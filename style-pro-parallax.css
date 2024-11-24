@@ -6,90 +6,63 @@
     overflow-y: auto;
   }
 
-.scroll-container, .hero, .hero-right, .bubbles {
-transform-style: preserve-3d;
+.scroll-container, .hero, .hero-right, .bubbles, .about, .about-right, .clouds {
+    transform-style: preserve-3d;
 }
 
+.scroll-container, .about, .about-right, .clouds {
+    transform-style: preserve-3d;
+  }
 
-.hero-anz {
-    top: 53vh;
-    left: 43vh;
-    transform: translateZ(1px) scale(1.5);
-}
-
-.hero-swift {
-    top: 8vh;
+.bubble1 {
+    top: 48vh;
     left: 5vh;
-    transform: translateZ(2px) scale(1);
-} 
-
-.hero-python {
-    top: 12vh;
-    left: 55vh;
-    transform: translateZ(-2px) scale(1);
-}
-
-
-.hero-jira {
-    top: 32vh;
-    left: 50vh;
-    transform: translateZ(1.7px) scale(1);
-}
-
-.hero-html {
-    top: 45vh;
-    left: -8vh;
     transform: translateZ(0.5px) scale(1);
 }
 
-.hero-css {
-    top: 24vh;
-    left: -6vh;
-    transform: translateZ(1px) scale(1);
+.bubble2 {
+    top: 8vh;
+    left: 10vh;
+    transform: translateZ(-0.1px) scale(1);
 } 
 
-.hero-wordpress {
-    top: 45vh;
-    left: 66vh;
-    transform: translateZ(-3px) scale(0.7);
-}
-
-.hero-github {
+.bubble3 {
     top: 12vh;
-    left: 43vh;
-    transform: translateZ(2.3px) scale(1.1);
-
-}
-.hero-gpt {
-    top: 5vh;
-    left: 33vh;
-    transform: translateZ(-2.6px)scale(1);
-
+    left: 55vh;
+    transform: translateZ(-0.5px) scale(1);
 }
 
-.hero-aem {
-    top: 5vh;
-    left: 25vh;
-    transform: translateZ(2px) scale(0.8);
 
+.bubble4 {
+    top: 38vh;
+    left: 40vh;
+    transform: translateZ(1.7px) scale(1);
 }
 
-.hero-adobe-analytics{
+.abouthero-img {
+    transform: translateZ(1px) scale(0.8);
+}
+
+.cloud1-img {
     top: 20vh;
-    left: 10vh;
-    transform: translateZ(-0.8px) scale(1);
+    right: 0vh;
+    transform: translateZ(0.5px) scale(1);
 }
 
-.hero-anaconda {
-    top: 25vh;
-    left: 69vh;
-    transform: translateZ(-3px) scale(0.7);
+.cloud2-img {
+    top: 0vh;
+    right: 20vh;
+    transform: translateZ(0.5px) scale(0.8);
+} 
 
+.cloud3-img {
+    top: 15vh;
+    right: 50vh;
+    transform: translateZ(1.8px) scale(1);
 }
 
-.hero-figma {
-    top: 35vh;
-    left: 4vh;
-    transform: translateZ(-0.8px) scale(0.8);
-
+.daydream-img {
+    top: 40vh;
+    right: 50vh;
+    transform: translateZ(0.9px) scale(1) rotate(-20deg);
 }
