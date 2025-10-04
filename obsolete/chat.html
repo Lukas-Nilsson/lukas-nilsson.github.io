@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lukas Nilsson — Interactive portfolio. Chat with AI about my work, projects, and interests.">
+    <title>Lukas Nilsson — Interactive Portfolio</title>
+    <link rel="stylesheet" href="style-foundation.css">
+    <link rel="stylesheet" href="style-chat.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" role="banner">
+        <nav class="nav" aria-label="Primary">
+            <a class="site-title" href="/">Lukas Nilsson</a>
+            <button class="theme-toggle" aria-label="Toggle theme" title="Toggle theme" data-theme-toggle>◐</button>
+            <ul class="nav-list">
+                <li><a href="#projects">Projects</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main" class="chat-main" tabindex="-1">
+        <div class="hero-chat-container">
+            <!-- Hero Section -->
+            <section class="hero-chat" aria-labelledby="hero-title">
+                <div class="hero-content">
+                    <h1 id="hero-title">Let's talk about what I build</h1>
+                    <p class="hero-subtitle">Ask me anything about my work, projects, or interests. I'll share honest insights about my experience, design philosophy, and the challenges I've faced.</p>
+                    
+                    <!-- Suggested Prompts -->
+                    <div class="suggested-prompts">
+                        <button class="prompt-button" data-prompt="Tell me about your projects">Tell me about your projects</button>
+                        <button class="prompt-button" data-prompt="What's your design philosophy?">What's your design philosophy?</button>
+                        <button class="prompt-button" data-prompt="Show me your technical skills">Show me your technical skills</button>
+                        <button class="prompt-button" data-prompt="What challenges have you faced?">What challenges have you faced?</button>
+                    </div>
+                </div>
+                
+                <!-- Floating Skills/Orbs -->
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="floating-skill" data-skill="Accessibility">♿</div>
+                    <div class="floating-skill" data-skill="Design">🎨</div>
+                    <div class="floating-skill" data-skill="Code">💻</div>
+                    <div class="floating-skill" data-skill="Research">🔬</div>
+                    <div class="floating-skill" data-skill="Writing">✍️</div>
+                </div>
+            </section>
+
+            <!-- Chat Interface -->
+            <section class="chat-interface">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat conversation">
+                        <div class="message ai-message welcome-message">
+                            <div class="message-content">
+                                <p>Hi! I'm here to answer questions about Lukas's work and experience. What would you like to know?</p>
+                            </div>
+                            <div class="message-time">Just now</div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <form class="chat-input-form" id="chat-form">
+                            <div class="input-wrapper">
+                                <textarea 
+                                    id="message-input" 
+                                    class="message-input" 
+                                    placeholder="Ask me anything about my work, projects, or interests..."
+                                    rows="1"
+                                    maxlength="2000"
+                                    aria-label="Type your message"
+                                ></textarea>
+                                <button 
+                                    type="submit" 
+                                    class="send-button" 
+                                    id="send-button"
+                                    aria-label="Send message"
+                                    disabled
+                                >
+                                    <span class="send-icon">→</span>
+                                </button>
+                            </div>
+                            <div class="input-footer">
+                                <span class="char-count" id="char-count">0/2000</span>
+                                <span class="input-hint">Press Enter to send, Shift+Enter for new line</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Supporting Content -->
+        <section id="projects" class="section" aria-labelledby="projects-title">
+            <div class="section-head">
+                <h2 id="projects-title">Featured Projects</h2>
+                <p>Quick links to explore my work in detail</p>
+            </div>
+            <div class="card-grid">
+                <article class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">The Human Archives</h3>
+                        <p class="card-text">A living project exploring memory and meaning through technology and writing.</p>
+                    </div>
+                    <div class="card-actions">
+                        <a href="https://thehumanarchives.com" class="button small" target="_blank" rel="noopener">Visit site</a>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">Interactive Portfolio</h3>
+                        <p class="card-text">This site itself - built with accessibility, performance, and honest design principles.</p>
+                    </div>
+                    <div class="card-actions">
+                        <a href="#" class="button small ghost" aria-disabled="true">Case study (soon)</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="about" class="section" aria-labelledby="about-title">
+            <div class="section-head">
+                <h2 id="about-title">About</h2>
+            </div>
+            <p>I care about clarity, craft, and making useful things. Formerly shipping product, currently exploring the intersection of engineering and meaning. Ask me anything above to learn more!</p>
+        </section>
+
+        <section id="contact" class="section" aria-labelledby="contact-title">
+            <div class="section-head">
+                <h2 id="contact-title">Contact</h2>
+            </div>
+            <p>
+                Email <a href="mailto:lukaspnilsson@gmail.com">lukaspnilsson@gmail.com</a>
+                · <a href="https://github.com/lukas-nilsson" target="_blank" rel="noopener">GitHub</a>
+                · <a href="https://www.linkedin.com/in/lukaspnilsson" target="_blank" rel="noopener">LinkedIn</a>
+            </p>
+        </section>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+        <p>© <span id="year"></span> Lukas Nilsson. No trackers. Built with plain HTML/CSS/JS.</p>
+    </footer>
+
+    <script src="scripts.js" defer></script>
+    <script src="chat.js" defer></script>
+</body>
+</html>

@@ -1,87 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- HEAD -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style-pro-web.css">
-    <link rel="stylesheet" href="style-pro-parallax.css">
-    <link rel="stylesheet" href="style-mobile.css">
-    <link rel="stylesheet" href="style-pro-scroll.css">
-    <title>Professional</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lukas Nilsson – Product designer and engineer crafting elegant digital experiences">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Lukas Nilsson – Portfolio">
+  <meta property="og:description" content="Product designer and engineer crafting elegant digital experiences">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lukas-nilsson.github.io">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Lukas Nilsson – Portfolio">
+  <meta name="twitter:description" content="Product designer and engineer crafting elegant digital experiences">
+  
+  <title>Lukas Nilsson – Portfolio</title>
+  
+  <!-- Preload critical assets -->
+  <link rel="preload" as="style" href="css/base.css">
+  <link rel="preload" as="style" href="css/theme.css">
+  
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/chat.css">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 </head>
-
-<!-- BODY -->
 <body>
-    <!-- SCRIPTS -->
-    <script src="scripts.js"></script>
-
-    <!-- SCROLL CONTAINER 1 -->
-    <div class="scroll-container">
-
-        <!-- HEADER --> 
-        <header></header>
+  <!-- Skip to content link -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+  
+  <!-- Header -->
+  <header class="site-header" role="banner">
+    <nav class="nav-container" role="navigation" aria-label="Main navigation">
+      <div class="nav-brand">
+        <a href="#home" class="brand-link" aria-label="Home">LN</a>
+      </div>
+      
+      <ul class="nav-menu">
+        <li><a href="#home" class="nav-link">Home</a></li>
+        <li><a href="#work" class="nav-link">Work</a></li>
+        <li><a href="#about" class="nav-link">About</a></li>
+        <li><a href="#contact" class="nav-link">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <button class="theme-toggle" aria-label="Toggle theme" type="button">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        
+        <button class="palette-trigger" aria-label="Open command palette (Cmd+K)" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <span class="palette-hint">⌘K</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+  
+  <!-- Main content -->
+  <main id="main" role="main">
+    <!-- Hero section -->
+    <section id="home" class="section hero-section">
+      <div class="container">
+        <div class="hero-content">
+          <h1 class="hero-title">
+            Crafting elegant digital experiences
+          </h1>
+          <p class="hero-subtitle">
+            Product designer and engineer with a passion for creating intuitive, 
+            beautiful interfaces that solve real problems.
+          </p>
+          
+          <div class="hero-meta">
+            <div class="hero-meta-item">
+              <span>Lukas Nilsson</span>
+            </div>
+            <div class="hero-meta-item">
+              <span>Melbourne, Australia</span>
+            </div>
+            <div class="hero-meta-item">
+              <span>Product Design & Engineering</span>
+            </div>
+            <div class="hero-meta-item">
+              <span>Last updated: 2024</span>
+            </div>
+          </div>
+          
+          <div class="hero-actions">
+            <a href="#contact" class="btn btn-primary">Get in touch</a>
+            <a href="assets/resume.pdf" class="btn btn-secondary" download>
+              Download Resume
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
     
-        <!-- HERO -->
-        <div class="hero">
-            <div class="hero-right">
-               
-                <img src="images/professional/hero/hero2.png" class="hero-img">
-                
-
-                <div class="bubbles">   
-                    <span class="bubble1"></span>
-                    <span class="bubble2"></span>
-                    <span class="bubble3"></span>
-                    <span class="bubble4"></span>
-                </div>
-            </div>    
-            <div class="hero-left">
-                    <h1>Lukas Nilsson</h1>
-                    <p>Computer Science, Design, History, Physics, Astronomy Philosophy, Psychology, Anthropology, Epistemology, Etymology</p>
-                    <button class="connect" onclick="location.href='https://www.linkedin.com/in/lukaspnilsson'"><h1>Connect</h1><img src="images/professional/hero/linkedin.png" class="hero-linkedin"></button>
+    <!-- Work section -->
+    <section id="work" class="section work-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">Selected Work</h2>
+          <p class="section-subtitle">Projects that showcase my approach to design and development, with a focus on user-centered solutions and measurable impact. Each project demonstrates the application of design methodologies and technical implementation strategies.</p>
+        </header>
+        
+        <div class="work-grid" role="list">
+          <!-- Project cards will be injected by JS for skeleton loading -->
+        </div>
+      </div>
+    </section>
+    
+    <!-- About section -->
+    <section id="about" class="section about-section">
+      <div class="container">
+        <div class="about-grid">
+          <div class="about-content">
+            <h2 class="section-title">About Me</h2>
+            <div class="about-text">
+              <p>
+                I'm a product designer and engineer based in Melbourne, blending creativity 
+                with technical expertise to build digital products that delight users. My approach 
+                combines user-centered design methodologies with data-driven decision making.
+              </p>
+              <p>
+                With experience at ANZ and The Human Archives, I've led projects spanning 
+                fintech platforms, cultural preservation initiatives, and interactive experiences 
+                that connect people with stories. Each project applies systematic design thinking 
+                and rigorous testing protocols to ensure measurable outcomes.
+              </p>
+              <p>
+                I focus on creating meaningful digital experiences that solve real problems, 
+                employing user research, prototyping, and iterative design processes to build 
+                products that make a genuine impact.
+              </p>
             </div>
             
-        </div>
-
-        <!-- ABOUT -->  
-        <div class="about">
-            <div class="about-left">
-                <h1>About me</h1>
-                <p>Loris Ipsum</p>
-            </div>
-              <div class="clouds">
-                    <img src="images/professional/about/Cloud1.png" class="cloud1-img">
-                    <img src="images/professional/about/Cloud1.png" class="cloud2-img">
-                    <img src="images/professional/about/Cloud1.png" class="cloud3-img">
-                    <img src="images/professional/about/mrdaydream.png" class="daydream-img">
+            <div class="skills-section">
+              <h3 class="skills-title">Skills & Tools</h3>
+              <div class="skills-grid">
+                <div class="skill-category">
+                  <h4>Design</h4>
+                  <ul>
+                    <li>Figma</li>
+                    <li>Adobe XD</li>
+                    <li>Prototyping</li>
+                    <li>User Research</li>
+                  </ul>
                 </div>
-            <div class="about-right">
-                <img src="images/professional/about/abouthero.png" class="abouthero-img">
+                <div class="skill-category">
+                  <h4>Development</h4>
+                  <ul>
+                    <li>HTML/CSS/JS</li>
+                    <li>React</li>
+                    <li>Python</li>
+                    <li>Swift</li>
+                  </ul>
+                </div>
+                <div class="skill-category">
+                  <h4>Tools</h4>
+                  <ul>
+                    <li>Git/GitHub</li>
+                    <li>Jira/Confluence</li>
+                    <li>Analytics</li>
+                    <li>AEM</li>
+                  </ul>
+                </div>
+              </div>
             </div>
+          </div>
+          
+          <div class="about-image">
+            <div class="portrait-wrapper">
+              <img 
+                src="assets/portrait.jpg" 
+                alt="Lukas Nilsson portrait" 
+                width="400" 
+                height="500"
+                loading="lazy"
+                class="portrait-img"
+              >
+            </div>
+          </div>
         </div>
+      </div>
+    </section>
+    
+    <!-- Contact section -->
+    <section id="contact" class="section contact-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">Get In Touch</h2>
+          <p class="section-subtitle">Have a project in mind? Let's talk about it.</p>
+        </header>
         
-        <!-- PORTFOLIO -->
-        <!-- <div class="portfolio">
-            <h1>Portfolio</h1>
-        </div> -->
-
-        <!-- CONTACT -->
-        <!-- <div class="contact">
-            <button id="hi" href="mailto:lukaspnilsson@gmail.com"> HI</button>
-            <h1>Here is where you can find me:</h1>
-            <img src="icons">
-            <img src="icons">
-            <img src="icons">
-            <img src="icons">
-        </div> -->
-
-        <!-- FOOTER -->
-        <!-- <footer>
-            <p>Copyright &copy; 2021. All rights reserved.</p>
-        </footer> -->
-
+        <div class="contact-grid">
+          <form class="contact-form" id="contact-form" novalidate>
+            <div class="form-group">
+              <label for="name" class="form-label">Name</label>
+              <input 
+                type="text" 
+                id="name" 
+                name="name" 
+                class="form-input" 
+                required 
+                aria-required="true"
+                autocomplete="name"
+              >
+              <span class="form-error" role="alert"></span>
+            </div>
+            
+            <div class="form-group">
+              <label for="email" class="form-label">Email</label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                class="form-input" 
+                required 
+                aria-required="true"
+                autocomplete="email"
+              >
+              <span class="form-error" role="alert"></span>
+            </div>
+            
+            <div class="form-group">
+              <label for="message" class="form-label">Message</label>
+              <textarea 
+                id="message" 
+                name="message" 
+                class="form-input form-textarea" 
+                rows="5" 
+                required 
+                aria-required="true"
+              ></textarea>
+              <span class="form-error" role="alert"></span>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">Send Message</button>
+          </form>
+          
+          <div class="contact-info">
+            <div class="contact-card">
+              <h3>Direct Contact</h3>
+              <p>Prefer email? Reach me directly at:</p>
+              <a href="mailto:hello@lukasnilsson.com" class="contact-email">hello@lukasnilsson.com</a>
+            </div>
+            
+            <div class="contact-card">
+              <h3>Connect</h3>
+              <ul class="social-links">
+                <li>
+                  <a href="https://linkedin.com/in/lukas-nilsson" target="_blank" rel="noopener">LinkedIn</a>
+                </li>
+                <li>
+                  <a href="https://github.com/lukas-nilsson" target="_blank" rel="noopener">GitHub</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-content">
+        <p class="footer-text">© 2025 Lukas Nilsson. All rights reserved.</p>
+        <nav class="footer-nav">
+          <a href="old/index.html" class="footer-link">View Old Versions</a>
+        </nav>
+      </div>
     </div>
-
+  </footer>
+  
+  <!-- Command Palette -->
+  <div class="palette-overlay" id="palette-overlay" role="dialog" aria-modal="true" aria-labelledby="palette-title" hidden>
+    <div class="palette-modal">
+      <div class="palette-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input 
+          type="search" 
+          class="palette-input" 
+          id="palette-input"
+          placeholder="Type a command or search..."
+          aria-label="Command palette search"
+          autocomplete="off"
+        >
+      </div>
+      
+      <div class="palette-results" id="palette-results" role="listbox">
+        <!-- Results populated by JS -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+  
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
+

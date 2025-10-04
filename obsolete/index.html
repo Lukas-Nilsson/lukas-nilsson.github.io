@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Portfolio of Lukas Nilsson — projects, experiments, and notes.">
+    <title>Lukas Nilsson — Portfolio</title>
+    <link rel="stylesheet" href="style-foundation.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" role="banner">
+        <nav class="nav" aria-label="Primary">
+            <a class="site-title" href="/">Lukas Nilsson</a>
+            <button class="theme-toggle" aria-label="Toggle theme" title="Toggle theme" data-theme-toggle>◐</button>
+            <ul class="nav-list">
+                <li><a href="#projects">Projects</a></li>
+                <li><a href="#experiments">Experiments</a></li>
+                <li><a href="#writing">Writing</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="chat.html" class="chat-link">💬 Chat</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-inner">
+                <h1 id="hero-title">Building thoughtful, durable software and interfaces</h1>
+                <p class="hero-sub">Calm, honest case studies and experiments. Links to live projects like <a href="https://thehumanarchives.com" target="_blank" rel="noopener">The Human Archives</a>.</p>
+                <div class="hero-actions">
+                    <a class="button primary" href="#projects">View projects</a>
+                    <a class="button" href="#writing">Read notes</a>
+                </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="orb orb-1" data-parallax></div>
+                <div class="orb orb-2" data-parallax></div>
+                <div class="orb orb-3" data-parallax></div>
+            </div>
+        </section>
+
+        <section id="projects" class="section" aria-labelledby="projects-title">
+            <div class="section-head">
+                <h2 id="projects-title">Projects</h2>
+                <p>Representative work with brief context. More coming as the archive grows.</p>
+            </div>
+            <div class="card-grid">
+                <article class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">The Human Archives</h3>
+                        <p class="card-text">A living project exploring memory and meaning. Writing, curation, and software scaffolding.</p>
+                    </div>
+                    <div class="card-actions">
+                        <a href="https://thehumanarchives.com" class="button small" target="_blank" rel="noopener">Visit site</a>
+                        <a href="#" class="button small ghost" aria-disabled="true">Case study (soon)</a>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">Portfolio foundations</h3>
+                        <p class="card-text">Accessible, fast, and honest portfolio with dark/light themes and minimal JS.</p>
+                    </div>
+                    <div class="card-actions">
+                        <a href="#" class="button small ghost" aria-disabled="true">Case study (soon)</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="experiments" class="section" aria-labelledby="experiments-title">
+            <div class="section-head">
+                <h2 id="experiments-title">Experiments</h2>
+                <p>Lightweight demos and prototypes. Honest notes about what worked and what didn't.</p>
+            </div>
+            <ul class="list">
+                <li><a href="#" aria-disabled="true">Subtle parallax with reduced‑motion support (coming)</a></li>
+                <li><a href="#" aria-disabled="true">Content search with web workers (coming)</a></li>
+            </ul>
+        </section>
+
+        <section id="writing" class="section" aria-labelledby="writing-title">
+            <div class="section-head">
+                <h2 id="writing-title">Writing</h2>
+                <p>Short notes on software, design, and research. RSS soon.</p>
+            </div>
+            <ul class="list">
+                <li><a href="#" aria-disabled="true">Why honest case studies matter (draft)</a></li>
+                <li><a href="#" aria-disabled="true">Designing for change, not trends (draft)</a></li>
+            </ul>
+        </section>
+
+        <section id="chat" class="section" aria-labelledby="chat-title">
+            <div class="section-head">
+                <h2 id="chat-title">Ask me anything</h2>
+                <p>Chat with an AI trained on my work, projects, and interests. Get instant answers about my experience, skills, and approach to software development.</p>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">AI Chat Assistant</h3>
+                    <p class="card-text">Ask questions about my projects, technical experience, design philosophy, or anything else. The AI is trained on my portfolio content and can provide detailed, contextual answers.</p>
+                </div>
+                <div class="card-actions">
+                    <a href="chat.html" class="button primary">Start chatting</a>
+                    <a href="#" class="button ghost" aria-disabled="true">Learn more (soon)</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="section" aria-labelledby="about-title">
+            <div class="section-head">
+                <h2 id="about-title">About</h2>
+            </div>
+            <p>I care about clarity, craft, and making useful things. Formerly shipping product, currently exploring the intersection of engineering and meaning.</p>
+        </section>
+
+        <section id="contact" class="section" aria-labelledby="contact-title">
+            <div class="section-head">
+                <h2 id="contact-title">Contact</h2>
+            </div>
+            <p>
+                Email <a href="mailto:lukaspnilsson@gmail.com">lukaspnilsson@gmail.com</a>
+                · <a href="https://github.com/lukas-nilsson" target="_blank" rel="noopener">GitHub</a>
+                · <a href="https://www.linkedin.com/in/lukaspnilsson" target="_blank" rel="noopener">LinkedIn</a>
+            </p>
+        </section>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+        <p>© <span id="year"></span> Lukas Nilsson. No trackers. Built with plain HTML/CSS/JS.</p>
+    </footer>
+
+    <script src="scripts.js" defer></script>
+</body>
+</html>
