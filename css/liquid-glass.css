@@ -20,7 +20,7 @@
   /* Light Simulation */
   --bloom-radius: 40px;
   --ambient-occlusion: 0.15;
-  --caustic-intensity: 0.3;
+  --caustic-intensity: 0.15;
 }
 
 /* Base Liquid Light Background */
@@ -122,7 +122,7 @@
     );
   
   /* Subtle animation for shimmer effect */
-  animation: liquid-shimmer 8s ease-in-out infinite;
+  animation: liquid-shimmer 12s ease-in-out infinite;
 }
 
 /* Parallax Shimmer Animation */
@@ -132,16 +132,16 @@
     opacity: var(--caustic-intensity);
   }
   25% {
-    transform: translateX(0.5px) translateY(-0.25px) scale(1.005);
-    opacity: var(--caustic-intensity) * 1.05;
+    transform: translateX(0.2px) translateY(-0.1px) scale(1.001);
+    opacity: var(--caustic-intensity) * 1.02;
   }
   50% {
-    transform: translateX(-0.25px) translateY(0.25px) scale(0.995);
-    opacity: var(--caustic-intensity) * 0.95;
+    transform: translateX(-0.1px) translateY(0.1px) scale(0.999);
+    opacity: var(--caustic-intensity) * 0.98;
   }
   75% {
-    transform: translateX(0.25px) translateY(-0.5px) scale(1.002);
-    opacity: var(--caustic-intensity) * 1.02;
+    transform: translateX(0.1px) translateY(-0.2px) scale(1.0005);
+    opacity: var(--caustic-intensity) * 1.01;
   }
 }
 
@@ -294,6 +294,68 @@
   min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* Card Glass Effect - Opaque glass that blurs background */
+.card-glass {
+  position: relative;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: var(--space-xl);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  
+  /* Subtle inner glow */
+  background-image: 
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.02) 100%
+    );
+  
+  /* Performance optimization */
+  will-change: transform;
+  transform: translateZ(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-glass:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode card glass */
+[data-theme="dark"] .card-glass {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  
+  background-image: 
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.1) 100%
+    );
+}
+
+[data-theme="dark"] .card-glass:hover {
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Utility Classes */
