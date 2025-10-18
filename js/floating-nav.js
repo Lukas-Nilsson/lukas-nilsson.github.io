@@ -164,11 +164,14 @@ class FloatingNavigation {
     // Add transitioning class for liquid animation
     this.nav.classList.add('transitioning');
     
-    if (scrolled) {
-      this.nav.classList.add('scrolled');
-    } else {
-      this.nav.classList.remove('scrolled');
-    }
+    // Use requestAnimationFrame to ensure smooth transition
+    requestAnimationFrame(() => {
+      if (scrolled) {
+        this.nav.classList.add('scrolled');
+      } else {
+        this.nav.classList.remove('scrolled');
+      }
+    });
     
     // Remove transitioning class after animation
     setTimeout(() => {

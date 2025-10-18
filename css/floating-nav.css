@@ -18,18 +18,19 @@
 .floating-nav {
   position: fixed;
   top: var(--space-lg);
-  left: 50%;
-  transform: translateX(-50%);
+  left: var(--space-lg);
+  right: var(--space-lg);
+  height: var(--nav-height);
   z-index: 1000;
   transition: all var(--nav-transition-duration) var(--nav-easing);
-  will-change: transform, width, height, border-radius;
+  will-change: transform, width, height, border-radius, left, right;
 }
 
 /* Scrolled State - Left Side Capsule */
 .floating-nav.scrolled {
   top: var(--space-lg);
   left: var(--space-lg);
-  transform: translateX(0);
+  right: auto;
   width: var(--nav-capsule-width);
   height: var(--nav-capsule-height);
   border-radius: var(--nav-capsule-border-radius);
@@ -61,9 +62,9 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  padding: 0 var(--space-lg);
+  padding: 0 var(--space-xl);
   transition: all var(--nav-transition-duration) var(--nav-easing);
-  will-change: padding, flex-direction;
+  will-change: padding, flex-direction, justify-content;
 }
 
 /* Scrolled state content */
@@ -326,8 +327,11 @@
   0% {
     border-radius: var(--nav-border-radius);
   }
-  50% {
-    border-radius: calc(var(--nav-border-radius) + 10px);
+  30% {
+    border-radius: calc(var(--nav-border-radius) + 15px);
+  }
+  60% {
+    border-radius: calc(var(--nav-capsule-border-radius) - 10px);
   }
   100% {
     border-radius: var(--nav-capsule-border-radius);
@@ -336,6 +340,22 @@
 
 .floating-nav.transitioning .nav-background {
   animation: liquid-morph var(--nav-transition-duration) var(--nav-easing);
+}
+
+/* Ensure smooth transitions for all properties */
+.floating-nav {
+  transition: 
+    left var(--nav-transition-duration) var(--nav-easing),
+    right var(--nav-transition-duration) var(--nav-easing),
+    width var(--nav-transition-duration) var(--nav-easing),
+    height var(--nav-transition-duration) var(--nav-easing),
+    border-radius var(--nav-transition-duration) var(--nav-easing);
+}
+
+.nav-background {
+  transition: 
+    border-radius var(--nav-transition-duration) var(--nav-easing),
+    box-shadow var(--nav-transition-duration) var(--nav-easing);
 }
 
 /* Smooth scroll behavior */
@@ -365,17 +385,17 @@ html {
 @media (max-width: 768px) {
   .floating-nav {
     top: var(--space-md);
-    left: 50%;
-    transform: translateX(-50%);
+    left: var(--space-md);
+    right: var(--space-md);
   }
   
   .floating-nav.scrolled {
     left: var(--space-md);
-    transform: translateX(0);
+    right: auto;
   }
   
   .nav-content {
-    padding: 0 var(--space-md);
+    padding: 0 var(--space-lg);
   }
   
   .nav-menu {
@@ -391,15 +411,17 @@ html {
 @media (max-width: 480px) {
   .floating-nav {
     top: var(--space-sm);
+    left: var(--space-sm);
+    right: var(--space-sm);
   }
   
   .floating-nav.scrolled {
-    top: var(--space-sm);
     left: var(--space-sm);
+    right: auto;
   }
   
   .nav-content {
-    padding: 0 var(--space-sm);
+    padding: 0 var(--space-md);
   }
   
   .nav-menu {
