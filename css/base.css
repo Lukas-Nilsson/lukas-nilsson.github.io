@@ -396,11 +396,27 @@ a:focus-visible {
   max-width: 1200px;
   margin-inline: auto;
   padding-inline: var(--space-lg);
+  transition: padding-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Add left padding when side menu is active */
+.floating-nav.scrolled ~ main .container {
+  padding-left: calc(80px + var(--space-lg) + var(--space-lg)); /* menu width + left margin + extra spacing */
 }
 
 @media (max-width: 768px) {
   .container {
     padding-inline: var(--space-md);
+  }
+  
+  .floating-nav.scrolled ~ main .container {
+    padding-left: calc(70px + var(--space-md) + var(--space-md));
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-nav.scrolled ~ main .container {
+    padding-left: calc(60px + var(--space-sm) + var(--space-sm));
   }
 }
 
@@ -626,7 +642,7 @@ a:focus-visible {
   flex-direction: column;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-sm);
+  padding: var(--space-sm) var(--space-xs);
   border-radius: 16px;
   text-decoration: none;
   color: var(--color-text);
@@ -680,12 +696,13 @@ a:focus-visible {
 }
 
 .nav-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 500;
   text-align: center;
   position: relative;
   z-index: 1;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  line-height: 1.2;
 }
 
 /* Actions Styles */
@@ -924,7 +941,7 @@ a:focus-visible {
   }
   
   .nav-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
   
   .palette-hint {
@@ -968,7 +985,7 @@ a:focus-visible {
   }
   
   .nav-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
 }
 
