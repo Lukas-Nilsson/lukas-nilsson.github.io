@@ -145,6 +145,7 @@ const projectDetails = {
     role: 'AR Developer',
     impact: 'Educational AR experience for space learning',
     stack: ['Unity', 'ARCore', 'C#', '3D Modeling', 'Mobile Development'],
+    video: 'assets/SolAR.MP4',
     description: 'An augmented reality application for solar system exploration, built before AI integration. Features immersive 3D planetary experiences, educational content, and interactive space exploration using AR technology to bring the cosmos into users\' physical space.',
     features: [
       'Real-time AR planet rendering',
@@ -255,6 +256,24 @@ export function loadProjectDetails() {
   document.getElementById('project-type').textContent = project.type;
   document.getElementById('project-title').textContent = project.title;
   document.getElementById('project-subtitle').textContent = project.description;
+  
+  // Update project media
+  const mediaContainer = document.getElementById('project-media');
+  if (project.video) {
+    mediaContainer.innerHTML = `
+      <video 
+        src="${project.video}" 
+        controls
+        preload="metadata"
+        poster=""
+        style="width: 100%; max-width: 800px; height: auto; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);"
+      >
+        <p>Your browser doesn't support video playback.</p>
+      </video>
+    `;
+  } else {
+    mediaContainer.innerHTML = '';
+  }
   
   // Update project details
   document.getElementById('project-description').textContent = project.description;

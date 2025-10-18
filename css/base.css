@@ -1389,6 +1389,31 @@ a:focus-visible {
   margin-bottom: var(--space-md);
 }
 
+/* Video styles for project cards */
+.card video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  margin-bottom: var(--space-md);
+  background: var(--color-bg);
+}
+
+/* Project media styles */
+.project-media {
+  margin-top: var(--space-xl);
+  text-align: center;
+}
+
+.project-media video {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--color-bg);
+}
+
 .card-tag {
   display: inline-block;
   padding: var(--space-xs) var(--space-sm);

@@ -82,7 +82,7 @@ const sideProjects = [
     role: 'AR Developer',
     impact: 'Educational AR experience',
     stack: ['Unity', 'ARCore', 'C#'],
-    image: null,
+    image: 'assets/SolAR.MP4',
     type: 'project'
   },
   {
@@ -162,9 +162,25 @@ export function loadSideProjects() {
  * Create project card HTML
  */
 function createProjectCard(project) {
+  const isVideo = project.image && (project.image.endsWith('.mp4') || project.image.endsWith('.webm') || project.image.endsWith('.mov'));
+  
   return `
     <article class="card clickable-card" role="listitem" data-project-id="${project.id}" data-project-type="${project.type}">
-      ${project.image ? `
+      ${project.image ? (isVideo ? `
+        <video 
+          src="${project.image}" 
+          class="card-image"
+          width="400"
+          height="225"
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          poster=""
+        >
+          <p>Your browser doesn't support video playback.</p>
+        </video>
+      ` : `
         <img 
           src="${project.image}" 
           alt="${project.title}" 
@@ -173,7 +189,7 @@ function createProjectCard(project) {
           height="225"
           loading="lazy"
         >
-      ` : ''}
+      `) : ''}
       
       <span class="card-tag">${escapeHtml(project.tag)}</span>
       
