@@ -337,6 +337,6 @@ Edit `css/theme.css` font stack:
 ## Contact
 
 - Email: lukasnilssonbusiness@gmail.com
-- LinkedIn: [linkedin.com/in/lukas-nilsson](https://linkedin.com/in/lukas-nilsson)
+- LinkedIn: [linkedin.com/in/lukaspnilsson](https://linkedin.com/in/lukaspnilsson)
 - GitHub: [github.com/lukas-nilsson](https://github.com/lukas-nilsson)
 
