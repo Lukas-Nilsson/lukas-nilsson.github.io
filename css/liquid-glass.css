@@ -304,7 +304,8 @@
   -webkit-backdrop-filter: blur(20px) saturate(1.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 20px;
-  padding: var(--space-xl);
+  padding: var(--space-2xl);
+  margin-bottom: var(--space-2xl);
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
@@ -323,6 +324,10 @@
   will-change: transform;
   transform: translateZ(0);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-glass:last-child {
+  margin-bottom: 0;
 }
 
 .card-glass:hover {
