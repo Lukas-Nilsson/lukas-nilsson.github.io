@@ -1,0 +1,408 @@
+/* ========================================
+   Floating Navigation - Apple Liquid Style
+   ======================================== */
+
+/* CSS Custom Properties for Navigation */
+:root {
+  --nav-height: 80px;
+  --nav-capsule-height: 60px;
+  --nav-capsule-width: 60px;
+  --nav-transition-duration: 0.6s;
+  --nav-easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --nav-blur: 20px;
+  --nav-border-radius: 30px;
+  --nav-capsule-border-radius: 50px;
+}
+
+/* Floating Navigation Container */
+.floating-nav {
+  position: fixed;
+  top: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: transform, width, height, border-radius;
+}
+
+/* Scrolled State - Left Side Capsule */
+.floating-nav.scrolled {
+  top: var(--space-lg);
+  left: var(--space-lg);
+  transform: translateX(0);
+  width: var(--nav-capsule-width);
+  height: var(--nav-capsule-height);
+  border-radius: var(--nav-capsule-border-radius);
+}
+
+/* Navigation Background */
+.nav-background {
+  position: absolute;
+  inset: 0;
+  background: var(--color-header-bg);
+  backdrop-filter: blur(var(--nav-blur));
+  border: 1px solid var(--color-border);
+  border-radius: inherit;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: border-radius, backdrop-filter;
+}
+
+/* Scrolled state background */
+.floating-nav.scrolled .nav-background {
+  border-radius: var(--nav-capsule-border-radius);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Navigation Content */
+.nav-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--space-lg);
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: padding, flex-direction;
+}
+
+/* Scrolled state content */
+.floating-nav.scrolled .nav-content {
+  padding: 0;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Brand Logo */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: transform, opacity;
+}
+
+.floating-nav.scrolled .nav-brand {
+  transform: scale(0.8);
+}
+
+.brand-link {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: font-size, color;
+}
+
+.floating-nav.scrolled .brand-link {
+  font-size: 1.2rem;
+}
+
+/* Navigation Menu */
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: opacity, transform, flex-direction;
+}
+
+/* Scrolled state menu */
+.floating-nav.scrolled .nav-menu {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Navigation Links */
+.nav-link {
+  position: relative;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: none;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) var(--ease-out);
+  will-change: color, background, transform;
+}
+
+.nav-link:hover {
+  color: var(--color-accent);
+  background: var(--color-nav-hover);
+  transform: translateY(-1px);
+}
+
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Active link indicator */
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+}
+
+/* Navigation Actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: opacity, transform;
+}
+
+/* Scrolled state actions */
+.floating-nav.scrolled .nav-actions {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  will-change: transform, background;
+}
+
+.theme-toggle:hover {
+  background: var(--color-nav-hover);
+  transform: scale(1.05);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Scrolled state theme toggle */
+.floating-nav.scrolled .theme-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+/* Icon transitions */
+.theme-toggle svg {
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: transform, opacity;
+}
+
+[data-theme="light"] .moon-icon,
+[data-theme="dark"] .sun-icon {
+  display: none;
+}
+
+/* Mobile Menu Toggle (for scrolled state) */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  will-change: transform;
+}
+
+.floating-nav.scrolled .mobile-menu-toggle {
+  display: flex;
+}
+
+.mobile-menu-toggle:hover {
+  transform: scale(1.1);
+}
+
+.mobile-menu-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Hamburger lines */
+.hamburger-line {
+  width: 20px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 1px;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: transform, opacity;
+}
+
+.hamburger-line:nth-child(1) {
+  transform-origin: top left;
+}
+
+.hamburger-line:nth-child(2) {
+  margin: 4px 0;
+}
+
+.hamburger-line:nth-child(3) {
+  transform-origin: bottom left;
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: opacity, visibility;
+}
+
+.mobile-menu-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Mobile Menu Panel */
+.mobile-menu-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: var(--color-card-bg);
+  backdrop-filter: blur(var(--nav-blur));
+  border-right: 1px solid var(--color-border);
+  z-index: 1001;
+  transform: translateX(-100%);
+  transition: all var(--nav-transition-duration) var(--nav-easing);
+  will-change: transform;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.mobile-menu-panel.open {
+  transform: translateX(0);
+}
+
+/* Mobile Menu Content */
+.mobile-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-top: var(--space-2xl);
+}
+
+.mobile-menu-content .nav-link {
+  font-size: var(--text-lg);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Liquid Animation Effects */
+@keyframes liquid-morph {
+  0% {
+    border-radius: var(--nav-border-radius);
+  }
+  50% {
+    border-radius: calc(var(--nav-border-radius) + 10px);
+  }
+  100% {
+    border-radius: var(--nav-capsule-border-radius);
+  }
+}
+
+.floating-nav.transitioning .nav-background {
+  animation: liquid-morph var(--nav-transition-duration) var(--nav-easing);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .floating-nav,
+  .nav-content,
+  .nav-menu,
+  .nav-actions,
+  .theme-toggle,
+  .mobile-menu-toggle,
+  .mobile-menu-overlay,
+  .mobile-menu-panel {
+    transition: none;
+  }
+  
+  .floating-nav.transitioning .nav-background {
+    animation: none;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .floating-nav {
+    top: var(--space-md);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .floating-nav.scrolled {
+    left: var(--space-md);
+    transform: translateX(0);
+  }
+  
+  .nav-content {
+    padding: 0 var(--space-md);
+  }
+  
+  .nav-menu {
+    gap: var(--space-md);
+  }
+  
+  .nav-link {
+    font-size: var(--text-sm);
+    padding: var(--space-xs) var(--space-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-nav {
+    top: var(--space-sm);
+  }
+  
+  .floating-nav.scrolled {
+    top: var(--space-sm);
+    left: var(--space-sm);
+  }
+  
+  .nav-content {
+    padding: 0 var(--space-sm);
+  }
+  
+  .nav-menu {
+    gap: var(--space-sm);
+  }
+}

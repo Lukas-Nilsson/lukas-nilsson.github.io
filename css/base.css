@@ -442,65 +442,7 @@ a:focus-visible {
   line-height: 1.6;
 }
 
-/* Header - BOLD ELEGANCE */
-.site-header {
-  position: sticky;
-  top: 0;
-  background: var(--color-header-bg);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
-  z-index: 1000;
-  box-shadow: var(--shadow-sm);
-}
-
-.nav-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 1200px;
-  margin-inline: auto;
-  padding: var(--space-md) var(--space-lg);
-  gap: var(--space-lg);
-}
-
-.nav-brand .brand-link {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-heading);
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-}
-
-.nav-menu {
-  display: flex;
-  gap: var(--space-lg);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.nav-link {
-  font-weight: 500;
-  color: var(--color-text);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.nav-link:hover {
-  background: var(--color-nav-hover);
-  color: var(--color-accent);
-}
-
-.nav-link:focus-visible {
-  background: var(--color-nav-hover);
-}
-
-.nav-actions {
-  display: flex;
-  gap: var(--space-sm);
-  align-items: center;
-}
+/* Header styles removed - now using floating navigation */
 
 /* Theme toggle */
 .theme-toggle {
@@ -586,7 +528,7 @@ a:focus-visible {
 
 /* Hero Section - BOLD ACADEMIC */
 .hero-section {
-  padding-block: clamp(6rem, 15vw, 10rem);
+  padding-block: clamp(8rem, 18vw, 12rem);
   text-align: left;
   position: relative;
   background: var(--color-bg);
