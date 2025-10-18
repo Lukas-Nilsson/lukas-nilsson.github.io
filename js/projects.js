@@ -54,7 +54,7 @@ const sideProjects = [
   },
   {
     id: 'human-timeline',
-    title: 'Human Timeline (Pre AI)',
+    title: 'Human Timeline',
     description: 'An interactive timeline exploring human history and cultural evolution before the AI era. Features chronological storytelling, cultural milestones, and immersive historical narratives that connect users with our shared past.',
     tag: 'Education',
     role: 'Developer',
@@ -65,7 +65,7 @@ const sideProjects = [
   },
   {
     id: 'pacha-ayni',
-    title: 'Pacha Ayni (Pre AI)',
+    title: 'Pacha Ayni',
     description: 'A cultural preservation platform focused on indigenous wisdom and traditional knowledge systems. Built before AI integration to honor authentic cultural transmission and community-driven storytelling approaches.',
     tag: 'Culture',
     role: 'UX Designer',
@@ -76,7 +76,7 @@ const sideProjects = [
   },
   {
     id: 'solar',
-    title: 'SolAR (Pre AI)',
+    title: 'SolAR',
     description: 'An augmented reality application for solar system exploration, built before AI integration. Features immersive 3D planetary experiences, educational content, and interactive space exploration using AR technology.',
     tag: 'AR/VR',
     role: 'AR Developer',
@@ -87,7 +87,7 @@ const sideProjects = [
   },
   {
     id: 'interactive-solar-system',
-    title: 'Interactive Solar System (with AI)',
+    title: 'Interactive Solar System',
     description: 'An AI-enhanced interactive solar system visualization that combines real astronomical data with intelligent explanations. Features dynamic learning paths, personalized content, and AI-powered educational assistance for space exploration.',
     tag: 'AI + Education',
     role: 'Full-Stack Developer',

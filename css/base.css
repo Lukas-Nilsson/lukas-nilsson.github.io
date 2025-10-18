@@ -288,6 +288,7 @@ main {
   z-index: 1;
   overflow-x: hidden;
   overflow-y: visible;
+  padding-top: 120px; /* Space for floating menu */
 }
 
 /* Typography Scale (BOLD ACADEMIC STYLE) */
@@ -442,6 +443,10 @@ a:focus-visible {
     padding-block: clamp(4rem, 8vw, 6rem);
     margin-bottom: var(--space-xl);
   }
+  
+  main {
+    padding-top: 100px; /* Reduced padding for mobile */
+  }
 }
 
 @media (max-width: 480px) {
@@ -469,6 +474,10 @@ a:focus-visible {
   .section {
     padding-block: clamp(3rem, 6vw, 4rem);
     margin-bottom: var(--space-lg);
+  }
+  
+  main {
+    padding-top: 80px; /* Further reduced for small mobile */
   }
 }
 

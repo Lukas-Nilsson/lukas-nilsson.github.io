@@ -95,7 +95,7 @@ const projectDetails = {
     ]
   },
   'human-timeline': {
-    title: 'Human Timeline (Pre AI)',
+    title: 'Human Timeline',
     tag: 'Education',
     type: 'Side Project',
     role: 'Developer',
@@ -117,7 +117,7 @@ const projectDetails = {
     links: []
   },
   'pacha-ayni': {
-    title: 'Pacha Ayni (Pre AI)',
+    title: 'Pacha Ayni',
     tag: 'Culture',
     type: 'Side Project',
     role: 'UX Designer',
@@ -139,7 +139,7 @@ const projectDetails = {
     links: []
   },
   'solar': {
-    title: 'SolAR (Pre AI)',
+    title: 'SolAR',
     tag: 'AR/VR',
     type: 'Side Project',
     role: 'AR Developer',
@@ -161,7 +161,7 @@ const projectDetails = {
     links: []
   },
   'interactive-solar-system': {
-    title: 'Interactive Solar System (with AI)',
+    title: 'Interactive Solar System',
     tag: 'AI + Education',
     type: 'Side Project',
     role: 'Full-Stack Developer',
