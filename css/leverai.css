@@ -499,13 +499,13 @@ a:hover {
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
-  color: var(--color-success);
+  color: var(--color-warning);
 }
 
 .status-indicator {
   width: 8px;
   height: 8px;
-  background: var(--color-success);
+  background: var(--color-warning);
   border-radius: var(--radius-full);
   animation: pulse 2s infinite;
 }
@@ -546,36 +546,84 @@ a:hover {
   background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-white) 100%);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.neural-network {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
+.learning-progress {
+  width: 100%;
+  padding: var(--space-4);
 }
 
-.node {
-  position: absolute;
-  width: 8px;
+.progress-bar {
+  width: 100%;
   height: 8px;
-  background: var(--color-accent);
+  background: var(--color-gray-200);
   border-radius: var(--radius-full);
-  animation: float 3s ease-in-out infinite;
+  position: relative;
+  margin-bottom: var(--space-3);
 }
 
-.node:nth-child(1) { top: 0; left: 0; animation-delay: 0s; }
-.node:nth-child(2) { top: 0; right: 0; animation-delay: 0.5s; }
-.node:nth-child(3) { bottom: 0; left: 0; animation-delay: 1s; }
-.node:nth-child(4) { bottom: 0; right: 0; animation-delay: 1.5s; }
-.node:nth-child(5) { top: 50%; left: 50%; transform: translate(-50%, -50%); animation-delay: 2s; }
-.node:nth-child(6) { top: 25%; left: 25%; animation-delay: 2.5s; }
+.progress-fill {
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%);
+  border-radius: var(--radius-full);
+  animation: progress-glow 2s ease-in-out infinite;
+}
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+@keyframes progress-glow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.progress-labels span {
+  position: relative;
+}
+
+.progress-labels span:first-child::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 4px;
+  background: var(--color-accent);
+  border-radius: 1px;
+}
+
+.progress-labels span:nth-child(2)::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 4px;
+  background: var(--color-gray-400);
+  border-radius: 1px;
+}
+
+.progress-labels span:last-child::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 4px;
+  background: var(--color-gray-400);
+  border-radius: 1px;
 }
 
 /* Problem/Solution Section */
