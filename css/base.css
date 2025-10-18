@@ -979,7 +979,7 @@ a:focus-visible {
   
   .nav-link-vertical {
     min-height: 56px;
-    padding: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
   }
   
   .nav-label {
@@ -1040,6 +1040,7 @@ a:focus-visible {
   
   .nav-link-vertical {
     min-height: 48px;
+    padding: var(--space-xs) var(--space-sm);
   }
   
   .nav-label {

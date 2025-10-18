@@ -50,8 +50,8 @@ class LiquidGlassEffects {
     // Calculate scroll progress (0 to 1)
     const scrollProgress = scrollY / (documentHeight - windowHeight);
     
-    // Trigger shimmer effect at certain scroll positions
-    if (scrollProgress > 0.1 && scrollProgress < 0.9) {
+    // Trigger shimmer effect less frequently and only at specific intervals
+    if (scrollProgress > 0.2 && scrollProgress < 0.8 && Math.random() < 0.1) {
       this.triggerShimmer();
     }
   }
@@ -61,11 +61,13 @@ class LiquidGlassEffects {
     
     // Reset animation
     this.scrollShimmer.style.transform = 'translateX(-100%)';
+    this.scrollShimmer.style.opacity = '0';
     
-    // Trigger shimmer
-    requestAnimationFrame(() => {
+    // Trigger shimmer with delay
+    setTimeout(() => {
+      this.scrollShimmer.style.opacity = '0.6';
       this.scrollShimmer.style.transform = 'translateX(100%)';
-    });
+    }, 100);
   }
 
   setupMouseParallax() {
