@@ -1,0 +1,302 @@
+/* Liquid Glass Background System
+ * Inspired by Apple VisionOS and macOS Sonoma
+ * Photo-realistic minimal background with liquid glass effects
+ */
+
+:root {
+  /* Liquid Glass Color Palette */
+  --liquid-base: #f7f7f5;
+  --liquid-silver: #dcdcdc;
+  --liquid-highlight: #ffffff;
+  --liquid-shadow: #e8e8e6;
+  --liquid-accent: #f0f0ee;
+  
+  /* Glass Properties */
+  --glass-blur: 25px;
+  --glass-opacity: 0.65;
+  --glass-ior: 1.45;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  /* Light Simulation */
+  --bloom-radius: 40px;
+  --ambient-occlusion: 0.15;
+  --caustic-intensity: 0.3;
+}
+
+/* Base Liquid Light Background */
+.liquid-glass-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    var(--liquid-base) 0%,
+    var(--liquid-accent) 25%,
+    var(--liquid-silver) 50%,
+    var(--liquid-shadow) 75%,
+    var(--liquid-base) 100%
+  );
+  
+  /* Subtle radial gradient overlay for depth */
+  background-image: 
+    radial-gradient(
+      ellipse 120% 80% at 20% 30%,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.1) 30%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 80% 120% at 80% 70%,
+      rgba(220, 220, 220, 0.3) 0%,
+      transparent 60%
+    );
+  
+  /* Ambient occlusion simulation */
+  box-shadow: 
+    inset 0 0 200px rgba(0, 0, 0, var(--ambient-occlusion)),
+    inset 0 0 100px rgba(255, 255, 255, 0.1);
+}
+
+/* Liquid Glass Panels */
+.liquid-glass-panel {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  border: var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  
+  /* Fresnel effect simulation */
+  background-image: 
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.2) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+  
+  /* Performance optimization */
+  will-change: transform, backdrop-filter;
+  transform: translateZ(0);
+}
+
+/* Caustic Highlights Layer */
+.liquid-glass-caustics {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: var(--caustic-intensity);
+  
+  background: 
+    radial-gradient(
+      circle at 30% 20%,
+      rgba(255, 255, 255, 0.6) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 70% 80%,
+      rgba(255, 255, 255, 0.4) 0%,
+      transparent 40%
+    ),
+    linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 70%
+    );
+  
+  /* Subtle animation for shimmer effect */
+  animation: liquid-shimmer 8s ease-in-out infinite;
+}
+
+/* Parallax Shimmer Animation */
+@keyframes liquid-shimmer {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scale(1);
+    opacity: var(--caustic-intensity);
+  }
+  25% {
+    transform: translateX(2px) translateY(-1px) scale(1.02);
+    opacity: var(--caustic-intensity) * 1.2;
+  }
+  50% {
+    transform: translateX(-1px) translateY(1px) scale(0.98);
+    opacity: var(--caustic-intensity) * 0.8;
+  }
+  75% {
+    transform: translateX(1px) translateY(-2px) scale(1.01);
+    opacity: var(--caustic-intensity) * 1.1;
+  }
+}
+
+/* Bloom Effect Simulation */
+.liquid-glass-bloom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--bloom-radius);
+  height: var(--bloom-radius);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.4) 30%,
+    transparent 70%
+  );
+  filter: blur(20px);
+  opacity: 0.6;
+  animation: bloom-pulse 6s ease-in-out infinite;
+}
+
+@keyframes bloom-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+/* Interactive Mouse Parallax */
+.liquid-glass-interactive {
+  transition: transform 0.1s ease-out;
+}
+
+.liquid-glass-interactive:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Scroll-based Parallax Shimmer */
+.liquid-glass-scroll-shimmer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background: 
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out;
+}
+
+/* Dark Mode Adaptations */
+[data-theme="dark"] .liquid-glass-bg {
+  background: linear-gradient(
+    135deg,
+    #1a1a1a 0%,
+    #2a2a2a 25%,
+    #3a3a3a 50%,
+    #2a2a2a 75%,
+    #1a1a1a 100%
+  );
+  
+  background-image: 
+    radial-gradient(
+      ellipse 120% 80% at 20% 30%,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 30%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 80% 120% at 80% 70%,
+      rgba(100, 100, 100, 0.2) 0%,
+      transparent 60%
+    );
+}
+
+[data-theme="dark"] .liquid-glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .liquid-glass-caustics {
+  background: 
+    radial-gradient(
+      circle at 30% 20%,
+      rgba(255, 255, 255, 0.2) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 70% 80%,
+      rgba(255, 255, 255, 0.15) 0%,
+      transparent 40%
+    );
+}
+
+/* Performance Optimizations */
+.liquid-glass-bg,
+.liquid-glass-panel,
+.liquid-glass-caustics {
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  
+  /* Optimize for smooth animations */
+  will-change: transform, opacity, backdrop-filter;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass-caustics,
+  .liquid-glass-bloom {
+    animation: none;
+  }
+  
+  .liquid-glass-interactive {
+    transition: none;
+  }
+}
+
+/* High DPI Display Optimization */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .liquid-glass-bg {
+    background-size: 200% 200%;
+  }
+}
+
+/* Container for Liquid Glass Elements */
+.liquid-glass-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Utility Classes */
+.liquid-glass-blur-sm { backdrop-filter: blur(10px); }
+.liquid-glass-blur-md { backdrop-filter: blur(20px); }
+.liquid-glass-blur-lg { backdrop-filter: blur(30px); }
+.liquid-glass-blur-xl { backdrop-filter: blur(40px); }
+
+.liquid-glass-opacity-50 { opacity: 0.5; }
+.liquid-glass-opacity-60 { opacity: 0.6; }
+.liquid-glass-opacity-70 { opacity: 0.7; }
+.liquid-glass-opacity-80 { opacity: 0.8; }

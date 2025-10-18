@@ -9,6 +9,7 @@ import { showToast } from './toast.js';
 import { MeteoriteVisualization } from './meteorite-visualization.js';
 import './chat.js'; // Initialize chat interface
 import './floating-nav.js'; // Initialize floating navigation
+import './liquid-glass.js'; // Initialize liquid glass effects
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
