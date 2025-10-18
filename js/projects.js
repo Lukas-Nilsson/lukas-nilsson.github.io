@@ -14,28 +14,6 @@ const workProjects = [
     type: 'work'
   },
   {
-    id: 'pachaayni',
-    title: 'Pachaayni Experience',
-    description: 'Designed and built an immersive cultural education platform that brings indigenous wisdom to modern audiences through interactive storytelling. Applied participatory design methodologies, conducted user research with diverse communities, and created culturally sensitive interface designs.',
-    tag: 'Education',
-    role: 'UX Designer',
-    impact: '50k+ users reached',
-    stack: ['Figma', 'JavaScript', 'AEM'],
-    image: null,
-    type: 'work'
-  },
-  {
-    id: 'portfolio-system',
-    title: 'Design System Library',
-    description: 'Developed a comprehensive design system to ensure consistency across products, reducing design-to-dev handoff time by 60%. Established component libraries, documentation protocols, and cross-functional collaboration frameworks to streamline the design-to-development process.',
-    tag: 'Design System',
-    role: 'Systems Designer',
-    impact: '-60% handoff time',
-    stack: ['Figma', 'Storybook', 'React'],
-    image: null,
-    type: 'work'
-  },
-  {
     id: 'leverai-training',
     title: 'LeverAI Training',
     description: 'Founded and developed a comprehensive AI training program for businesses, focusing on practical implementation and strategic AI adoption. Created curriculum, training materials, and hands-on workshops to help organizations leverage AI effectively.',
@@ -61,6 +39,17 @@ const sideProjects = [
     stack: ['React', 'Python', 'WordPress'],
     image: null,
     url: 'https://thehumanarchives.com',
+    type: 'project'
+  },
+  {
+    id: 'pachaayni',
+    title: 'Pachaayni Experience',
+    description: 'Designed and built an immersive cultural education platform that brings indigenous wisdom to modern audiences through interactive storytelling. Applied participatory design methodologies, conducted user research with diverse communities, and created culturally sensitive interface designs.',
+    tag: 'Education',
+    role: 'UX Designer',
+    impact: '50k+ users reached',
+    stack: ['Figma', 'JavaScript', 'AEM'],
+    image: null,
     type: 'project'
   },
   {
@@ -238,6 +227,7 @@ function createProjectCard(project) {
 function addCardClickHandlers(selector) {
   const cards = document.querySelectorAll(`${selector} .clickable-card`);
   cards.forEach(card => {
+    // Add click handler for the entire card
     card.addEventListener('click', (e) => {
       // Don't trigger if clicking on a button or link
       if (e.target.closest('button, a')) return;
@@ -246,8 +236,23 @@ function addCardClickHandlers(selector) {
       const projectType = card.getAttribute('data-project-type');
       
       // Navigate to project page
-      window.location.href = `/project.html?id=${projectId}&type=${projectType}`;
+      window.location.href = `project.html?id=${projectId}&type=${projectType}`;
     });
+    
+    // Add specific click handler for "View Details" button
+    const viewDetailsBtn = card.querySelector('.btn-primary');
+    if (viewDetailsBtn) {
+      viewDetailsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const projectId = card.getAttribute('data-project-id');
+        const projectType = card.getAttribute('data-project-type');
+        
+        // Navigate to project page
+        window.location.href = `project.html?id=${projectId}&type=${projectType}`;
+      });
+    }
     
     // Add keyboard support
     card.addEventListener('keydown', (e) => {

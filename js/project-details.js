@@ -27,7 +27,7 @@ const projectDetails = {
   'pachaayni': {
     title: 'Pachaayni Experience',
     tag: 'Education',
-    type: 'Professional Work',
+    type: 'Side Project',
     role: 'UX Designer',
     impact: '50k+ users reached across diverse communities',
     stack: ['Figma', 'JavaScript', 'AEM', 'Adobe Analytics'],
@@ -43,28 +43,6 @@ const projectDetails = {
     challenges: `
       <p><strong>Challenge:</strong> Balancing cultural authenticity with modern UX expectations while ensuring the platform was accessible to all community members.</p>
       <p><strong>Solution:</strong> Worked directly with community elders and cultural advisors, implemented flexible content management systems, and created user testing protocols that respected cultural protocols.</p>
-    `,
-    links: []
-  },
-  'portfolio-system': {
-    title: 'Design System Library',
-    tag: 'Design System',
-    type: 'Professional Work',
-    role: 'Systems Designer',
-    impact: '-60% design-to-dev handoff time',
-    stack: ['Figma', 'Storybook', 'React', 'GitHub'],
-    description: 'Developed a comprehensive design system to ensure consistency across products, reducing design-to-dev handoff time by 60%. Established component libraries, documentation protocols, and cross-functional collaboration frameworks to streamline the design-to-development process.',
-    features: [
-      'Component library with 50+ reusable components',
-      'Design tokens for consistent theming',
-      'Interactive documentation',
-      'Developer integration guides',
-      'Version control and change management',
-      'Cross-platform compatibility'
-    ],
-    challenges: `
-      <p><strong>Challenge:</strong> Getting buy-in from multiple teams and ensuring adoption across different product lines with varying technical requirements.</p>
-      <p><strong>Solution:</strong> Created comprehensive documentation, provided training sessions, and built tools that made the design system easier to use than creating custom components.</p>
     `,
     links: []
   },
