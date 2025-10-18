@@ -956,6 +956,22 @@ a:focus-visible {
     width: 40px;
     height: 40px;
   }
+  
+  /* Keep top bar state on mobile - disable side bar transformation */
+  .floating-nav.scrolled .nav-top-state {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  
+  .floating-nav.scrolled .nav-side-state {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  
+  /* Remove left padding on mobile since we stay in top bar */
+  .floating-nav.scrolled ~ main .container {
+    padding-left: var(--space-md);
+  }
 }
 
 @media (max-width: 480px) {
@@ -986,6 +1002,22 @@ a:focus-visible {
   
   .nav-label {
     font-size: 0.6rem;
+  }
+  
+  /* Keep top bar state on small mobile - disable side bar transformation */
+  .floating-nav.scrolled .nav-top-state {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  
+  .floating-nav.scrolled .nav-side-state {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  
+  /* Remove left padding on small mobile since we stay in top bar */
+  .floating-nav.scrolled ~ main .container {
+    padding-left: var(--space-sm);
   }
 }
 
