@@ -447,6 +447,11 @@ a:focus-visible {
   main {
     padding-top: 100px; /* Reduced padding for mobile */
   }
+  
+  .project-media video {
+    height: 300px;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -478,6 +483,11 @@ a:focus-visible {
   
   main {
     padding-top: 80px; /* Further reduced for small mobile */
+  }
+  
+  .project-media video {
+    height: 250px;
+    max-width: 100%;
   }
 }
 
@@ -1392,7 +1402,7 @@ a:focus-visible {
 /* Video styles for project cards */
 .card video {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 225px;
   border-radius: var(--radius-md);
   object-fit: cover;
   margin-bottom: var(--space-md);
@@ -1408,10 +1418,11 @@ a:focus-visible {
 .project-media video {
   width: 100%;
   max-width: 800px;
-  height: auto;
+  height: 450px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   background: var(--color-bg);
+  object-fit: cover;
 }
 
 .card-tag {
