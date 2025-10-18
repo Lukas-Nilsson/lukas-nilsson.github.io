@@ -26,7 +26,6 @@
   
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/theme.css">
-  <link rel="stylesheet" href="css/floating-nav.css">
   <link rel="stylesheet" href="css/chat.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 </head>
@@ -34,7 +33,137 @@
   <!-- Skip to content link -->
   <a href="#main" class="skip-link">Skip to main content</a>
   
-  <!-- Floating Navigation will be created by JavaScript -->
+  <!-- Adaptive Floating Glass Menu -->
+  <nav class="floating-nav" role="navigation" aria-label="Main navigation" id="floating-nav">
+    <!-- Top Bar State (Full Width) -->
+    <div class="nav-top-state">
+      <div class="nav-brand">
+        <a href="#home" class="brand-link" aria-label="Home">
+          <span class="brand-text">LN</span>
+        </a>
+      </div>
+      
+      <ul class="nav-menu">
+        <li><a href="#home" class="nav-link" data-section="home">Home</a></li>
+        <li><a href="#work" class="nav-link" data-section="work">Work</a></li>
+        <li><a href="#projects" class="nav-link" data-section="projects">Projects</a></li>
+        <li><a href="#about" class="nav-link" data-section="about">About</a></li>
+        <li><a href="#contact" class="nav-link" data-section="contact">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <button class="theme-toggle" aria-label="Toggle theme" type="button">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        
+        <button class="palette-trigger" aria-label="Open command palette (Cmd+K)" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <span class="palette-hint">⌘K</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Side Bar State (Vertical) -->
+    <div class="nav-side-state">
+      <div class="nav-brand-vertical">
+        <a href="#home" class="brand-link-vertical" aria-label="Home">
+          <span class="brand-text-vertical">LN</span>
+        </a>
+      </div>
+      
+      <ul class="nav-menu-vertical">
+        <li>
+          <a href="#home" class="nav-link-vertical" data-section="home" aria-label="Home">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9,22 9,12 15,12 15,22"/>
+            </svg>
+            <span class="nav-label">Home</span>
+          </a>
+        </li>
+        <li>
+          <a href="#work" class="nav-link-vertical" data-section="work" aria-label="Work">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span class="nav-label">Work</span>
+          </a>
+        </li>
+        <li>
+          <a href="#projects" class="nav-link-vertical" data-section="projects" aria-label="Projects">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16,18 22,12 16,6"/>
+              <polyline points="8,6 2,12 8,18"/>
+            </svg>
+            <span class="nav-label">Projects</span>
+          </a>
+        </li>
+        <li>
+          <a href="#about" class="nav-link-vertical" data-section="about" aria-label="About">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="nav-label">About</span>
+          </a>
+        </li>
+        <li>
+          <a href="#contact" class="nav-link-vertical" data-section="contact" aria-label="Contact">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <span class="nav-label">Contact</span>
+          </a>
+        </li>
+      </ul>
+      
+      <div class="nav-actions-vertical">
+        <button class="theme-toggle-vertical" aria-label="Toggle theme" type="button">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        
+        <button class="palette-trigger-vertical" aria-label="Open command palette (Cmd+K)" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
   
   <!-- Main content -->
   <main id="main" role="main">
@@ -306,7 +435,6 @@
   
   <!-- Scripts -->
   <script type="module" src="js/app.js"></script>
-  <script src="js/floating-nav.js"></script>
 </body>
 </html>
 

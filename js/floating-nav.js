@@ -1,314 +1,159 @@
-// floating-nav.js - Apple Liquid Style Navigation
+// floating-nav.js - Adaptive Floating Glass Menu
+// Handles scroll-based transformation from top bar to side bar
 
-class FloatingNavigation {
+class FloatingNav {
   constructor() {
-    this.nav = null;
+    this.nav = document.getElementById('floating-nav');
+    this.scrollThreshold = 100; // Pixels to scroll before transformation
     this.isScrolled = false;
-    this.isTransitioning = false;
-    this.scrollThreshold = 100;
-    this.lastScrollY = 0;
-    this.scrollDirection = 'down';
-    this.mobileMenuOpen = false;
+    this.animationFrame = null;
     
     this.init();
   }
   
   init() {
-    this.createNavigation();
-    this.setupEventListeners();
-    this.setupScrollDetection();
-    this.setupMobileMenu();
-    this.updateActiveLink();
+    if (!this.nav) return;
+    
+    this.setupScrollListener();
+    this.setupThemeToggle();
+    this.setupPaletteTrigger();
+    this.setupActiveSection();
   }
   
-  createNavigation() {
-    // Create floating nav container
-    this.nav = document.createElement('nav');
-    this.nav.className = 'floating-nav';
-    this.nav.setAttribute('role', 'navigation');
-    this.nav.setAttribute('aria-label', 'Main navigation');
-    
-    // Create background
-    const background = document.createElement('div');
-    background.className = 'nav-background';
-    
-    // Create content container
-    const content = document.createElement('div');
-    content.className = 'nav-content';
-    
-    // Create brand
-    const brand = document.createElement('div');
-    brand.className = 'nav-brand';
-    brand.innerHTML = `
-      <a href="#home" class="brand-link" aria-label="Home">LN</a>
-    `;
-    
-    // Create menu
-    const menu = document.createElement('ul');
-    menu.className = 'nav-menu';
-    menu.innerHTML = `
-      <li><a href="#home" class="nav-link" data-section="home">Home</a></li>
-      <li><a href="#work" class="nav-link" data-section="work">Work</a></li>
-      <li><a href="#projects" class="nav-link" data-section="projects">Projects</a></li>
-      <li><a href="#about" class="nav-link" data-section="about">About</a></li>
-      <li><a href="#contact" class="nav-link" data-section="contact">Contact</a></li>
-    `;
-    
-    // Create actions
-    const actions = document.createElement('div');
-    actions.className = 'nav-actions';
-    actions.innerHTML = `
-      <button class="theme-toggle" aria-label="Toggle theme" type="button">
-        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/>
-          <line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/>
-          <line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-      </button>
-      <button class="mobile-menu-toggle" aria-label="Open menu" type="button">
-        <div class="hamburger-line"></div>
-        <div class="hamburger-line"></div>
-        <div class="hamburger-line"></div>
-      </button>
-    `;
-    
-    // Assemble navigation
-    content.appendChild(brand);
-    content.appendChild(menu);
-    content.appendChild(actions);
-    
-    this.nav.appendChild(background);
-    this.nav.appendChild(content);
-    
-    // Add to page
-    document.body.appendChild(this.nav);
-    
-    // Store references
-    this.brand = brand;
-    this.menu = menu;
-    this.actions = actions;
-    this.themeToggle = actions.querySelector('.theme-toggle');
-    this.mobileToggle = actions.querySelector('.mobile-menu-toggle');
-  }
-  
-  setupEventListeners() {
-    // Theme toggle
-    if (this.themeToggle) {
-      this.themeToggle.addEventListener('click', this.handleThemeToggle.bind(this));
-    }
-    
-    // Mobile menu toggle
-    if (this.mobileToggle) {
-      this.mobileToggle.addEventListener('click', this.toggleMobileMenu.bind(this));
-    }
-    
-    // Navigation links
-    this.menu.addEventListener('click', this.handleNavClick.bind(this));
-    
-    // Close mobile menu on overlay click
-    document.addEventListener('click', this.handleOutsideClick.bind(this));
-    
-    // Handle escape key
-    document.addEventListener('keydown', this.handleKeydown.bind(this));
-  }
-  
-  setupScrollDetection() {
+  setupScrollListener() {
     let ticking = false;
     
-    const updateScrollState = () => {
-      const scrollY = window.scrollY;
-      const direction = scrollY > this.lastScrollY ? 'down' : 'up';
-      
-      // Update scroll direction
-      this.scrollDirection = direction;
-      this.lastScrollY = scrollY;
-      
-      // Determine if scrolled
-      const shouldBeScrolled = scrollY > this.scrollThreshold;
-      
-      if (shouldBeScrolled !== this.isScrolled) {
-        this.toggleScrolledState(shouldBeScrolled);
-      }
-      
-      // Update active link
-      this.updateActiveLink();
-      
-      ticking = false;
-    };
-    
-    const requestTick = () => {
+    const handleScroll = () => {
       if (!ticking) {
-        requestAnimationFrame(updateScrollState);
+        requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          const shouldBeScrolled = scrollY > this.scrollThreshold;
+          
+          if (shouldBeScrolled !== this.isScrolled) {
+            this.isScrolled = shouldBeScrolled;
+            this.updateNavState();
+          }
+          
+          ticking = false;
+        });
         ticking = true;
       }
     };
     
-    window.addEventListener('scroll', requestTick, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Initial state
+    this.updateNavState();
   }
   
-  toggleScrolledState(scrolled) {
-    if (this.isTransitioning) return;
+  updateNavState() {
+    if (!this.nav) return;
     
-    this.isScrolled = scrolled;
-    this.isTransitioning = true;
-    
-    // Add transitioning class for liquid animation
-    this.nav.classList.add('transitioning');
-    
-    // Use requestAnimationFrame to ensure smooth transition
-    requestAnimationFrame(() => {
-      if (scrolled) {
-        this.nav.classList.add('scrolled');
-      } else {
-        this.nav.classList.remove('scrolled');
-      }
-    });
-    
-    // Remove transitioning class after animation
-    setTimeout(() => {
-      this.nav.classList.remove('transitioning');
-      this.isTransitioning = false;
-    }, 600);
-  }
-  
-  setupMobileMenu() {
-    // Create mobile menu overlay
-    this.mobileOverlay = document.createElement('div');
-    this.mobileOverlay.className = 'mobile-menu-overlay';
-    
-    // Create mobile menu panel
-    this.mobilePanel = document.createElement('div');
-    this.mobilePanel.className = 'mobile-menu-panel';
-    this.mobilePanel.innerHTML = `
-      <div class="mobile-menu-content">
-        <a href="#home" class="nav-link" data-section="home">Home</a>
-        <a href="#work" class="nav-link" data-section="work">Work</a>
-        <a href="#projects" class="nav-link" data-section="projects">Projects</a>
-        <a href="#about" class="nav-link" data-section="about">About</a>
-        <a href="#contact" class="nav-link" data-section="contact">Contact</a>
-      </div>
-    `;
-    
-    // Add to page
-    document.body.appendChild(this.mobileOverlay);
-    document.body.appendChild(this.mobilePanel);
-    
-    // Add click handlers for mobile menu links
-    this.mobilePanel.addEventListener('click', this.handleMobileNavClick.bind(this));
-  }
-  
-  toggleMobileMenu() {
-    this.mobileMenuOpen = !this.mobileMenuOpen;
-    
-    if (this.mobileMenuOpen) {
-      this.mobileOverlay.classList.add('open');
-      this.mobilePanel.classList.add('open');
-      this.mobileToggle.setAttribute('aria-label', 'Close menu');
-      this.mobileToggle.setAttribute('aria-expanded', 'true');
-      document.body.style.overflow = 'hidden';
+    if (this.isScrolled) {
+      this.nav.classList.add('scrolled');
     } else {
-      this.mobileOverlay.classList.remove('open');
-      this.mobilePanel.classList.remove('open');
-      this.mobileToggle.setAttribute('aria-label', 'Open menu');
-      this.mobileToggle.setAttribute('aria-expanded', 'false');
-      document.body.style.overflow = '';
+      this.nav.classList.remove('scrolled');
     }
   }
   
-  handleNavClick(e) {
-    const link = e.target.closest('.nav-link');
-    if (!link) return;
+  setupThemeToggle() {
+    // Handle both theme toggles
+    const themeToggles = document.querySelectorAll('.theme-toggle, .theme-toggle-vertical');
     
-    e.preventDefault();
-    const section = link.getAttribute('data-section');
-    this.scrollToSection(section);
-  }
-  
-  handleMobileNavClick(e) {
-    const link = e.target.closest('.nav-link');
-    if (!link) return;
-    
-    e.preventDefault();
-    const section = link.getAttribute('data-section');
-    this.scrollToSection(section);
-    this.toggleMobileMenu(); // Close mobile menu
-  }
-  
-  handleOutsideClick(e) {
-    if (this.mobileMenuOpen && 
-        !this.mobilePanel.contains(e.target) && 
-        !this.mobileToggle.contains(e.target)) {
-      this.toggleMobileMenu();
-    }
-  }
-  
-  handleKeydown(e) {
-    if (e.key === 'Escape' && this.mobileMenuOpen) {
-      this.toggleMobileMenu();
-    }
-  }
-  
-  scrollToSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    
-    const offsetTop = section.offsetTop - 100; // Account for fixed nav
-    
-    window.scrollTo({
-      top: offsetTop,
-      behavior: 'smooth'
+    themeToggles.forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        this.toggleTheme();
+      });
     });
   }
   
-  updateActiveLink() {
-    const sections = ['home', 'work', 'projects', 'about', 'contact'];
-    const scrollY = window.scrollY + 150; // Offset for better detection
+  setupPaletteTrigger() {
+    // Handle both palette triggers
+    const paletteTriggers = document.querySelectorAll('.palette-trigger, .palette-trigger-vertical');
     
-    let activeSection = 'home';
+    paletteTriggers.forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        this.openPalette();
+      });
+    });
+  }
+  
+  setupActiveSection() {
+    // Update active section based on scroll position
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link, .nav-link-vertical');
     
-    for (const sectionId of sections) {
-      const section = document.getElementById(sectionId);
-      if (section && scrollY >= section.offsetTop) {
-        activeSection = sectionId;
+    const updateActiveSection = () => {
+      const scrollY = window.scrollY;
+      let activeSection = '';
+      
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        const sectionHeight = section.offsetHeight;
+        
+        if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
+          activeSection = section.id;
+        }
+      });
+      
+      // Update active states
+      navLinks.forEach(link => {
+        const section = link.getAttribute('data-section');
+        if (section === activeSection) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    };
+    
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateActiveSection();
+          ticking = false;
+        });
+        ticking = true;
       }
-    }
+    };
     
-    // Update active states
-    this.menu.querySelectorAll('.nav-link').forEach(link => {
-      const isActive = link.getAttribute('data-section') === activeSection;
-      link.classList.toggle('active', isActive);
-    });
-    
-    this.mobilePanel.querySelectorAll('.nav-link').forEach(link => {
-      const isActive = link.getAttribute('data-section') === activeSection;
-      link.classList.toggle('active', isActive);
-    });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    updateActiveSection(); // Initial call
   }
   
-  handleThemeToggle() {
-    // This would integrate with your existing theme system
+  toggleTheme() {
+    // Get current theme
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     
+    // Update theme
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
+    
+    // Add smooth transition
+    document.documentElement.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    
+    setTimeout(() => {
+      document.documentElement.style.transition = '';
+    }, 300);
+  }
+  
+  openPalette() {
+    // Trigger existing palette functionality
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      bubbles: true
+    });
+    document.dispatchEvent(event);
   }
 }
 
-// Initialize floating navigation when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new FloatingNavigation();
-  });
-} else {
-  new FloatingNavigation();
-}
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  new FloatingNav();
+});
+
+// Export for module usage
+export default FloatingNav;

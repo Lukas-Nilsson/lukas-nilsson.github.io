@@ -8,6 +8,7 @@ import { loadWorkProjects, loadSideProjects } from './projects.js';
 import { showToast } from './toast.js';
 import { MeteoriteVisualization } from './meteorite-visualization.js';
 import './chat.js'; // Initialize chat interface
+import './floating-nav.js'; // Initialize floating navigation
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
