@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive 3D visualization of near-Earth objects and meteorites - Lukas Nilsson Portfolio">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  
+  <title>Near-Earth Objects Visualization - Lukas Nilsson</title>
+  
+  <!-- Preload critical assets -->
+  <link rel="preload" as="style" href="css/base.css">
+  <link rel="preload" as="style" href="css/theme.css">
+  
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/meteorite.css">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+</head>
+<body>
+  <!-- Skip to content link -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+  
+  <!-- Header -->
+  <header class="site-header" role="banner">
+    <nav class="nav-container" role="navigation" aria-label="Main navigation">
+      <div class="nav-brand">
+        <a href="index.html" class="brand-link" aria-label="Home">LN</a>
+      </div>
+      
+      <ul class="nav-menu">
+        <li><a href="index.html#home" class="nav-link">Home</a></li>
+        <li><a href="index.html#work" class="nav-link">Work</a></li>
+        <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+        <li><a href="index.html#about" class="nav-link">About</a></li>
+        <li><a href="index.html#contact" class="nav-link">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <button class="theme-toggle" aria-label="Toggle theme" type="button">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <main id="main" class="meteorite-main" tabindex="-1">
+    <div class="container">
+      <!-- Back button -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html" class="breadcrumb-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Portfolio
+        </a>
+      </nav>
+
+      <!-- Project header -->
+      <header class="project-header">
+        <div class="project-meta">
+          <span class="project-tag">Data Visualization</span>
+          <span class="project-type">Side Project</span>
+        </div>
+        <h1 class="project-title">Near-Earth Objects Visualization</h1>
+        <p class="project-subtitle">Interactive 3D visualization of potentially hazardous asteroids and meteorites based on NASA's CNEOS Sentry data. Features realistic orbital mechanics with accurate relative sizes and distances for the Sun, Earth, Moon, and meteorites.</p>
+      </header>
+
+      <!-- Visualization container -->
+      <div class="visualization-container">
+        <div id="meteorite-canvas" class="meteorite-canvas loading">
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+            <div style="text-align: center;">
+              <div style="width: 40px; height: 40px; border: 4px solid #334155; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
+              <p>Loading 3D visualization...</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="visualization-controls">
+          <div class="control-group">
+            <label for="scale-toggle">Scale Objects</label>
+            <input type="checkbox" id="scale-toggle" checked>
+          </div>
+          <div class="control-group">
+            <label for="orbit-toggle">Show Orbits</label>
+            <input type="checkbox" id="orbit-toggle">
+          </div>
+          <div class="control-group">
+            <label for="threat-filter">Filter by Threat Level</label>
+            <select id="threat-filter">
+              <option value="all">All Objects</option>
+              <option value="high">High Threat (Torino > 0)</option>
+              <option value="moderate">Moderate (Palermo > -2)</option>
+              <option value="low">Low Threat</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="visualization-info">
+        <div class="info-card">
+          <h3>Controls</h3>
+          <p><strong>Mouse:</strong> Click and drag to rotate the view around Earth</p>
+          <p><strong>Scroll:</strong> Zoom in and out (2-50 units)</p>
+          <p><strong>Click:</strong> Click on meteorites to see detailed information</p>
+          <p><strong>Trails:</strong> Colored trails show past orbital paths</p>
+          <p><strong>Future Paths:</strong> Dotted lines show predicted future trajectories</p>
+          <p><strong>Tails:</strong> White particle tails show movement direction and speed</p>
+        </div>
+        <div class="info-card">
+          <h3>Data Source</h3>
+          <p>This visualization uses data from NASA's CNEOS Sentry system, which tracks potentially hazardous near-Earth objects.</p>
+        </div>
+        <div class="info-card">
+          <h3>Color Coding</h3>
+          <div class="color-legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #ff4444;"></div>
+              <span>High Threat (Torino Scale > 0)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #ffaa44;"></div>
+              <span>Moderate (Palermo Scale > -2)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #44ff44;"></div>
+              <span>Low Threat</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p>&copy; <span id="year"></span> Lukas Nilsson. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/meteorite-visualization.js"></script>
+</body>
+</html>

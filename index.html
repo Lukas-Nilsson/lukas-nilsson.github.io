@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Lukas Nilsson – Product designer and engineer crafting elegant digital experiences">
   <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
@@ -43,6 +43,7 @@
       <ul class="nav-menu">
         <li><a href="#home" class="nav-link">Home</a></li>
         <li><a href="#work" class="nav-link">Work</a></li>
+        <li><a href="#projects" class="nav-link">Projects</a></li>
         <li><a href="#about" class="nav-link">About</a></li>
         <li><a href="#contact" class="nav-link">Contact</a></li>
       </ul>
@@ -134,6 +135,20 @@
       </div>
     </section>
     
+    <!-- Projects section -->
+    <section id="projects" class="section projects-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">Side Projects</h2>
+          <p class="section-subtitle">Personal experiments and smaller projects that explore new technologies, creative ideas, and learning opportunities. These projects demonstrate continuous learning and experimentation with emerging tools and methodologies.</p>
+        </header>
+        
+        <div class="projects-grid" role="list">
+          <!-- Project cards will be injected by JS -->
+        </div>
+      </div>
+    </section>
+    
     <!-- About section -->
     <section id="about" class="section about-section">
       <div class="container">
@@ -189,7 +204,7 @@
                     <li>AEM</li>
                   </ul>
                 </div>
-              </div>
+            </div>    
             </div>
           </div>
           
@@ -208,6 +223,7 @@
         </div>
       </div>
     </section>
+    
     
     <!-- Contact section -->
     <section id="contact" class="section contact-section">
@@ -245,8 +261,8 @@
                 autocomplete="email"
               >
               <span class="form-error" role="alert"></span>
-            </div>
-            
+        </div>
+
             <div class="form-group">
               <label for="message" class="form-label">Message</label>
               <textarea 
@@ -267,8 +283,8 @@
             <div class="contact-card">
               <h3>Direct Contact</h3>
               <p>Prefer email? Reach me directly at:</p>
-              <a href="mailto:hello@lukasnilsson.com" class="contact-email">hello@lukasnilsson.com</a>
-            </div>
+              <a href="mailto:lukasnilssonbusiness@gmail.com" class="contact-email">lukasnilssonbusiness@gmail.com</a>
+                </div>
             
             <div class="contact-card">
               <h3>Connect</h3>
@@ -281,7 +297,7 @@
                 </li>
               </ul>
             </div>
-          </div>
+            </div>
         </div>
       </div>
     </section>
@@ -325,6 +341,9 @@
   
   <!-- Toast container -->
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+  
+  <!-- Three.js Local -->
+  <script src="js/three.min.js"></script>
   
   <!-- Scripts -->
   <script type="module" src="js/app.js"></script>

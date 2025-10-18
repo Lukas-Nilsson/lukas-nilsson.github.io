@@ -1,7 +1,7 @@
 // projects.js - Load and display projects
 
-// Project data
-const projects = [
+// Work projects (professional work)
+const workProjects = [
   {
     id: 'anz-plus',
     title: 'ANZ Plus Digital Platform',
@@ -10,19 +10,8 @@ const projects = [
     role: 'Product Designer',
     impact: '+40% engagement',
     stack: ['Figma', 'React', 'Adobe Analytics'],
-    image: null // Placeholder
-  },
-  {
-    id: 'human-archives',
-    title: 'The Human Archives',
-    description: 'Created an interactive platform to preserve and share cultural stories, connecting communities with their heritage through immersive digital experiences. Developed user research protocols, designed cultural storytelling interfaces, and built scalable content management systems. Features artifact collections, cultural timelines, and wearable stories that bring history to life.',
-    tag: 'Culture',
-    role: 'Lead Developer',
-    impact: '10k+ stories archived',
-    stack: ['React', 'Python', 'WordPress'],
     image: null,
-    url: 'https://thehumanarchives.com',
-    preview: true
+    type: 'work'
   },
   {
     id: 'pachaayni',
@@ -32,7 +21,8 @@ const projects = [
     role: 'UX Designer',
     impact: '50k+ users reached',
     stack: ['Figma', 'JavaScript', 'AEM'],
-    image: null
+    image: null,
+    type: 'work'
   },
   {
     id: 'portfolio-system',
@@ -42,25 +32,140 @@ const projects = [
     role: 'Systems Designer',
     impact: '-60% handoff time',
     stack: ['Figma', 'Storybook', 'React'],
-    image: null
+    image: null,
+    type: 'work'
+  },
+  {
+    id: 'leverai-training',
+    title: 'LeverAI Training',
+    description: 'Founded and developed a comprehensive AI training program for businesses, focusing on practical implementation and strategic AI adoption. Created curriculum, training materials, and hands-on workshops to help organizations leverage AI effectively.',
+    tag: 'AI Training',
+    role: 'Founder & Lead Trainer',
+    impact: 'Business AI adoption',
+    stack: ['AI Strategy', 'Training Design', 'Business Development'],
+    image: null,
+    url: '/leverai.html',
+    type: 'work'
+  }
+];
+
+// Side projects (personal experiments)
+const sideProjects = [
+  {
+    id: 'human-archives',
+    title: 'The Human Archives',
+    description: 'Created an interactive platform to preserve and share cultural stories, connecting communities with their heritage through immersive digital experiences. Developed user research protocols, designed cultural storytelling interfaces, and built scalable content management systems.',
+    tag: 'Culture',
+    role: 'Lead Developer',
+    impact: '10k+ stories archived',
+    stack: ['React', 'Python', 'WordPress'],
+    image: null,
+    url: 'https://thehumanarchives.com',
+    type: 'project'
+  },
+  {
+    id: 'human-timeline',
+    title: 'Human Timeline (Pre AI)',
+    description: 'An interactive timeline exploring human history and cultural evolution before the AI era. Features chronological storytelling, cultural milestones, and immersive historical narratives that connect users with our shared past.',
+    tag: 'Education',
+    role: 'Developer',
+    impact: 'Historical exploration tool',
+    stack: ['JavaScript', 'Timeline.js', 'D3.js'],
+    image: null,
+    type: 'project'
+  },
+  {
+    id: 'pacha-ayni',
+    title: 'Pacha Ayni (Pre AI)',
+    description: 'A cultural preservation platform focused on indigenous wisdom and traditional knowledge systems. Built before AI integration to honor authentic cultural transmission and community-driven storytelling approaches.',
+    tag: 'Culture',
+    role: 'UX Designer',
+    impact: 'Cultural preservation',
+    stack: ['Figma', 'WordPress', 'Community Research'],
+    image: null,
+    type: 'project'
+  },
+  {
+    id: 'solar',
+    title: 'SolAR (Pre AI)',
+    description: 'An augmented reality application for solar system exploration, built before AI integration. Features immersive 3D planetary experiences, educational content, and interactive space exploration using AR technology.',
+    tag: 'AR/VR',
+    role: 'AR Developer',
+    impact: 'Educational AR experience',
+    stack: ['Unity', 'ARCore', 'C#'],
+    image: null,
+    type: 'project'
+  },
+  {
+    id: 'interactive-solar-system',
+    title: 'Interactive Solar System (with AI)',
+    description: 'An AI-enhanced interactive solar system visualization that combines real astronomical data with intelligent explanations. Features dynamic learning paths, personalized content, and AI-powered educational assistance for space exploration.',
+    tag: 'AI + Education',
+    role: 'Full-Stack Developer',
+    impact: 'AI-powered learning',
+    stack: ['Three.js', 'OpenAI API', 'WebGL', 'Machine Learning'],
+    image: null,
+    type: 'project'
+  },
+  {
+    id: 'meteorite-visualization',
+    title: 'Near-Earth Objects Visualization',
+    description: 'Interactive 3D visualization of potentially hazardous asteroids and meteorites based on NASA\'s CNEOS Sentry data. Features realistic orbital mechanics with accurate relative sizes and distances for the Sun, Earth, Moon, and meteorites.',
+    tag: 'Data Visualization',
+    role: 'Developer',
+    impact: 'Real-time NASA data',
+    stack: ['Three.js', 'JavaScript', 'NASA API'],
+    image: null,
+    type: 'project'
+  },
+  {
+    id: 'interactive-portfolio',
+    title: 'Interactive Portfolio',
+    description: 'This portfolio itself - built with accessibility, performance, and honest design principles. Features dark/light themes, smooth animations, and a focus on semantic HTML and progressive enhancement.',
+    tag: 'Web Development',
+    role: 'Full-Stack Developer',
+    impact: '100% accessible',
+    stack: ['HTML/CSS/JS', 'Accessibility', 'Performance'],
+    image: null,
+    type: 'project'
   }
 ];
 
 /**
- * Load projects with skeleton states
+ * Load work projects with skeleton states
  */
-export function loadProjects() {
+export function loadWorkProjects() {
   const grid = document.querySelector('.work-grid');
   if (!grid) return;
   
   // Show skeletons first
-  grid.innerHTML = projects.map(() => `
+  grid.innerHTML = workProjects.map(() => `
     <div class="card skeleton skeleton-card" aria-busy="true"></div>
   `).join('');
   
   // Simulate loading delay (in real app, this would be an API call)
   setTimeout(() => {
-    grid.innerHTML = projects.map(project => createProjectCard(project)).join('');
+    grid.innerHTML = workProjects.map(project => createProjectCard(project)).join('');
+    addCardClickHandlers('.work-grid');
+  }, 800);
+}
+
+/**
+ * Load side projects with skeleton states
+ */
+export function loadSideProjects() {
+  const grid = document.querySelector('.projects-grid');
+  if (!grid) return;
+  
+  // Show skeletons first
+  grid.innerHTML = sideProjects.map(() => `
+    <div class="card skeleton skeleton-card" aria-busy="true"></div>
+  `).join('');
+  
+  // Simulate loading delay (in real app, this would be an API call)
+  setTimeout(() => {
+    grid.innerHTML = sideProjects.map(project => createProjectCard(project)).join('');
+    addCardClickHandlers('.projects-grid');
   }, 800);
 }
 
@@ -69,7 +174,7 @@ export function loadProjects() {
  */
 function createProjectCard(project) {
   return `
-    <article class="card" role="listitem">
+    <article class="card clickable-card" role="listitem" data-project-id="${project.id}" data-project-type="${project.type}">
       ${project.image ? `
         <img 
           src="${project.image}" 
@@ -97,14 +202,22 @@ function createProjectCard(project) {
         ${project.stack.map(tech => `<span style="color: var(--color-accent);">${escapeHtml(tech)}</span>`).join(' • ')}
       </div>
       
-      ${project.url ? `
-        <div class="card-actions" style="margin-top: 1rem;">
+      <div class="card-actions" style="margin-top: 1rem;">
+        <button class="btn btn-primary btn-sm" aria-label="View details for ${escapeHtml(project.title)}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          View Details
+        </button>
+        ${project.url ? `
           <a 
             href="${project.url}" 
             target="_blank" 
             rel="noopener noreferrer" 
             class="btn btn-outline btn-sm"
             aria-label="Preview ${escapeHtml(project.title)} website"
+            onclick="event.stopPropagation()"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -113,10 +226,40 @@ function createProjectCard(project) {
             </svg>
             Preview Site
           </a>
-        </div>
-      ` : ''}
+        ` : ''}
+      </div>
     </article>
   `;
+}
+
+/**
+ * Add click handlers to project cards
+ */
+function addCardClickHandlers(selector) {
+  const cards = document.querySelectorAll(`${selector} .clickable-card`);
+  cards.forEach(card => {
+    card.addEventListener('click', (e) => {
+      // Don't trigger if clicking on a button or link
+      if (e.target.closest('button, a')) return;
+      
+      const projectId = card.getAttribute('data-project-id');
+      const projectType = card.getAttribute('data-project-type');
+      
+      // Navigate to project page
+      window.location.href = `/project.html?id=${projectId}&type=${projectType}`;
+    });
+    
+    // Add keyboard support
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+    
+    // Make cards focusable
+    card.setAttribute('tabindex', '0');
+  });
 }
 
 /**

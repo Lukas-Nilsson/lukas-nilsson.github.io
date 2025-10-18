@@ -64,9 +64,9 @@ function getResponseForIntent(intent, originalText) {
     },
     
     contact: {
-      text: "I'd love to hear from you! You can reach me directly at hello@lukasnilsson.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities, collaborations, or just having a chat about design and technology.",
+      text: "I'd love to hear from you! You can reach me directly at lukasnilssonbusiness@gmail.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities, collaborations, or just having a chat about design and technology.",
       actions: [
-        { type: "email", target: "hello@lukasnilsson.com", label: "Send Email" },
+        { type: "email", target: "lukasnilssonbusiness@gmail.com", label: "Send Email" },
         { type: "link", target: "https://www.linkedin.com/in/lukaspnilsson/", label: "Connect on LinkedIn" },
         { type: "jump", target: "#contact", label: "Contact Form" }
       ]
@@ -82,7 +82,7 @@ function getResponseForIntent(intent, originalText) {
     availability: {
       text: "I'm currently available for new projects and opportunities! I work on both freelance and full-time projects, with a focus on product design and development.\n\nI'm based in Melbourne and can work remotely or on-site. For project inquiries, please reach out via email and I'll get back to you within 24 hours.",
       actions: [
-        { type: "email", target: "hello@lukasnilsson.com", label: "Discuss Project" },
+        { type: "email", target: "lukasnilssonbusiness@gmail.com", label: "Discuss Project" },
         { type: "jump", target: "#contact", label: "Contact Form" }
       ]
     },

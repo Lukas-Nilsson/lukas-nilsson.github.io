@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Project details - Lukas Nilsson Portfolio">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  
+  <title id="page-title">Project Details - Lukas Nilsson</title>
+  
+  <!-- Preload critical assets -->
+  <link rel="preload" as="style" href="css/base.css">
+  <link rel="preload" as="style" href="css/theme.css">
+  
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/chat.css">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+</head>
+<body>
+  <!-- Skip to content link -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+  
+  <!-- Header -->
+  <header class="site-header" role="banner">
+    <nav class="nav-container" role="navigation" aria-label="Main navigation">
+      <div class="nav-brand">
+        <a href="index.html" class="brand-link" aria-label="Home">LN</a>
+      </div>
+      
+      <ul class="nav-menu">
+        <li><a href="index.html#home" class="nav-link">Home</a></li>
+        <li><a href="index.html#work" class="nav-link">Work</a></li>
+        <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+        <li><a href="index.html#about" class="nav-link">About</a></li>
+        <li><a href="index.html#contact" class="nav-link">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <button class="theme-toggle" aria-label="Toggle theme" type="button">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <main id="main" class="project-main" tabindex="-1">
+    <div class="container">
+      <!-- Back button -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html" class="breadcrumb-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Portfolio
+        </a>
+      </nav>
+
+      <!-- Project header -->
+      <header class="project-header">
+        <div class="project-meta">
+          <span id="project-tag" class="project-tag">Loading...</span>
+          <span id="project-type" class="project-type">Loading...</span>
+        </div>
+        <h1 id="project-title" class="project-title">Loading...</h1>
+        <p id="project-subtitle" class="project-subtitle">Loading...</p>
+      </header>
+
+      <!-- Project content -->
+      <div class="project-content">
+        <div class="project-details">
+          <div class="detail-section">
+            <h2>Overview</h2>
+            <p id="project-description">Loading...</p>
+          </div>
+
+          <div class="detail-section">
+            <h2>Role & Impact</h2>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <h3>Role</h3>
+                <p id="project-role">Loading...</p>
+              </div>
+              <div class="detail-item">
+                <h3>Impact</h3>
+                <p id="project-impact">Loading...</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h2>Technologies</h2>
+            <div id="project-stack" class="tech-stack">
+              <!-- Technologies will be loaded here -->
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h2>Key Features</h2>
+            <ul id="project-features" class="feature-list">
+              <!-- Features will be loaded here -->
+            </ul>
+          </div>
+
+          <div class="detail-section">
+            <h2>Challenges & Solutions</h2>
+            <div id="project-challenges" class="challenges-content">
+              <!-- Challenges will be loaded here -->
+            </div>
+          </div>
+        </div>
+
+        <div class="project-actions">
+          <div id="project-links" class="project-links">
+            <!-- Links will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p>&copy; <span id="year"></span> Lukas Nilsson. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/project-details.js"></script>
+  <script type="module" src="js/chat.js"></script>
+</body>
+</html>

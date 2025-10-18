@@ -19,7 +19,7 @@ const MODEL_CONFIG = {
 const MOCK_RESPONSES = {
   'projects': "I've worked on several exciting projects including the ANZ Plus Digital Platform, The Human Archives, and Pachaayni Experience. Each project focused on creating meaningful digital experiences that connect people with technology and culture.",
   'skills': "My core skills span design and development: Figma, Adobe XD, React, Python, and Swift. I specialize in creating elegant user experiences that blend creativity with technical expertise, particularly in fintech and cultural preservation projects.",
-  'contact': "I'd love to hear from you! You can reach me at hello@lukasnilsson.com or connect on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities and collaborations.",
+  'contact': "I'd love to hear from you! You can reach me at lukasnilssonbusiness@gmail.com or connect on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities and collaborations.",
   'linkedin': "You can find me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/ where I share updates about my work in product design and development.",
   'availability': "I'm currently available for new projects and opportunities! I work on both freelance and full-time projects, with a focus on product design and development. Based in Melbourne, I can work remotely or on-site.",
   'about': "I'm a product designer and engineer based in Melbourne, blending creativity with technical expertise to build digital products that delight users. With experience at ANZ and The Human Archives, I've led projects spanning fintech platforms and cultural preservation initiatives."
@@ -116,9 +116,9 @@ async function _initEngine(options) {
         response = starter + variations[Math.floor(Math.random() * variations.length)];
       } else if (lowerPrompt.includes('contact') || lowerPrompt.includes('email') || lowerPrompt.includes('reach')) {
         const variations = [
-          "I'd love to connect with you! You can reach me directly at hello@lukasnilsson.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities and collaborations.",
-          "Getting in touch is easy - you can email me at hello@lukasnilsson.com or find me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm particularly excited to discuss projects that involve innovative design and meaningful impact.",
-          "I'm always happy to hear from potential collaborators! Feel free to reach out via email at hello@lukasnilsson.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/."
+          "I'd love to connect with you! You can reach me directly at lukasnilssonbusiness@gmail.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities and collaborations.",
+          "Getting in touch is easy - you can email me at lukasnilssonbusiness@gmail.com or find me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm particularly excited to discuss projects that involve innovative design and meaningful impact.",
+          "I'm always happy to hear from potential collaborators! Feel free to reach out via email at lukasnilssonbusiness@gmail.com or connect with me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/."
         ];
         response = starter + variations[Math.floor(Math.random() * variations.length)];
       } else if (lowerPrompt.includes('linkedin') || lowerPrompt.includes('social') || lowerPrompt.includes('profile')) {
