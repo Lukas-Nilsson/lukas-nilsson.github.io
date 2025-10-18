@@ -278,6 +278,16 @@ body {
     radial-gradient(circle at 75% 75%, rgba(0, 0, 0, 0.02) 0%, transparent 50%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Main content area */
+main {
+  position: relative;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 /* Typography Scale (BOLD ACADEMIC STYLE) */

@@ -100,6 +100,8 @@
   pointer-events: none;
   z-index: 1;
   opacity: var(--caustic-intensity);
+  border-radius: inherit;
+  overflow: hidden;
   
   background: 
     radial-gradient(
@@ -130,16 +132,16 @@
     opacity: var(--caustic-intensity);
   }
   25% {
-    transform: translateX(1px) translateY(-0.5px) scale(1.01);
-    opacity: var(--caustic-intensity) * 1.1;
+    transform: translateX(0.5px) translateY(-0.25px) scale(1.005);
+    opacity: var(--caustic-intensity) * 1.05;
   }
   50% {
-    transform: translateX(-0.5px) translateY(0.5px) scale(0.99);
-    opacity: var(--caustic-intensity) * 0.9;
+    transform: translateX(-0.25px) translateY(0.25px) scale(0.995);
+    opacity: var(--caustic-intensity) * 0.95;
   }
   75% {
-    transform: translateX(0.5px) translateY(-1px) scale(1.005);
-    opacity: var(--caustic-intensity) * 1.05;
+    transform: translateX(0.25px) translateY(-0.5px) scale(1.002);
+    opacity: var(--caustic-intensity) * 1.02;
   }
 }
 
@@ -290,7 +292,8 @@
 .liquid-glass-container {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Utility Classes */
