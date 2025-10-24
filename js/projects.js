@@ -95,6 +95,18 @@ const sideProjects = [
     stack: ['HTML/CSS/JS', 'Accessibility', 'Performance'],
     image: null,
     type: 'project'
+  },
+  {
+    id: 'public-obsidian',
+    title: 'Public Obsidian',
+    description: 'A public version of my digital mind palace, showcasing notes and thoughts tagged as "public" from my Obsidian vault. Features a clean, searchable interface for exploring interconnected ideas and knowledge.',
+    tag: 'Knowledge Management',
+    role: 'Full-Stack Developer',
+    impact: 'Public knowledge sharing',
+    stack: ['JavaScript', 'Markdown', 'GitHub API', 'Obsidian'],
+    image: null,
+    url: '/public-obsidian.html',
+    type: 'project'
   }
 ];
 

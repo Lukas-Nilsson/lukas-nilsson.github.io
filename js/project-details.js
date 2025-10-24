@@ -184,6 +184,30 @@ const projectDetails = {
     links: [
       { text: 'View Source', url: 'https://github.com/lukas-nilsson/lukas-nilsson.github.io', external: true }
     ]
+  },
+  'public-obsidian': {
+    title: 'Public Obsidian',
+    tag: 'Knowledge Management',
+    type: 'Side Project',
+    role: 'Full-Stack Developer',
+    impact: 'Public knowledge sharing and digital mind palace',
+    stack: ['JavaScript', 'Markdown', 'GitHub API', 'Obsidian', 'Markdown Parser'],
+    description: 'A public version of my digital mind palace, showcasing notes and thoughts tagged as "public" from my Obsidian vault. Features a clean, searchable interface for exploring interconnected ideas and knowledge, making personal insights accessible to others.',
+    features: [
+      'Public note filtering by tags',
+      'Markdown rendering and formatting',
+      'Search and discovery interface',
+      'Interconnected note navigation',
+      'Responsive design for all devices',
+      'Real-time GitHub integration'
+    ],
+    challenges: `
+      <p><strong>Challenge:</strong> Creating a system that can selectively display only public notes from a private Obsidian vault while maintaining the interconnected nature of knowledge and ensuring good performance.</p>
+      <p><strong>Solution:</strong> Built a GitHub API integration that filters notes by the "public" tag, implemented client-side markdown parsing, and created a search interface that maintains the exploratory nature of the original vault.</p>
+    `,
+    links: [
+      { text: 'View Public Notes', url: '/public-obsidian.html', external: false }
+    ]
   }
 };
 
