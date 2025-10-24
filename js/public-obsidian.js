@@ -108,6 +108,19 @@ async function loadPublicNotes() {
       return;
     }
     
+    // If it's a GitHub API error, show sample notes with a helpful message
+    if (error.message.includes('GitHub API error')) {
+      console.log('GitHub API error detected - showing sample notes');
+      const sampleNotes = getSampleNotes();
+      notesCache = sampleNotes;
+      filteredNotes = [...sampleNotes];
+      displayNotes(sampleNotes);
+      
+      // Show a toast notification about the issue
+      showApiErrorNotification(error.message);
+      return;
+    }
+    
     showErrorState();
   }
 }
@@ -209,7 +222,14 @@ async function loadNotesFromGitHub() {
     });
     
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} - ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('GitHub API Error Details:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: apiUrl,
+        response: errorText
+      });
+      throw new Error(`GitHub API error: ${response.status} - ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
     }
     
     const files = await response.json();
@@ -644,6 +664,43 @@ function showErrorState() {
   if (loadingState) loadingState.style.display = 'none';
   if (errorState) errorState.style.display = 'block';
   if (notesContainer) notesContainer.style.display = 'none';
+}
+
+/**
+ * Show API error notification
+ */
+function showApiErrorNotification(errorMessage) {
+  // Create a toast notification
+  const toast = document.createElement('div');
+  toast.className = 'toast warning';
+  toast.innerHTML = `
+    <div class="toast-title">GitHub API Error</div>
+    <div class="toast-message">
+      Unable to connect to your MindPalace repository. Showing sample notes instead. 
+      <br><br>
+      <strong>Error:</strong> ${errorMessage.substring(0, 100)}...
+      <br><br>
+      <strong>Solutions:</strong>
+      <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+        <li>Check if your MindPalace repository exists and is public</li>
+        <li>Ensure the repository has some .md files</li>
+        <li>Try refreshing the page</li>
+      </ul>
+    </div>
+  `;
+  
+  // Add to toast container
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) {
+    toastContainer.appendChild(toast);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 10000);
+  }
 }
 
 /**
