@@ -43,7 +43,7 @@ export function replyRuleBased(input) {
 function getResponseForIntent(intent, originalText) {
   const responses = {
     projects: {
-      text: "Here are some of my key projects:\n\n• **ANZ Plus Digital Platform** - Led design and development of next-generation mobile banking platform, improving user engagement by 40%\n\n• **The Human Archives** - Created an interactive platform to preserve and share cultural stories, connecting communities with their heritage\n\n• **Pachaayni Experience** - Designed an immersive cultural education platform that brings indigenous wisdom to modern audiences\n\n• **Design System Library** - Developed a comprehensive design system reducing design-to-dev handoff time by 60%\n\nYou can scroll to the Work section to see more details, or ask about a specific project!",
+      text: "Here are some of my key projects:\n\n• **ANZ Plus Digital Platform** - Led design and development of next-generation mobile banking platform, improving user engagement by 40%\n\n• **The Human Archives** - Created an interactive platform to preserve and share cultural stories, connecting communities with their heritage\n\n• **Design System Library** - Developed a comprehensive design system reducing design-to-dev handoff time by 60%\n\nYou can scroll to the Work section to see more details, or ask about a specific project!",
       actions: [
         { type: "jump", target: "#work", label: "View Work Section" }
       ]

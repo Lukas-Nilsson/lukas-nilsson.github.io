@@ -68,7 +68,7 @@ const commands = [
  * Initialize command palette
  */
 export function initPalette() {
-  const trigger = document.querySelector('.palette-trigger');
+  const trigger = document.querySelector('.palette-trigger, .palette-trigger-mobile');
   const overlay = document.getElementById('palette-overlay');
   const input = document.getElementById('palette-input');
   

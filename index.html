@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Lukas Nilsson – Product designer and engineer crafting elegant digital experiences">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   
@@ -21,14 +24,30 @@
   <title>Lukas Nilsson – Portfolio</title>
   
   <!-- Preload critical assets -->
-  <link rel="preload" as="style" href="css/base.css">
-  <link rel="preload" as="style" href="css/theme.css">
+  <link rel="preload" as="style" href="css/base.css?v=2.9">
+  <link rel="preload" as="style" href="css/theme.css?v=2.0">
   
-  <link rel="stylesheet" href="css/base.css?v=2.0">
+  <link rel="stylesheet" href="css/base.css?v=2.9">
   <link rel="stylesheet" href="css/theme.css?v=2.0">
-  <link rel="stylesheet" href="css/chat.css?v=2.0">
-  <link rel="stylesheet" href="css/liquid-glass.css?v=2.0">
+  <link rel="stylesheet" href="css/chat.css?v=2.1">
+  <link rel="stylesheet" href="css/liquid-glass.css?v=2.6">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  
+  <!-- Theme script to prevent flash -->
+  <script type="module">
+    // Set theme immediately to prevent flash
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    // Clear service worker cache on page load to ensure fresh CSS
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+  </script>
 </head>
 <body class="liquid-glass-container">
   <!-- Liquid Glass Background -->
@@ -433,6 +452,33 @@
     </div>
   </div>
   
+  <!-- Mobile Action Buttons (Theme Toggle & Search) -->
+  <div class="mobile-actions">
+    <button class="mobile-action-btn theme-toggle-mobile" aria-label="Toggle theme" type="button">
+      <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    
+    <button class="mobile-action-btn palette-trigger-mobile" aria-label="Open command palette (Cmd+K)" type="button">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- Toast container -->
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
   

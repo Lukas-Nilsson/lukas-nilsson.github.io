@@ -8,11 +8,13 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--color-accent);
-  color: white;
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text);
   cursor: pointer;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -23,13 +25,25 @@
 
 .chat-button:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-xl);
-  background: var(--color-accent-hover);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .chat-button:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 4px;
+}
+
+/* Dark mode chat button */
+[data-theme="dark"] .chat-button {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .chat-button:hover {
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* Chat Drawer */
@@ -424,7 +438,7 @@
 @media (max-width: 480px) {
   .chat-button {
     bottom: var(--space-md);
-    right: var(--space-md);
+    right: var(--mobile-container-margin);
     width: 48px;
     height: 48px;
   }

@@ -57,14 +57,8 @@ class FloatingNav {
   }
   
   setupThemeToggle() {
-    // Handle both theme toggles
-    const themeToggles = document.querySelectorAll('.theme-toggle, .theme-toggle-vertical');
-    
-    themeToggles.forEach(toggle => {
-      toggle.addEventListener('click', () => {
-        this.toggleTheme();
-      });
-    });
+    // Theme toggle is now handled by theme.js
+    // This method is kept for compatibility but does nothing
   }
   
   setupPaletteTrigger() {
@@ -122,22 +116,6 @@ class FloatingNav {
     updateActiveSection(); // Initial call
   }
   
-  toggleTheme() {
-    // Get current theme
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    // Update theme
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    // Add smooth transition
-    document.documentElement.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-    
-    setTimeout(() => {
-      document.documentElement.style.transition = '';
-    }, 300);
-  }
   
   openPalette() {
     // Trigger existing palette functionality

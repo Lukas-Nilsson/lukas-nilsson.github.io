@@ -1,25 +1,42 @@
 // theme.js - Theme management (light/dark mode)
 
 /**
+ * Set theme immediately to prevent flash
+ */
+function setThemeImmediately() {
+  // Load saved theme or default to light
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+// Set theme immediately when script loads
+setThemeImmediately();
+
+/**
  * Initialize theme system
  */
 export function initTheme() {
-  const toggle = document.querySelector('.theme-toggle');
-  if (!toggle) return;
+  // Handle all theme toggles (top bar, side bar, and mobile)
+  const themeToggles = document.querySelectorAll('.theme-toggle, .theme-toggle-vertical, .theme-toggle-mobile');
   
-  // Load saved theme or use system preference
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }
-  
-  // Handle theme toggle
-  toggle.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    const newTheme = current === 'dark' ? 'light' : 'dark';
-    
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
+  themeToggles.forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const current = document.documentElement.getAttribute('data-theme');
+      const newTheme = current === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      
+      // Add smooth transition
+      document.documentElement.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+      
+      setTimeout(() => {
+        document.documentElement.style.transition = '';
+      }, 300);
+    });
   });
 }
 

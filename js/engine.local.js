@@ -17,7 +17,7 @@ const MODEL_CONFIG = {
 
 // Mock responses for demo purposes when WebLLM fails
 const MOCK_RESPONSES = {
-  'projects': "I've worked on several exciting projects including the ANZ Plus Digital Platform, The Human Archives, and Pachaayni Experience. Each project focused on creating meaningful digital experiences that connect people with technology and culture.",
+  'projects': "I've worked on several exciting projects including the ANZ Plus Digital Platform, The Human Archives, and various design system implementations. Each project focused on creating meaningful digital experiences that connect people with technology and culture.",
   'skills': "My core skills span design and development: Figma, Adobe XD, React, Python, and Swift. I specialize in creating elegant user experiences that blend creativity with technical expertise, particularly in fintech and cultural preservation projects.",
   'contact': "I'd love to hear from you! You can reach me at lukasnilssonbusiness@gmail.com or connect on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/. I'm always interested in discussing new opportunities and collaborations.",
   'linkedin': "You can find me on LinkedIn at https://www.linkedin.com/in/lukaspnilsson/ where I share updates about my work in product design and development.",
@@ -104,7 +104,7 @@ async function _initEngine(options) {
         const variations = [
           "I've had the pleasure of working on some fascinating projects that blend technology with human-centered design. My most notable work includes the ANZ Plus Digital Platform where I led the design and development of a next-generation mobile banking experience, resulting in a 40% improvement in user engagement.",
           "My portfolio spans several exciting ventures, from fintech innovations to cultural preservation initiatives. The ANZ Plus platform stands out as a significant achievement, but I'm equally proud of The Human Archives project, which created an interactive platform to preserve and share cultural stories.",
-          "I've been fortunate to work on diverse projects that challenge conventional thinking. The Pachaayni Experience was particularly rewarding - designing an immersive cultural education platform that bridges indigenous wisdom with modern audiences."
+          "I've been fortunate to work on diverse projects that challenge conventional thinking. The Human Archives project was particularly rewarding - creating an interactive platform that preserves and shares cultural stories, connecting communities with their heritage."
         ];
         response = starter + variations[Math.floor(Math.random() * variations.length)];
       } else if (lowerPrompt.includes('skill') || lowerPrompt.includes('tech') || lowerPrompt.includes('expertise')) {

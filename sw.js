@@ -1,12 +1,12 @@
 // sw.js - Service Worker for offline functionality
 
-const CACHE_NAME = 'portfolio-v2';
+const CACHE_NAME = 'portfolio-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/css/base.css',
-  '/css/theme.css',
-  '/css/chat.css',
+  '/css/base.css?v=2.9',
+  '/css/theme.css?v=2.0',
+  '/css/chat.css?v=2.1',
   '/js/app.js',
   '/js/router.js',
   '/js/palette.js',

@@ -42,17 +42,6 @@ const sideProjects = [
     type: 'project'
   },
   {
-    id: 'pachaayni',
-    title: 'Pachaayni Experience',
-    description: 'Designed and built an immersive cultural education platform that brings indigenous wisdom to modern audiences through interactive storytelling. Applied participatory design methodologies, conducted user research with diverse communities, and created culturally sensitive interface designs.',
-    tag: 'Education',
-    role: 'UX Designer',
-    impact: '50k+ users reached',
-    stack: ['Figma', 'JavaScript', 'AEM'],
-    image: null,
-    type: 'project'
-  },
-  {
     id: 'human-timeline',
     title: 'Human Timeline',
     description: 'An interactive timeline exploring human history and cultural evolution before the AI era. Features chronological storytelling, cultural milestones, and immersive historical narratives that connect users with our shared past.',
@@ -93,17 +82,6 @@ const sideProjects = [
     role: 'Full-Stack Developer',
     impact: 'AI-powered learning',
     stack: ['Three.js', 'OpenAI API', 'WebGL', 'Machine Learning'],
-    image: null,
-    type: 'project'
-  },
-  {
-    id: 'meteorite-visualization',
-    title: 'Near-Earth Objects Visualization',
-    description: 'Interactive 3D visualization of potentially hazardous asteroids and meteorites based on NASA\'s CNEOS Sentry data. Features realistic orbital mechanics with accurate relative sizes and distances for the Sun, Earth, Moon, and meteorites.',
-    tag: 'Data Visualization',
-    role: 'Developer',
-    impact: 'Real-time NASA data',
-    stack: ['Three.js', 'JavaScript', 'NASA API'],
     image: null,
     type: 'project'
   },

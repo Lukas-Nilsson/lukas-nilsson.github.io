@@ -10,14 +10,21 @@
   <title id="page-title">Project Details - Lukas Nilsson</title>
   
   <!-- Preload critical assets -->
-  <link rel="preload" as="style" href="css/base.css">
-  <link rel="preload" as="style" href="css/theme.css">
+  <link rel="preload" as="style" href="css/base.css?v=2.9">
+  <link rel="preload" as="style" href="css/theme.css?v=2.0">
   
-  <link rel="stylesheet" href="css/base.css?v=2.0">
+  <link rel="stylesheet" href="css/base.css?v=2.9">
   <link rel="stylesheet" href="css/theme.css?v=2.0">
-  <link rel="stylesheet" href="css/chat.css?v=2.0">
-  <link rel="stylesheet" href="css/liquid-glass.css?v=2.0">
+  <link rel="stylesheet" href="css/chat.css?v=2.1">
+  <link rel="stylesheet" href="css/liquid-glass.css?v=2.6">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  
+  <!-- Theme script to prevent flash -->
+  <script type="module">
+    // Set theme immediately to prevent flash
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
 </head>
 <body class="liquid-glass-container">
   <!-- Liquid Glass Background -->

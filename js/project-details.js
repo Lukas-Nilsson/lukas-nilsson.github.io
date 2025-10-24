@@ -24,28 +24,6 @@ const projectDetails = {
     `,
     links: []
   },
-  'pachaayni': {
-    title: 'Pachaayni Experience',
-    tag: 'Education',
-    type: 'Side Project',
-    role: 'UX Designer',
-    impact: '50k+ users reached across diverse communities',
-    stack: ['Figma', 'JavaScript', 'AEM', 'Adobe Analytics'],
-    description: 'Designed and built an immersive cultural education platform that brings indigenous wisdom to modern audiences through interactive storytelling. Applied participatory design methodologies, conducted user research with diverse communities, and created culturally sensitive interface designs.',
-    features: [
-      'Interactive storytelling modules',
-      'Multilingual support',
-      'Cultural sensitivity guidelines',
-      'Community feedback integration',
-      'Mobile-optimized experience',
-      'Accessibility features'
-    ],
-    challenges: `
-      <p><strong>Challenge:</strong> Balancing cultural authenticity with modern UX expectations while ensuring the platform was accessible to all community members.</p>
-      <p><strong>Solution:</strong> Worked directly with community elders and cultural advisors, implemented flexible content management systems, and created user testing protocols that respected cultural protocols.</p>
-    `,
-    links: []
-  },
   'leverai-training': {
     title: 'LeverAI Training',
     tag: 'AI Training',
@@ -182,30 +160,6 @@ const projectDetails = {
       <p><strong>Solution:</strong> Developed a hybrid approach where AI provides contextual explanations and learning guidance while users maintain agency in their exploration, with careful prompt engineering to ensure accurate scientific information.</p>
     `,
     links: []
-  },
-  'meteorite-visualization': {
-    title: 'Near-Earth Objects Visualization',
-    tag: 'Data Visualization',
-    type: 'Side Project',
-    role: 'Developer',
-    impact: 'Real-time NASA data visualization',
-    stack: ['Three.js', 'JavaScript', 'NASA API', 'WebGL'],
-    description: 'Interactive 3D visualization of potentially hazardous asteroids and meteorites based on NASA\'s CNEOS Sentry data. Features realistic orbital mechanics with accurate relative sizes and distances for the Sun, Earth, Moon, and meteorites.',
-    features: [
-      'Real-time NASA data integration',
-      '3D orbital mechanics simulation',
-      'Interactive object selection',
-      'Detailed impact probability data',
-      'Responsive WebGL rendering',
-      'Educational tooltips and information'
-    ],
-    challenges: `
-      <p><strong>Challenge:</strong> Creating an accurate 3D representation of orbital mechanics while maintaining smooth performance across different devices.</p>
-      <p><strong>Solution:</strong> Implemented level-of-detail rendering, optimized WebGL shaders, and created fallback 2D visualizations for lower-end devices.</p>
-    `,
-    links: [
-      { text: 'View Visualization', url: 'meteorite.html', external: false }
-    ]
   },
   'interactive-portfolio': {
     title: 'Interactive Portfolio',

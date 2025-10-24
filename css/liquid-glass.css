@@ -3,13 +3,17 @@
  * Photo-realistic minimal background with liquid glass effects
  */
 
-:root {
-  /* Liquid Glass Color Palette */
-  --liquid-base: #f7f7f5;
-  --liquid-silver: #dcdcdc;
+:root,
+[data-theme="light"] {
+  /* Enhanced Liquid Glass Color Palette */
+  --liquid-base: #f0f4f8;
+  --liquid-silver: #e2e8f0;
   --liquid-highlight: #ffffff;
-  --liquid-shadow: #e8e8e6;
-  --liquid-accent: #f0f0ee;
+  --liquid-shadow: #cbd5e1;
+  --liquid-accent: #e0e7ff;
+  --liquid-blue: #dbeafe;
+  --liquid-purple: #ede9fe;
+  --liquid-pink: #fce7f3;
   
   /* Glass Properties */
   --glass-blur: 25px;
@@ -17,13 +21,13 @@
   --glass-ior: 1.45;
   --glass-border: 1px solid rgba(255, 255, 255, 0.2);
   
-  /* Light Simulation */
+  /* Light Simulation - Reduced for Performance */
   --bloom-radius: 40px;
-  --ambient-occlusion: 0.15;
-  --caustic-intensity: 0.15;
+  --ambient-occlusion: 0.1;
+  --caustic-intensity: 0.05;
 }
 
-/* Base Liquid Light Background */
+/* Base Liquid Light Background - Enhanced with Color and Motion */
 .liquid-glass-bg {
   position: fixed;
   top: 0;
@@ -33,33 +37,139 @@
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(
-    135deg,
-    var(--liquid-base) 0%,
-    var(--liquid-accent) 25%,
-    var(--liquid-silver) 50%,
-    var(--liquid-shadow) 75%,
-    var(--liquid-base) 100%
-  );
-  
-  /* Subtle radial gradient overlay for depth */
-  background-image: 
+  /* Ensure it covers the entire viewport */
+  min-height: 100vh;
+  /* Enhanced colorful gradient with floating motion */
+  background: 
     radial-gradient(
-      ellipse 120% 80% at 20% 30%,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(255, 255, 255, 0.1) 30%,
-      transparent 70%
+      ellipse 80% 60% at 20% 30%,
+      var(--liquid-blue) 0%,
+      transparent 50%
     ),
     radial-gradient(
-      ellipse 80% 120% at 80% 70%,
-      rgba(220, 220, 220, 0.3) 0%,
+      ellipse 60% 80% at 80% 70%,
+      var(--liquid-purple) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 100% 40% at 50% 10%,
+      var(--liquid-pink) 0%,
       transparent 60%
+    ),
+    linear-gradient(
+      135deg,
+      var(--liquid-base) 0%,
+      var(--liquid-accent) 25%,
+      var(--liquid-silver) 50%,
+      var(--liquid-accent) 75%,
+      var(--liquid-base) 100%
     );
+  /* Performance optimizations for scroll stability */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: auto;
   
-  /* Ambient occlusion simulation */
+  /* Prevent flickering during scroll */
+  contain: layout style paint;
+  isolation: isolate;
+  
+  /* Floating motion animation */
+  animation: liquid-float 20s ease-in-out infinite;
+}
+
+/* Floating Particles for Enhanced Elevation */
+.liquid-glass-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(59, 130, 246, 0.1) 0%,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(147, 51, 234, 0.08) 0%,
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 50% 60%,
+      rgba(236, 72, 153, 0.06) 0%,
+      transparent 20%
+    );
+  animation: particle-float 25s ease-in-out infinite;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .liquid-glass-bg::before {
+  background: 
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(59, 130, 246, 0.15) 0%,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(147, 51, 234, 0.12) 0%,
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 50% 60%,
+      rgba(236, 72, 153, 0.1) 0%,
+      transparent 20%
+    );
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.6;
+  }
+  33% {
+    transform: translate3d(3px, -2px, 0) scale(1.02);
+    opacity: 0.8;
+  }
+  66% {
+    transform: translate3d(-2px, 3px, 0) scale(0.98);
+    opacity: 0.7;
+  }
+}
+
+/* Enhanced dark mode with colorful floating motion */
+html[data-theme="dark"] .liquid-glass-bg {
+  background: 
+    radial-gradient(
+      ellipse 80% 60% at 20% 30%,
+      rgba(59, 130, 246, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 60% 80% at 80% 70%,
+      rgba(147, 51, 234, 0.12) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 100% 40% at 50% 10%,
+      rgba(236, 72, 153, 0.1) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      135deg,
+      #0f172a 0%,
+      #1e293b 25%,
+      #334155 50%,
+      #1e293b 75%,
+      #0f172a 100%
+    ) !important;
+  
+  /* Enhanced ambient occlusion with color hints */
   box-shadow: 
-    inset 0 0 200px rgba(0, 0, 0, var(--ambient-occlusion)),
-    inset 0 0 100px rgba(255, 255, 255, 0.1);
+    inset 0 0 100px rgba(0, 0, 0, 0.4),
+    inset 0 0 50px rgba(59, 130, 246, 0.05);
 }
 
 /* Liquid Glass Panels */
@@ -121,8 +231,28 @@
       transparent 70%
     );
   
-  /* Subtle animation for shimmer effect */
-  animation: liquid-shimmer 12s ease-in-out infinite;
+  /* Subtle animation for shimmer effect - Slower for better performance */
+  animation: liquid-shimmer 20s ease-in-out infinite;
+}
+
+/* Floating Motion Animation */
+@keyframes liquid-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: translate3d(2px, -3px, 0) scale(1.001);
+    filter: hue-rotate(5deg);
+  }
+  50% {
+    transform: translate3d(-1px, 2px, 0) scale(0.999);
+    filter: hue-rotate(-3deg);
+  }
+  75% {
+    transform: translate3d(1px, -1px, 0) scale(1.0005);
+    filter: hue-rotate(2deg);
+  }
 }
 
 /* Parallax Shimmer Animation */
@@ -187,51 +317,22 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* Scroll-based Parallax Shimmer */
-.liquid-glass-scroll-shimmer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-  background: 
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.05) 50%,
-      transparent 100%
-    );
-  transform: translateX(-100%);
-  transition: transform 0.5s ease-out;
-  opacity: 0.6;
+/* Removed scroll-based shimmer to prevent flickering */
+
+/* Dark Mode Adaptations - Enhanced Colors */
+[data-theme="dark"] {
+  /* Enhanced dark mode liquid glass variables */
+  --liquid-base: #0f172a;
+  --liquid-silver: #1e293b;
+  --liquid-highlight: #334155;
+  --liquid-shadow: #0f172a;
+  --liquid-accent: #1e293b;
+  --liquid-blue: rgba(59, 130, 246, 0.15);
+  --liquid-purple: rgba(147, 51, 234, 0.12);
+  --liquid-pink: rgba(236, 72, 153, 0.1);
 }
 
-/* Dark Mode Adaptations */
-[data-theme="dark"] .liquid-glass-bg {
-  background: linear-gradient(
-    135deg,
-    #1a1a1a 0%,
-    #2a2a2a 25%,
-    #3a3a3a 50%,
-    #2a2a2a 75%,
-    #1a1a1a 100%
-  );
-  
-  background-image: 
-    radial-gradient(
-      ellipse 120% 80% at 20% 30%,
-      rgba(255, 255, 255, 0.1) 0%,
-      rgba(255, 255, 255, 0.05) 30%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 80% 120% at 80% 70%,
-      rgba(100, 100, 100, 0.2) 0%,
-      transparent 60%
-    );
-}
+/* Dark mode liquid glass background - handled by html[data-theme="dark"] rule above */
 
 [data-theme="dark"] .liquid-glass-panel {
   background: rgba(255, 255, 255, 0.05);
@@ -256,17 +357,20 @@
     );
 }
 
-/* Performance Optimizations */
+/* Performance Optimizations - Enhanced for Scroll Performance */
 .liquid-glass-bg,
 .liquid-glass-panel,
 .liquid-glass-caustics {
-  /* GPU acceleration */
-  transform: translateZ(0);
+  /* GPU acceleration with 3D transforms */
+  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   perspective: 1000px;
   
-  /* Optimize for smooth animations */
-  will-change: transform, opacity, backdrop-filter;
+  /* Optimize for smooth scrolling */
+  will-change: auto;
+  
+  /* Prevent repaints during scroll */
+  contain: layout style paint;
 }
 
 /* Reduced Motion Support */
