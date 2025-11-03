@@ -55,7 +55,7 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <!-- Scroll Progress Indicator -->
   <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
   
-  <!-- Page Transition Overlay (fades to/from black) -->
+  <!-- Page Transition Overlay (Firefox only - prevents flash) -->
   <div class="page-transition" id="page-transition" aria-hidden="true"></div>
   
   <Navigation />
@@ -99,31 +99,52 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
     }
 
     /* =========================================
-       SMOOTH PAGE TRANSITIONS (Fade to/from black)
+       SMOOTH PAGE TRANSITIONS (Browser-specific)
        ========================================= */
     
+    // Detect Firefox (has flash issue, needs black overlay)
+    const isFirefox = /Firefox/i.test(navigator.userAgent);
     const transitionOverlay = document.getElementById('page-transition');
     
-    // Fade in from black on page load
-    window.addEventListener('DOMContentLoaded', () => {
-      if (transitionOverlay) {
-        // Start with overlay visible (black screen)
-        transitionOverlay.style.opacity = '1';
-        
-        requestAnimationFrame(() => {
-          // Fade out overlay to reveal content
-          transitionOverlay.style.transition = 'opacity 300ms cubic-bezier(0.32, 0.72, 0, 1)';
-          transitionOverlay.style.opacity = '0';
+    if (!isFirefox && transitionOverlay) {
+      // Hide overlay for non-Firefox browsers (not needed)
+      transitionOverlay.style.display = 'none';
+    }
+    
+    if (isFirefox) {
+      // Firefox: Fade to/from black overlay
+      
+      // Fade in from black on page load
+      window.addEventListener('DOMContentLoaded', () => {
+        if (transitionOverlay) {
+          // Start with overlay visible (black screen)
+          transitionOverlay.style.opacity = '1';
           
-          // Hide after transition
-          setTimeout(() => {
-            transitionOverlay.setAttribute('aria-hidden', 'true');
-          }, 300);
+          requestAnimationFrame(() => {
+            // Fade out overlay to reveal content
+            transitionOverlay.style.transition = 'opacity 300ms cubic-bezier(0.32, 0.72, 0, 1)';
+            transitionOverlay.style.opacity = '0';
+            
+            // Hide after transition
+            setTimeout(() => {
+              transitionOverlay.setAttribute('aria-hidden', 'true');
+            }, 300);
+          });
+        }
+      });
+    } else {
+      // Chrome/Safari: Simple fade (no black overlay needed)
+      
+      // Fade in on page load
+      window.addEventListener('DOMContentLoaded', () => {
+        requestAnimationFrame(() => {
+          document.body.style.transition = 'opacity 200ms cubic-bezier(0.32, 0.72, 0, 1)';
+          document.body.style.opacity = '1';
         });
-      }
-    });
+      });
+    }
 
-    // Fade to black on navigation
+    // Handle navigation (browser-specific)
     function handlePageExit(e: Event) {
       const target = e.currentTarget as HTMLAnchorElement;
       const href = target.getAttribute('href');
@@ -141,24 +162,33 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 
       e.preventDefault();
 
-      if (!transitionOverlay) {
-        window.location.href = href;
-        return;
+      if (isFirefox && transitionOverlay) {
+        // Firefox: Fade to black overlay
+        transitionOverlay.setAttribute('aria-hidden', 'false');
+        transitionOverlay.style.transition = 'opacity 200ms cubic-bezier(0.32, 0.72, 0, 1)';
+        transitionOverlay.style.opacity = '1';
+
+        setTimeout(() => {
+          window.location.href = href;
+        }, 200);
+      } else {
+        // Chrome/Safari: Simple fade out
+        document.body.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
+        document.body.style.opacity = '0';
+
+        setTimeout(() => {
+          window.location.href = href;
+        }, 150);
       }
-
-      // Show overlay and fade to black
-      transitionOverlay.setAttribute('aria-hidden', 'false');
-      transitionOverlay.style.transition = 'opacity 200ms cubic-bezier(0.32, 0.72, 0, 1)';
-      transitionOverlay.style.opacity = '1';
-
-      // Navigate after fade to black
-      setTimeout(() => {
-        window.location.href = href;
-      }, 200);
     }
 
     // Add to all internal links
     document.addEventListener('DOMContentLoaded', () => {
+      // Start body at opacity 0 for Chrome/Safari
+      if (!isFirefox) {
+        document.body.style.opacity = '0';
+      }
+      
       const links = document.querySelectorAll('a[href^="/"]');
       links.forEach(link => {
         link.addEventListener('click', handlePageExit);

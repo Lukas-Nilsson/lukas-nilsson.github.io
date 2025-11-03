@@ -575,26 +575,33 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ### November 3, 2025 (Evening) - Further Refinements
 
-**Decision:** Fade to/from black overlay for page transitions instead of content fade.
+**Decision:** Browser-specific page transitions (Firefox needs black overlay, Chrome doesn't).
 
 **Problem:**
-- Previous solution faded body opacity but browser still showed blank flash
-- Black/white flash occurred during navigation
-- Felt jarring, broke continuity
+- Chrome/Safari: Simple fade worked perfectly (no flash)
+- Firefox: Showed black flash during navigation (browser quirk)
+- One-size-fits-all solution was overkill for Chrome
 
 **Reasoning:**
-- Browser renders blank screen briefly during navigation
-- Can't prevent that, but can cover it with intentional black overlay
-- Fade to black → navigate → fade from black = smooth, intentional
+- Different browsers have different rendering behaviors
+- Firefox has a known flash issue during navigation
+- Chrome doesn't need the black overlay (adds unnecessary complexity)
+- Best solution: Detect browser and apply appropriate transition
 
 **Solution:**
-- Black overlay (`#000000`) with z-index 99999
-- Fade to black on navigation (200ms)
-- Start new page with overlay visible (black)
-- Fade out overlay to reveal content (300ms)
-- Total transition: ~350ms (feels intentional)
+- Detect Firefox via user agent
+- **Firefox:** Use black overlay system (fade to/from black)
+- **Chrome/Safari:** Simple body opacity fade (cleaner, faster)
+- Hide overlay element on non-Firefox browsers
+- Each browser gets the optimal experience
 
-**Result:** Smooth, cinematic transitions. No more jarring flashes.
+**Why this is better:**
+- Chrome users get the cleaner, simpler fade (no black overlay)
+- Firefox users get the fix they need (black overlay prevents flash)
+- No unnecessary complexity for browsers that don't need it
+- Performance: Overlay only rendered/used where needed
+
+**Result:** Each browser gets the best experience for its rendering behavior.
 
 ---
 
