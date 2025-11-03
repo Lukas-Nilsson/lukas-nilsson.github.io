@@ -1,0 +1,252 @@
+---
+---
+
+<nav class="table-of-contents" id="toc" aria-label="Table of contents">
+  <div class="toc-header">
+    <span class="toc-title">Contents</span>
+  </div>
+  <ol class="toc-list" id="toc-list"></ol>
+</nav>
+
+<script>
+  /* =========================================
+     TABLE OF CONTENTS
+     ========================================= */
+  
+  function initTableOfContents() {
+    // Only show on desktop
+    if (window.innerWidth < 1024) {
+      return;
+    }
+
+    const toc = document.getElementById('toc');
+    const tocList = document.getElementById('toc-list');
+    const contentPage = document.querySelector('.content-page');
+    
+    if (!toc || !tocList || !contentPage) return;
+
+    // Find all headings (h2, h3) - skip h1 as it's the page title
+    const headings = Array.from(contentPage.querySelectorAll('h2, h3'));
+    
+    if (headings.length === 0) {
+      toc.style.display = 'none';
+      return;
+    }
+
+    // Build TOC
+    const tocItems = headings.map((heading, index) => {
+      // Generate ID from heading text
+      const id = heading.textContent
+        ?.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || `heading-${index}`;
+      
+      // Add ID to heading if it doesn't have one
+      if (!heading.id) {
+        heading.id = id;
+      }
+
+      const level = parseInt(heading.tagName.charAt(1));
+      const text = heading.textContent || '';
+      
+      return { id, text, level };
+    });
+
+    // Render TOC
+    tocItems.forEach(item => {
+      const li = document.createElement('li');
+      li.className = `toc-item toc-level-${item.level}`;
+      
+      const a = document.createElement('a');
+      a.href = `#${item.id}`;
+      a.className = 'toc-link';
+      a.textContent = item.text;
+      
+      // Smooth scroll
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.getElementById(item.id);
+        if (target) {
+          const offsetTop = target.getBoundingClientRect().top + window.pageYOffset - 120;
+          window.scrollTo({
+            top: offsetTop,
+            behavior: 'smooth'
+          });
+          // Update URL without scroll
+          history.pushState(null, '', `#${item.id}`);
+        }
+      });
+      
+      li.appendChild(a);
+      tocList.appendChild(li);
+    });
+
+    // Highlight active section on scroll
+    const observerOptions = {
+      rootMargin: '-20% 0px -70% 0px',
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const activeLink = tocList.querySelector(`a[href="#${id}"]`);
+          
+          // Remove active from all
+          tocList.querySelectorAll('.toc-link').forEach(link => {
+            link.classList.remove('active');
+          });
+          
+          // Add active to current
+          if (activeLink) {
+            activeLink.classList.add('active');
+          }
+        }
+      });
+    }, observerOptions);
+
+    headings.forEach(heading => {
+      if (heading.id) {
+        observer.observe(heading);
+      }
+    });
+
+    // Show TOC
+    toc.style.display = 'block';
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTableOfContents);
+  } else {
+    initTableOfContents();
+  }
+
+  // Re-initialize on resize (if switching between mobile/desktop)
+  let resizeTimeout: NodeJS.Timeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const tocList = document.getElementById('toc-list');
+      if (tocList) {
+        tocList.innerHTML = '';
+      }
+      initTableOfContents();
+    }, 250);
+  });
+</script>
+
+<style>
+  .table-of-contents {
+    display: none; /* Hidden by default, shown via JS */
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 8rem);
+    right: max(calc((100vw - var(--content-width)) / 2 - 280px), 2rem);
+    width: 240px;
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 100;
+    padding: var(--space-sm);
+    
+    /* Subtle styling */
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    
+    /* Smooth scrolling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .table-of-contents::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .table-of-contents::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .table-of-contents::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+
+  .toc-header {
+    margin-bottom: var(--space-xs);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .toc-title {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+
+  .toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .toc-item {
+    margin: 0;
+  }
+
+  .toc-link {
+    display: block;
+    padding: 0.375rem 0.5rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    line-height: 1.4;
+    font-size: var(--text-sm);
+  }
+
+  .toc-link:hover {
+    color: var(--color-text);
+    background: var(--color-surface);
+  }
+
+  [data-theme="dark"] .toc-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .toc-link.active {
+    color: var(--color-accent);
+    background: var(--color-surface);
+    font-weight: 500;
+  }
+
+  [data-theme="dark"] .toc-link.active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Indentation for h3 */
+  .toc-level-3 .toc-link {
+    padding-left: 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* Hide on mobile */
+  @media (max-width: 1023px) {
+    .table-of-contents {
+      display: none !important;
+    }
+  }
+
+  /* Prevent TOC from overlapping content on smaller desktop */
+  @media (max-width: 1200px) {
+    .table-of-contents {
+      right: 1rem;
+    }
+  }
+</style>
+
