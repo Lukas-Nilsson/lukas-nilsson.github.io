@@ -34,7 +34,12 @@ Before pushing, you need to configure GitHub Pages:
 2. Settings → Pages
 3. Under "Build and deployment":
    - **Source:** Select "GitHub Actions" (not "Deploy from a branch")
-4. Save
+4. Under "Custom domain":
+   - Enter: `lukasnilsson.com`
+   - Check "Enforce HTTPS" (after DNS propagates)
+5. Save
+
+**Important:** The `CNAME` file has been created in `public/CNAME` and will be included in the build output automatically.
 
 #### 2. Push to Deploy
 ```bash
