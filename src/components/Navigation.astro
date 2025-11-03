@@ -130,8 +130,8 @@ const currentPath = Astro.url.pathname;
     padding: 0.625rem 1.5rem;
     width: 100%;
     
-    /* Floating capsule glass effect - almost transparent, blur does the work */
-    background: rgba(255, 255, 255, 0.3);
+    /* Floating capsule glass effect - white tinted for light mode */
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
     
@@ -151,9 +151,9 @@ const currentPath = Astro.url.pathname;
                 opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Dark mode glass - match enhanced mode transparency */
+  /* Dark mode glass - black tinted for dark mode */
   [data-theme="dark"] .nav-pill {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -221,6 +221,7 @@ const currentPath = Astro.url.pathname;
   .nav-link {
     display: flex;
     align-items: center;
+    justify-content: center;
     padding: 0.5rem 1rem;
     height: 44px;
     font-size: 0.9375rem;
@@ -232,7 +233,7 @@ const currentPath = Astro.url.pathname;
                 transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
     position: relative;
     z-index: 2;
-    line-height: 1; /* Consistent with nav-home */
+    line-height: 1;
   }
 
   .nav-link:hover {
@@ -375,7 +376,7 @@ const currentPath = Astro.url.pathname;
   }
 
   [data-theme="dark"] .nav-mobile-toggle {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -474,9 +475,9 @@ const currentPath = Astro.url.pathname;
     border-right: 1px solid rgba(0, 0, 0, 0.06);
   }
 
-  /* Dark mode - match enhanced mode transparency */
+  /* Dark mode - black tinted for dark mode */
   [data-theme="dark"] .nav-mobile-menu {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
@@ -577,7 +578,7 @@ const currentPath = Astro.url.pathname;
   }
 
   [data-theme="dark"] .nav-mobile-visual-toggle {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
