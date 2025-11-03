@@ -54,13 +54,7 @@ const currentPath = Astro.url.pathname;
   <div class="nav-mobile-backdrop" id="nav-backdrop"></div>
   <div class="nav-mobile-menu">
     <div class="nav-mobile-header">
-      <a href="/" class="nav-mobile-home">Home</a>
-      <button class="nav-mobile-close" id="menu-close" aria-label="Close menu">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
+      <a href="/" class="nav-mobile-home">LN</a>
     </div>
     <ul class="nav-mobile-list">
       {navItems.map(item => (
@@ -104,14 +98,14 @@ const currentPath = Astro.url.pathname;
     padding: 0.625rem 1.5rem;
     width: 100%;
     
-    /* Floating capsule glass effect */
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    /* Floating capsule glass effect - more transparent */
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: saturate(150%) blur(20px);
+    -webkit-backdrop-filter: saturate(150%) blur(20px);
     
     /* Capsule shape */
     border-radius: 100px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     
     /* Floating shadow */
     box-shadow: 
@@ -158,6 +152,7 @@ const currentPath = Astro.url.pathname;
     justify-content: center;
     text-decoration: none;
     transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    height: 44px; /* Match nav-link height for alignment */
   }
 
   .nav-home:active {
@@ -169,6 +164,7 @@ const currentPath = Astro.url.pathname;
     font-weight: 700;
     color: var(--color-text);
     letter-spacing: -0.02em;
+    line-height: 1; /* Prevent extra vertical space */
   }
 
   /* Divider */
@@ -196,6 +192,7 @@ const currentPath = Astro.url.pathname;
     display: flex;
     align-items: center;
     padding: 0.5rem 1rem;
+    height: 44px;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-text-muted);
@@ -205,6 +202,7 @@ const currentPath = Astro.url.pathname;
                 transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
     position: relative;
     z-index: 2;
+    line-height: 1; /* Consistent with nav-home */
   }
 
   .nav-link:hover {
@@ -378,40 +376,16 @@ const currentPath = Astro.url.pathname;
   .nav-mobile-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
+    padding: 1.5rem 1.5rem 1rem;
     border-bottom: 1px solid var(--color-border);
   }
 
   .nav-mobile-home {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--color-text);
     text-decoration: none;
     letter-spacing: -0.02em;
-  }
-
-  .nav-mobile-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    border-radius: 50%;
-    transition: background 200ms ease, transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .nav-mobile-close:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-
-  .nav-mobile-close:active {
-    transform: scale(0.92);
   }
 
   .nav-mobile-list {
@@ -466,7 +440,6 @@ const currentPath = Astro.url.pathname;
      ========================================= */
 
   const toggle = document.getElementById('menu-toggle');
-  const close = document.getElementById('menu-close');
   const overlay = document.getElementById('nav-overlay');
   const backdrop = document.getElementById('nav-backdrop');
 
@@ -489,7 +462,6 @@ const currentPath = Astro.url.pathname;
     isOpen ? closeMenu() : openMenu();
   });
 
-  close?.addEventListener('click', closeMenu);
   backdrop?.addEventListener('click', closeMenu);
 
   document.addEventListener('keydown', (e) => {
