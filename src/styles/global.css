@@ -155,6 +155,64 @@ body {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* =========================================
+   FADE OVERLAYS (Top & Bottom Safe Areas)
+   ========================================= */
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 80px;
+  pointer-events: none;
+  z-index: 999;
+  transition: none; /* Don't transition with theme */
+}
+
+/* Top fade - content fades out as it scrolls up */
+body::before {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    #ffffff 0%,
+    #ffffff 20%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Bottom fade - content fades out as it scrolls down */
+body::after {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    #ffffff 0%,
+    #ffffff 20%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Dark mode uses pure black */
+[data-theme="dark"] body::before {
+  background: linear-gradient(
+    to bottom,
+    #000000 0%,
+    #000000 20%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+[data-theme="dark"] body::after {
+  background: linear-gradient(
+    to top,
+    #000000 0%,
+    #000000 20%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 main {
