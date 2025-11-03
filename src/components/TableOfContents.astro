@@ -75,21 +75,37 @@
         e.preventDefault();
         const target = document.getElementById(item.id);
         if (target) {
+          // Calculate position accounting for fixed header
           const headerOffset = 140;
-          const elementPosition = target.getBoundingClientRect().top;
-          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          const targetPosition = target.offsetTop;
+          const offsetPosition = targetPosition - headerOffset;
           
-          window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-          });
-          
-          // Update URL hash
-          if (history.pushState) {
-            history.pushState(null, '', `#${item.id}`);
-          } else {
-            window.location.hash = `#${item.id}`;
+          // Use scrollIntoView as fallback if scrollTo doesn't work
+          try {
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          } catch (e) {
+            // Fallback to scrollIntoView
+            target.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            });
+            // Manually adjust for header
+            setTimeout(() => {
+              window.scrollBy(0, -headerOffset);
+            }, 100);
           }
+          
+          // Update URL hash after a small delay
+          setTimeout(() => {
+            if (history.pushState) {
+              history.pushState(null, '', `#${item.id}`);
+            } else {
+              window.location.hash = `#${item.id}`;
+            }
+          }, 100);
         }
       });
       
