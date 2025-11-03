@@ -90,16 +90,16 @@ h6 {
   color-scheme: light;
 }
 
-/* Dark mode colors */
+/* Dark mode colors - Pure black elegance (from v2) */
 [data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
-  --color-accent: #60a5fa;
-  --color-accent-hover: #93c5fd;
-  --color-surface: #1e293b;
-  --color-surface-elevated: #334155;
+  --color-bg: #000000;
+  --color-text: #ffffff;
+  --color-text-muted: #cccccc;
+  --color-border: #333333;
+  --color-accent: #ffffff;
+  --color-accent-hover: #cccccc;
+  --color-surface: #111111;
+  --color-surface-elevated: #1a1a1a;
   
   color-scheme: dark;
 }
@@ -107,14 +107,14 @@ h6 {
 /* System preference (no user override) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --color-bg: #0f172a;
-    --color-text: #e2e8f0;
-    --color-text-muted: #94a3b8;
-    --color-border: #334155;
-    --color-accent: #60a5fa;
-    --color-accent-hover: #93c5fd;
-    --color-surface: #1e293b;
-    --color-surface-elevated: #334155;
+    --color-bg: #000000;
+    --color-text: #ffffff;
+    --color-text-muted: #cccccc;
+    --color-border: #333333;
+    --color-accent: #ffffff;
+    --color-accent-hover: #cccccc;
+    --color-surface: #111111;
+    --color-surface-elevated: #1a1a1a;
     
     color-scheme: dark;
   }
