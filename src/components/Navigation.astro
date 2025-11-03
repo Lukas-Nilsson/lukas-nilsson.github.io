@@ -34,6 +34,22 @@ const currentPath = Astro.url.pathname;
 
     <!-- Sliding active indicator -->
     <div class="nav-indicator" aria-hidden="true"></div>
+    
+    <!-- Visual Mode Toggle -->
+    <button 
+      class="visual-mode-toggle" 
+      id="visual-mode-toggle"
+      aria-label="Toggle enhanced visual mode"
+      title="Toggle enhanced visual mode"
+    >
+      <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="4"></circle>
+        <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
+      </svg>
+      <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+      </svg>
+    </button>
   </div>
 
   <!-- Mobile Menu Button (only on mobile) -->
@@ -242,6 +258,67 @@ const currentPath = Astro.url.pathname;
   .nav-home:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 4px;
+  }
+
+  /* =========================================
+     VISUAL MODE TOGGLE
+     ========================================= */
+
+  .visual-mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    position: relative;
+    margin-left: var(--space-xs);
+  }
+
+  .visual-mode-toggle:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--color-text);
+  }
+
+  [data-theme="dark"] .visual-mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .visual-mode-toggle:active {
+    transform: scale(0.92);
+  }
+
+  .visual-mode-toggle:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Icon visibility based on mode */
+  .visual-mode-toggle .icon-default {
+    display: block;
+  }
+
+  .visual-mode-toggle .icon-enhanced {
+    display: none;
+  }
+
+  [data-visual-mode="enhanced"] .visual-mode-toggle .icon-default {
+    display: none;
+  }
+
+  [data-visual-mode="enhanced"] .visual-mode-toggle .icon-enhanced {
+    display: block;
+  }
+
+  /* Enhanced mode: make toggle more prominent */
+  [data-visual-mode="enhanced"] .visual-mode-toggle {
+    color: var(--color-accent);
   }
 
   /* =========================================
@@ -550,4 +627,18 @@ const currentPath = Astro.url.pathname;
   }
 
   document.addEventListener('DOMContentLoaded', initIndicator);
+  
+  /* =========================================
+     VISUAL MODE TOGGLE
+     ========================================= */
+  
+  const visualModeToggle = document.getElementById('visual-mode-toggle');
+  
+  visualModeToggle?.addEventListener('click', () => {
+    const currentMode = document.documentElement.getAttribute('data-visual-mode') || 'default';
+    const newMode = currentMode === 'default' ? 'enhanced' : 'default';
+    
+    document.documentElement.setAttribute('data-visual-mode', newMode);
+    localStorage.setItem('visual-mode', newMode);
+  });
 </script>

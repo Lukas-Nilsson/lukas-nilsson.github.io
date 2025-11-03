@@ -1,6 +1,7 @@
 ---
 import Navigation from '../components/Navigation.astro';
 import '../styles/global.css';
+import '../styles/enhanced-mode.css';
 
 interface Props {
   title?: string;
@@ -53,11 +54,16 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   
   <!-- Theme Script (before render to prevent flash) -->
   <script is:inline>
-    // Apply theme immediately before page renders (system preference only)
+    // Apply theme and visual mode immediately before page renders
     (function() {
+      // Dark mode from system preference
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
+      
+      // Visual mode from localStorage (default or enhanced)
+      const visualMode = localStorage.getItem('visual-mode') || 'default';
+      document.documentElement.setAttribute('data-visual-mode', visualMode);
     })();
   </script>
 </head>
