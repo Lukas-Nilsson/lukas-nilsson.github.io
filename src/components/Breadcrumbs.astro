@@ -86,7 +86,7 @@ const { crumbs } = Astro.props;
     transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1),
                 transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 2px 4px;
   }
 
   .breadcrumb-link:hover {
@@ -107,6 +107,11 @@ const { crumbs } = Astro.props;
     font-size: var(--text-sm);
     color: var(--color-border);
     user-select: none;
+  }
+
+  /* Ensure the first breadcrumb aligns flush with content container */
+  .breadcrumb-item:first-child .breadcrumb-link {
+    padding-left: 0;
   }
 
   .breadcrumb-current {
