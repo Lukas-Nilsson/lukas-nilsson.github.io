@@ -1,0 +1,29 @@
+---
+import { getCollection } from 'astro:content';
+import ContentPage from '../../layouts/ContentPage.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('public', (e) => e.id.startsWith('Writing/') && !e.id.endsWith('index.md') && e.data.publish === true);
+  return entries.map((entry) => ({
+    params: { slug: entry.id.replace('Writing/', '').replace('.md', '') },
+    props: { id: entry.id }
+  }));
+}
+
+const { id } = Astro.props;
+const entries = await getCollection('public');
+const entry = entries.find((e) => e.id === id);
+
+if (!entry) {
+  return Astro.redirect('/404');
+}
+
+const { Content, headings } = await entry.render();
+const { title, summary } = entry.data;
+---
+
+<ContentPage title={title} description={summary}>
+  <article>
+    <Content />
+  </article>
+</ContentPage>
