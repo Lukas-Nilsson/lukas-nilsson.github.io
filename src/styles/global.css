@@ -158,60 +158,6 @@ body {
   position: relative;
 }
 
-/* =========================================
-   FADE OVERLAYS (Subtle - At Absolute Edges)
-   ========================================= */
-
-body::before,
-body::after {
-  content: '';
-  position: fixed;
-  left: 0;
-  right: 0;
-  height: 10px;
-  pointer-events: none;
-  z-index: 9999;
-  transition: none; /* Don't transition with theme */
-}
-
-/* Top fade - barely noticeable */
-body::before {
-  top: env(safe-area-inset-top, 0);
-  background: linear-gradient(
-    to bottom,
-    #ffffff 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
-/* Bottom fade - extends into safe area */
-body::after {
-  bottom: calc(0px - env(safe-area-inset-bottom, 0px));
-  height: calc(10px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(
-    to top,
-    #ffffff 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
-/* Dark mode uses pure black */
-[data-theme="dark"] body::before {
-  background: linear-gradient(
-    to bottom,
-    #000000 0%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
-
-[data-theme="dark"] body::after {
-  background: linear-gradient(
-    to top,
-    #000000 0%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
-
 main {
   flex: 1;
 }
