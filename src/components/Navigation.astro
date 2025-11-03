@@ -98,20 +98,19 @@ const currentPath = Astro.url.pathname;
     padding: 0.625rem 1.5rem;
     width: 100%;
     
-    /* Floating capsule glass effect - more transparent */
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: saturate(150%) blur(20px);
-    -webkit-backdrop-filter: saturate(150%) blur(20px);
+    /* Floating capsule glass effect - realistic lens */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     
     /* Capsule shape */
     border-radius: 100px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     
-    /* Floating shadow */
+    /* Subtle shadow - no glow */
     box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.08),
-      0 8px 32px rgba(0, 0, 0, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      0 4px 16px rgba(0, 0, 0, 0.1),
+      0 8px 32px rgba(0, 0, 0, 0.05);
     
     pointer-events: auto;
     position: relative;
@@ -120,16 +119,15 @@ const currentPath = Astro.url.pathname;
                 opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Dark mode glass - Pure black elegance (from v2) */
+  /* Dark mode glass - Realistic lens effect (no glow) */
   [data-theme="dark"] .nav-pill {
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: saturate(110%) blur(20px);
-    -webkit-backdrop-filter: saturate(110%) blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.6),
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
   @media (min-width: 768px) {
@@ -260,14 +258,14 @@ const currentPath = Astro.url.pathname;
     height: 44px;
     padding: 0;
     border: none;
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: 50%;
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.08),
-      0 8px 32px rgba(0, 0, 0, 0.04);
+      0 4px 16px rgba(0, 0, 0, 0.1),
+      0 8px 32px rgba(0, 0, 0, 0.05);
     cursor: pointer;
     pointer-events: auto;
     transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -275,14 +273,13 @@ const currentPath = Astro.url.pathname;
   }
 
   [data-theme="dark"] .nav-mobile-toggle {
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: saturate(110%) blur(20px);
-    -webkit-backdrop-filter: saturate(110%) blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.6),
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
   .nav-mobile-toggle:active {
