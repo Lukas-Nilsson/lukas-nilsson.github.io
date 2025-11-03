@@ -53,16 +53,9 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   
   <!-- Theme Script (before render to prevent flash) -->
   <script is:inline>
-    // Apply theme immediately before page renders
+    // Apply theme immediately before page renders (system preference only)
     (function() {
-      const getTheme = () => {
-        const stored = localStorage.getItem('theme');
-        if (stored) return stored;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      };
-      
-      const theme = getTheme();
-      if (theme === 'dark') {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
@@ -82,42 +75,15 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 
   <script>
     /* =========================================
-       THEME TOGGLE SYSTEM
+       SYSTEM PREFERENCE LISTENER (Dark Mode)
        ========================================= */
-    
-    const themeToggle = document.getElementById('theme-toggle');
-    
-    function getTheme() {
-      const stored = localStorage.getItem('theme');
-      if (stored) return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    
-    function setTheme(theme: string) {
-      if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
-      }
-      localStorage.setItem('theme', theme);
-    }
-    
-    function toggleTheme() {
-      const current = getTheme();
-      const next = current === 'dark' ? 'light' : 'dark';
-      setTheme(next);
-    }
-    
-    // Initialize theme button
-    if (themeToggle) {
-      themeToggle.addEventListener('click', toggleTheme);
-    }
     
     // Listen to system preference changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      // Only update if user hasn't set explicit preference
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
+      if (e.matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
       }
     });
     
@@ -150,11 +116,6 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
       links.forEach(link => {
         link.addEventListener('touchstart', () => hapticFeedback('light'), { passive: true });
       });
-      
-      // Theme toggle gets medium feedback
-      if (themeToggle) {
-        themeToggle.addEventListener('touchstart', () => hapticFeedback('medium'), { passive: true });
-      }
     }
     
     // Initialize on page load
@@ -200,14 +161,6 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
     }
     
     document.addEventListener('DOMContentLoaded', initRipples);
-    
-    // Add success pulse animation to theme toggle
-    if (themeToggle) {
-      themeToggle.addEventListener('click', () => {
-        themeToggle.classList.add('success-pulse');
-        setTimeout(() => themeToggle.classList.remove('success-pulse'), 400);
-      });
-    }
     
     /* =========================================
        SCROLL PROGRESS INDICATOR (Safari-style)
