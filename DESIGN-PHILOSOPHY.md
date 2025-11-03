@@ -1146,6 +1146,58 @@ body.opacity = 1 (200ms)
 
 ---
 
+### November 3, 2025 (Evening) - Floating Capsule Navigation
+
+**Decision:** Complete redesign of header navigation - floating glass capsule inspired by Apple's design language.
+
+**Problems with previous implementation:**
+- Text was unreadable (white on light gray in light mode)
+- LN logo was misaligned vertically with menu items
+- Mobile menu had redundant close buttons
+- Dark mode used blue-tinted slate (poor contrast with black backgrounds)
+- Capsule felt cramped and didn't use space elegantly
+
+**Solution - Final Implementation:**
+
+**Desktop Navigation:**
+- **Floating Capsule:** Centered, pill-shaped, matches content width (800px max)
+- **Glass Effect:**
+  - Light mode: `rgba(255, 255, 255, 0.5)` - more transparent for readability
+  - Dark mode: `rgba(0, 0, 0, 0.7)` - pure black elegance (inspired by v2)
+  - `backdrop-filter: blur(20px) saturate(150-180%)`
+- **Layout:** `justify-content: space-between` - LN left, nav links right
+- **Alignment:** Both logo and links use `height: 44px` and `line-height: 1` for perfect vertical alignment
+- **Indicator:** Sliding pill (`rgba(255, 255, 255, 0.18)` in dark mode) that smoothly animates between active/hovered links
+
+**Dark Mode Colors (from v2):**
+- Background: Pure black (`#000000`) instead of slate (`#0f172a`)
+- Text: Pure white (`#ffffff`) instead of off-white
+- Border: `#333333` - better contrast on black
+- Surfaces: `#111111` and `#1a1a1a`
+
+**Mobile Menu:**
+- Removed redundant close button
+- Single interaction pattern: hamburger button toggles (becomes X when open)
+- Backdrop click or Escape key also closes
+- Header shows "LN" instead of "Home"
+
+**Reasoning:**
+- More transparent glass allows background to show through while maintaining frosted effect
+- Pure black dark mode has better color relationship with backgrounds
+- Perfect vertical alignment prevents "floating logo" appearance  
+- Content-width capsule feels substantial without being overbearing
+- Single close mechanism follows Apple's principle: one clear way to do things
+- Removed redundancy improves UX clarity
+
+**Result:** 
+- Readable text in all modes
+- Perfectly aligned elements
+- Elegant, spacious layout on desktop
+- Clean, single-purpose mobile menu
+- Beautiful dark mode that matches v2's elegance
+
+---
+
 ## 🎯 Future Considerations
 
 ### Dark Mode
