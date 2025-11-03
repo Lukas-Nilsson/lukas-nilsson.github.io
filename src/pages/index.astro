@@ -9,9 +9,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <span class="hero-title-line" data-animate>Lukas</span>
         <span class="hero-title-line" data-animate>Nilsson</span>
       </h1>
-      <p class="hero-tagline" data-animate>
-        Tech creative, founder, and truth seeker building at the intersection of philosophy, technology, and human potential.
-      </p>
+      <div class="hero-conversation" data-animate>
+        <p class="conversation-prompt">
+          "Based on everything you know about me, who am I in one sentence"
+        </p>
+        <p class="conversation-response">
+          <span class="chatgpt-label">ChatGPT</span> — "You are a visionary builder—philosopher, artist, and teacher—who uses story, technology, and disciplined optimism to inspire human agency and meaning by revealing the beauty in the world."
+        </p>
+      </div>
     </div>
   </div>
 </BaseLayout>
@@ -43,12 +48,29 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     display: block;
   }
 
-  .hero-tagline {
+  .hero-conversation {
+    max-width: 700px;
+    margin-top: var(--space-xl);
+  }
+
+  .conversation-prompt {
+    font-size: var(--text-base);
+    line-height: 1.5;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-bottom: var(--space-md);
+    opacity: 0.8;
+  }
+
+  .conversation-response {
     font-size: var(--text-lg);
     line-height: 1.6;
-    color: var(--color-text-muted);
-    max-width: 600px;
-    margin-top: var(--space-xl);
+    color: var(--color-text);
+  }
+
+  .chatgpt-label {
+    font-weight: 600;
+    color: var(--color-accent);
   }
 
   /* Responsive adjustments */
@@ -57,14 +79,18 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       margin-bottom: var(--space-xl);
     }
 
-    .hero-tagline {
+    .conversation-prompt {
+      font-size: var(--text-lg);
+    }
+
+    .conversation-response {
       font-size: var(--text-xl);
     }
   }
 
   @media (min-width: 1024px) {
-    .hero-tagline {
-      max-width: 700px;
+    .hero-conversation {
+      max-width: 800px;
     }
   }
 
@@ -87,7 +113,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       animation-delay: 200ms;
     }
 
-    .hero-tagline {
+    .hero-conversation {
       animation-delay: 400ms;
     }
   }
