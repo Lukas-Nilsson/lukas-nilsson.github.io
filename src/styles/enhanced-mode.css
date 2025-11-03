@@ -531,19 +531,19 @@
   opacity: 0.5;
 }
 
-/* Enhanced mobile menu glass effect */
+/* Enhanced mobile menu glass effect - more transparent */
 [data-visual-mode="enhanced"] .nav-mobile-menu {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(60px) saturate(150%);
-  -webkit-backdrop-filter: blur(60px) saturate(150%);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(50px);
+  -webkit-backdrop-filter: blur(50px);
   box-shadow: 4px 0 48px rgba(102, 126, 234, 0.15);
   border-right: 1px solid rgba(102, 126, 234, 0.2);
 }
 
 [data-visual-mode="enhanced"][data-theme="dark"] .nav-mobile-menu {
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(60px) saturate(150%);
-  -webkit-backdrop-filter: blur(60px) saturate(150%);
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(50px);
+  -webkit-backdrop-filter: blur(50px);
   box-shadow: 4px 0 48px rgba(129, 140, 248, 0.2);
   border-right: 1px solid rgba(129, 140, 248, 0.2);
 }

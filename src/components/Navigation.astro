@@ -460,10 +460,10 @@ const currentPath = Astro.url.pathname;
     bottom: 0;
     width: min(320px, 80vw);
     
-    /* Glass effect similar to header capsule */
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(40px) saturate(120%);
-    -webkit-backdrop-filter: blur(40px) saturate(120%);
+    /* Glass effect - match header capsule (almost transparent, blur does the work) */
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
     
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.12);
     transform: translateX(-100%);
@@ -471,16 +471,16 @@ const currentPath = Astro.url.pathname;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding-top: calc(env(safe-area-inset-top) + 1rem);
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
   }
 
-  /* Dark mode glass effect */
+  /* Dark mode glass effect - match header capsule */
   [data-theme="dark"] .nav-mobile-menu {
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(40px) saturate(120%);
-    -webkit-backdrop-filter: blur(40px) saturate(120%);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .nav-mobile-overlay[aria-hidden="false"] .nav-mobile-menu {
@@ -490,16 +490,18 @@ const currentPath = Astro.url.pathname;
   .nav-mobile-header {
     display: flex;
     align-items: center;
+    justify-content: center;
     padding: 1.5rem 1.5rem 1rem;
     border-bottom: 1px solid var(--color-border);
   }
 
   .nav-mobile-home {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--color-text);
     text-decoration: none;
     letter-spacing: -0.02em;
+    opacity: 0.5;
   }
 
   .nav-mobile-list {
