@@ -151,9 +151,9 @@ const currentPath = Astro.url.pathname;
                 opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Dark mode glass - 95% transparent with blur */
+  /* Dark mode glass - darker tinted background */
   [data-theme="dark"] .nav-pill {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -375,7 +375,7 @@ const currentPath = Astro.url.pathname;
   }
 
   [data-theme="dark"] .nav-mobile-toggle {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -474,9 +474,9 @@ const currentPath = Astro.url.pathname;
     border-right: 1px solid rgba(0, 0, 0, 0.06);
   }
 
-  /* Dark mode - 95% transparent with blur */
+  /* Dark mode - darker tinted background */
   [data-theme="dark"] .nav-mobile-menu {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
@@ -577,7 +577,7 @@ const currentPath = Astro.url.pathname;
   }
 
   [data-theme="dark"] .nav-mobile-visual-toggle {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.06);
