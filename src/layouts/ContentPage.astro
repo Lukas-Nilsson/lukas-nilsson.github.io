@@ -17,6 +17,21 @@ const { title, description } = Astro.props;
   </article>
 </BaseLayout>
 
+<script>
+  // Fix internal links: lowercase and remove .md extensions
+  document.querySelectorAll('.content-page a[href]').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (href && !href.match(/^(https?:|mailto:|#)/) && !href.startsWith('/_astro')) {
+      // Remove .md extension
+      let fixed = href.replace(/\.md$/, '');
+      // Convert to lowercase and ensure absolute path
+      const segments = fixed.split('/').filter(s => s.length > 0);
+      fixed = '/' + segments.map(s => s.toLowerCase()).join('/') + '/';
+      link.setAttribute('href', fixed);
+    }
+  });
+</script>
+
 <style>
   .content-page {
     padding: var(--space-2xl) 0;

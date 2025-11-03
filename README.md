@@ -116,6 +116,14 @@ updated: 2025-11-03
 ---
 ```
 
+### ⚠️ Link Case Sensitivity (Automatic Fix)
+
+**The site automatically normalizes internal links:**
+- Capitalized paths (e.g., `/Contact/`) → lowercase (`/contact/`)
+- Markdown file links (e.g., `Projects/file.md`) → routes (`/projects/file/`)
+
+This happens client-side via JavaScript in `ContentPage.astro`, ensuring compatibility between the capitalized folder names in `public-mindpalace` and lowercase Astro routes.
+
 ### Updating Content
 
 Content updates automatically when the submodule is updated:

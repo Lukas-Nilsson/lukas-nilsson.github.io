@@ -182,6 +182,23 @@ const navItems = [
 
 ---
 
+## ⚠️ Link Case Sensitivity Fix
+
+The site includes automatic link normalization because:
+- Content repo (`public-mindpalace`) uses capitalized paths: `/About/`, `/Contact/`, `/Projects/`
+- Astro routes are lowercase: `/about`, `/contact`, `/projects`
+
+**Solution:** A client-side script in `src/layouts/ContentPage.astro` automatically:
+1. Converts all internal links to lowercase
+2. Removes `.md` extensions  
+3. Converts relative paths to absolute paths
+
+This runs on page load, ensuring all links work correctly without modifying the source content.
+
+**Code location:** `src/layouts/ContentPage.astro` (see `<script>` section)
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Build fails?

@@ -14,4 +14,3 @@ const publicCollection = defineCollection({
 export const collections = {
   public: publicCollection,
 };
-
