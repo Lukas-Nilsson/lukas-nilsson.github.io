@@ -9,12 +9,16 @@ const navItems = [
 const currentPath = Astro.url.pathname;
 ---
 
-<nav class="nav" id="main-nav">
-  <div class="nav-container">
-    <a href="/" class="nav-logo" aria-label="Home">LN</a>
+<nav class="nav-capsule" id="main-nav">
+  <!-- Desktop Floating Capsule -->
+  <div class="nav-pill">
+    <a href="/" class="nav-home" aria-label="Home">
+      <span class="nav-home-text">LN</span>
+    </a>
     
-    <!-- Desktop Navigation -->
-    <ul class="nav-menu">
+    <div class="nav-divider" aria-hidden="true"></div>
+    
+    <ul class="nav-links">
       {navItems.map(item => (
         <li>
           <a 
@@ -28,428 +32,431 @@ const currentPath = Astro.url.pathname;
       ))}
     </ul>
 
-    <!-- Mobile Menu Button -->
-    <button 
-      class="nav-toggle" 
-      aria-label="Toggle menu"
-      aria-expanded="false"
-      id="menu-toggle"
-    >
-      <span class="nav-toggle-icon"></span>
-    </button>
+    <!-- Sliding active indicator -->
+    <div class="nav-indicator" aria-hidden="true"></div>
   </div>
 
-  <!-- Mobile Navigation Overlay -->
-  <div class="nav-overlay" id="nav-overlay" aria-hidden="true">
-    <div class="nav-backdrop" id="nav-backdrop"></div>
-    <div class="nav-menu-mobile">
-      <ul class="nav-menu-mobile-list">
-        {navItems.map(item => (
-          <li>
-            <a 
-              href={item.href}
-              class:list={['nav-link-mobile', { active: currentPath.startsWith(item.href) }]}
-              aria-current={currentPath.startsWith(item.href) ? 'page' : undefined}
-            >
-              {item.name}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </div>
+  <!-- Mobile Menu Button (only on mobile) -->
+  <button 
+    class="nav-mobile-toggle" 
+    aria-label="Toggle menu"
+    aria-expanded="false"
+    id="menu-toggle"
+  >
+    <span class="toggle-bar"></span>
+    <span class="toggle-bar"></span>
+    <span class="toggle-bar"></span>
+  </button>
 </nav>
+
+<!-- Mobile Navigation Overlay -->
+<div class="nav-mobile-overlay" id="nav-overlay" aria-hidden="true">
+  <div class="nav-mobile-backdrop" id="nav-backdrop"></div>
+  <div class="nav-mobile-menu">
+    <div class="nav-mobile-header">
+      <a href="/" class="nav-mobile-home">Home</a>
+      <button class="nav-mobile-close" id="menu-close" aria-label="Close menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <ul class="nav-mobile-list">
+      {navItems.map(item => (
+        <li>
+          <a 
+            href={item.href}
+            class:list={['nav-mobile-link', { active: currentPath.startsWith(item.href) }]}
+            aria-current={currentPath.startsWith(item.href) ? 'page' : undefined}
+          >
+            {item.name}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</div>
 
 <style>
   /* =========================================
-     NAVIGATION - Apple-Inspired UX
+     FLOATING CAPSULE NAVIGATION
      ========================================= */
 
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    /* Liquid glass: translucent background with blur & saturation */
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: saturate(180%) blur(14px);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    transition: transform 450ms cubic-bezier(0.32, 0.72, 0, 1),
-                box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1),
-                background-color 200ms ease;
-    /* iOS safe area */
-    padding-top: calc(env(safe-area-inset-top) + 0px);
+  .nav-capsule {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    pointer-events: none;
   }
 
-  /* Dark theme adjustments for glass */
-  [data-theme="dark"] .nav {
-    background: rgba(15, 23, 42, 0.55);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .nav.nav-hidden {
-    transform: translateY(-100%);
-  }
-
-  .nav.nav-scrolled {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  .nav-container {
-    display: flex;
+  /* The floating pill/capsule */
+  .nav-pill {
+    display: none; /* Hidden on mobile */
     align-items: center;
-    justify-content: space-between;
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: var(--space-sm) calc(var(--space-md) + env(safe-area-inset-right));
-    padding-left: calc(var(--space-md) + env(safe-area-inset-left));
-    min-height: 56px; /* consistent height for alignment */
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    
+    /* Floating capsule glass effect */
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    
+    /* Capsule shape */
+    border-radius: 100px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    
+    /* Floating shadow */
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.08),
+      0 8px 32px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    
+    pointer-events: auto;
+    position: relative;
+    
+    transition: transform 400ms cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Logo with spring animation */
-  .nav-logo {
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--color-text);
-    text-decoration: none;
-    transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1),
-                transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .nav-logo:hover {
-    color: var(--color-accent);
-    transform: scale(1.05);
-  }
-
-  .nav-logo:active {
-    transform: scale(0.95);
-  }
-
-  /* Desktop Menu */
-  .nav-menu {
-    display: none;
-    list-style: none;
-    gap: var(--space-lg);
-    position: relative; /* for underline indicator */
-    align-items: center;
-    padding-bottom: 2px; /* space for underline */
+  /* Dark mode glass */
+  [data-theme="dark"] .nav-pill {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   @media (min-width: 768px) {
-    .nav-menu {
+    .nav-pill {
       display: flex;
     }
   }
 
-  /* Desktop Nav Links with underline animation */
-  .nav-link {
+  /* Hide on scroll down, show on scroll up */
+  .nav-capsule.nav-hidden .nav-pill {
+    transform: translateY(-120%) translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Home button/logo */
+  .nav-home {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .nav-home:active {
+    transform: scale(0.92);
+  }
+
+  .nav-home-text {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+  }
+
+  /* Divider */
+  .nav-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    margin: 0 0.25rem;
+  }
+
+  /* Navigation links */
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
     position: relative;
-    font-size: var(--text-sm);
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.9375rem;
     font-weight: 500;
     color: var(--color-text-muted);
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    height: 44px;
-    line-height: 1;
-    padding: 0;
+    border-radius: 50px;
     transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1),
-                transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .nav-link::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    right: 50%;
-    height: 2px;
-    background: var(--color-accent);
-    opacity: 0;
-    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+                transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
+    position: relative;
+    z-index: 2;
   }
 
   .nav-link:hover {
     color: var(--color-text);
   }
 
-  .nav-link:hover::before {
-    left: 0;
-    right: 0;
-    opacity: 0.8;
-  }
-
   .nav-link:active {
     transform: scale(0.95);
-    opacity: 0.6;
   }
 
   .nav-link.active {
     color: var(--color-text);
   }
 
-  /* Sliding underline indicator (single element) */
-  .nav-menu::after {
-    content: '';
+  /* Floating active indicator (pill behind active item) */
+  .nav-indicator {
     position: absolute;
-    left: var(--underline-left, 0px);
-    bottom: 0;
-    width: var(--underline-width, 0px);
-    height: 2px;
-    background: var(--color-accent);
-    border-radius: 2px;
+    top: 50%;
+    left: var(--indicator-left, 0);
+    transform: translateY(-50%);
+    width: var(--indicator-width, 0);
+    height: calc(100% - 8px);
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 50px;
     transition: left 300ms cubic-bezier(0.32, 0.72, 0, 1),
                 width 300ms cubic-bezier(0.32, 0.72, 0, 1),
                 opacity 200ms ease;
-    opacity: var(--underline-opacity, 0);
+    opacity: var(--indicator-opacity, 0);
+    pointer-events: none;
+    z-index: 1;
   }
 
-  /* Apple-style focus states */
+  [data-theme="dark"] .nav-indicator {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* Focus states */
   .nav-link:focus-visible,
-  .nav-logo:focus-visible {
-    outline: 3px solid var(--color-accent);
+  .nav-home:focus-visible {
+    outline: 2px solid var(--color-accent);
     outline-offset: 4px;
-    border-radius: 4px;
   }
 
-  /* Mobile Toggle Button with haptic feedback */
-  .nav-toggle {
-    display: block;
+  /* =========================================
+     MOBILE TOGGLE BUTTON
+     ========================================= */
+
+  .nav-mobile-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     width: 44px;
     height: 44px;
-    background: none;
-    border: none;
-    cursor: pointer;
     padding: 0;
-    position: relative;
+    border: none;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.08),
+      0 8px 32px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    pointer-events: auto;
     transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
   }
 
-  .nav-toggle:active {
-    transform: scale(0.9);
+  [data-theme="dark"] .nav-mobile-toggle {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
-  .nav-toggle:focus-visible {
-    outline: 3px solid var(--color-accent);
-    outline-offset: 4px;
-    border-radius: 8px;
+  .nav-mobile-toggle:active {
+    transform: scale(0.92);
   }
 
   @media (min-width: 768px) {
-    .nav-toggle {
+    .nav-mobile-toggle {
       display: none;
     }
   }
 
-  /* Hamburger animation with spring physics */
-  .nav-toggle-icon,
-  .nav-toggle-icon::before,
-  .nav-toggle-icon::after {
-    position: absolute;
-    width: 24px;
+  .toggle-bar {
+    width: 18px;
     height: 2px;
     background: var(--color-text);
+    border-radius: 1px;
     transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  .nav-toggle-icon {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+  .nav-mobile-toggle[aria-expanded="true"] .toggle-bar:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
   }
 
-  .nav-toggle-icon::before,
-  .nav-toggle-icon::after {
-    content: '';
-    left: 0;
+  .nav-mobile-toggle[aria-expanded="true"] .toggle-bar:nth-child(2) {
+    opacity: 0;
   }
 
-  .nav-toggle-icon::before {
-    top: -8px;
-  }
-
-  .nav-toggle-icon::after {
-    top: 8px;
-  }
-
-  .nav-toggle[aria-expanded="true"] .nav-toggle-icon {
-    background: transparent;
-  }
-
-  .nav-toggle[aria-expanded="true"] .nav-toggle-icon::before {
-    top: 0;
-    transform: rotate(45deg);
-  }
-
-  .nav-toggle[aria-expanded="true"] .nav-toggle-icon::after {
-    top: 0;
-    transform: rotate(-45deg);
+  .nav-mobile-toggle[aria-expanded="true"] .toggle-bar:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
   }
 
   /* =========================================
-     MOBILE MENU OVERLAY (iOS-Style)
+     MOBILE OVERLAY MENU
      ========================================= */
 
-  .nav-overlay {
+  .nav-mobile-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: 999;
     pointer-events: none;
     opacity: 0;
-    /* Don't transition overlay opacity - let blur handle visual transition */
   }
 
-  .nav-overlay[aria-hidden="false"] {
+  .nav-mobile-overlay[aria-hidden="false"] {
     pointer-events: auto;
     opacity: 1;
-    /* Show immediately when menu opens */
   }
 
   @media (min-width: 768px) {
-    .nav-overlay {
+    .nav-mobile-overlay {
       display: none !important;
     }
   }
 
-  /* Backdrop with blur (iOS style) - Starts transitioning immediately */
-  .nav-backdrop {
+  .nav-mobile-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0);
     backdrop-filter: blur(0px);
     -webkit-backdrop-filter: blur(0px);
-    /* Start transitioning as soon as overlay becomes visible */
     transition: background 400ms cubic-bezier(0.32, 0.72, 0, 1),
                 backdrop-filter 400ms cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: backdrop-filter, background;
   }
 
-  /* Transition starts immediately when overlay is shown */
-  .nav-overlay[aria-hidden="false"] .nav-backdrop {
+  .nav-mobile-overlay[aria-hidden="false"] .nav-mobile-backdrop {
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 
-  /* Mobile menu panel slides from right */
-  .nav-menu-mobile {
+  .nav-mobile-menu {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
-    width: min(300px, 75vw);
+    width: min(320px, 80vw);
     background: var(--color-bg);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
     transform: translateX(100%);
     transition: transform 400ms cubic-bezier(0.32, 0.72, 0, 1);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-top: calc(env(safe-area-inset-top) + var(--space-2xl));
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
   }
 
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile {
+  .nav-mobile-overlay[aria-hidden="false"] .nav-mobile-menu {
     transform: translateX(0);
   }
 
-  .nav-menu-mobile-list {
-    list-style: none;
-    padding: var(--space-2xl) var(--space-lg);
+  .nav-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
   }
 
-  .nav-menu-mobile-list li {
-    margin-bottom: var(--space-xs);
-    opacity: 0;
-    transform: translateX(20px);
-    transition: all 400ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  /* Staggered fade-in animation */
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile-list li {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile-list li:nth-child(1) {
-    transition-delay: 100ms;
-  }
-
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile-list li:nth-child(2) {
-    transition-delay: 150ms;
-  }
-
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile-list li:nth-child(3) {
-    transition-delay: 200ms;
-  }
-
-  .nav-overlay[aria-hidden="false"] .nav-menu-mobile-list li:nth-child(4) {
-    transition-delay: 250ms;
-  }
-
-  /* Mobile nav links */
-  .nav-link-mobile {
-    display: block;
-    font-size: var(--text-lg);
-    font-weight: 500;
+  .nav-mobile-home {
+    font-size: 1.25rem;
+    font-weight: 700;
     color: var(--color-text);
     text-decoration: none;
-    padding: var(--space-md);
-    border-radius: 8px;
-    transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
-                transform 200ms cubic-bezier(0.32, 0.72, 0, 1),
-                color 200ms cubic-bezier(0.32, 0.72, 0, 1);
-    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.02em;
   }
 
-  .nav-link-mobile:hover {
+  .nav-mobile-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 200ms ease, transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .nav-mobile-close:hover {
     background: rgba(0, 0, 0, 0.05);
   }
 
-  .nav-link-mobile:active {
-    transform: scale(0.97);
-    background: rgba(0, 0, 0, 0.1);
+  .nav-mobile-close:active {
+    transform: scale(0.92);
   }
 
-  .nav-link-mobile.active {
+  .nav-mobile-list {
+    list-style: none;
+    padding: 1.5rem;
+    margin: 0;
+  }
+
+  .nav-mobile-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .nav-mobile-link {
+    display: block;
+    padding: 1rem;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: 12px;
+    transition: background 200ms ease, transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-mobile-link:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .nav-mobile-link:active {
+    transform: scale(0.98);
+  }
+
+  .nav-mobile-link.active {
     color: var(--color-accent);
     background: rgba(59, 130, 246, 0.1);
   }
 
-  .nav-link-mobile:focus-visible {
-    outline: 3px solid var(--color-accent);
-    outline-offset: 2px;
-  }
-
-  /* Prevent body scroll when menu open */
-  body:has(.nav-overlay[aria-hidden="false"]) {
+  /* Prevent body scroll when overlay open */
+  body:has(.nav-mobile-overlay[aria-hidden="false"]) {
     overflow: hidden;
   }
 </style>
 
 <script>
   /* =========================================
-     APPLE-INSPIRED NAVIGATION INTERACTIONS
+     MOBILE MENU
      ========================================= */
 
-  // Mobile menu overlay system
   const toggle = document.getElementById('menu-toggle');
+  const close = document.getElementById('menu-close');
   const overlay = document.getElementById('nav-overlay');
   const backdrop = document.getElementById('nav-backdrop');
-  const nav = document.getElementById('main-nav');
 
   function openMenu() {
     if (!toggle || !overlay) return;
     toggle.setAttribute('aria-expanded', 'true');
-    
-    // Show overlay immediately and trigger blur transition
     overlay.setAttribute('aria-hidden', 'false');
-    
-    // Force reflow to ensure transition starts immediately
-    requestAnimationFrame(() => {
-      // Trigger transition by accessing computed style
-      void overlay.offsetHeight;
-    });
-    
     document.body.style.overflow = 'hidden';
   }
 
@@ -460,185 +467,101 @@ const currentPath = Astro.url.pathname;
     document.body.style.overflow = '';
   }
 
-  // Toggle button
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
-      isOpen ? closeMenu() : openMenu();
-    });
-  }
+  toggle?.addEventListener('click', () => {
+    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+    isOpen ? closeMenu() : openMenu();
+  });
 
-  // Close on backdrop click
-  if (backdrop) {
-    backdrop.addEventListener('click', closeMenu);
-  }
+  close?.addEventListener('click', closeMenu);
+  backdrop?.addEventListener('click', closeMenu);
 
-  // Close on escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlay?.getAttribute('aria-hidden') === 'false') {
       closeMenu();
     }
   });
 
-  // Close menu when navigating (mobile links clicked)
-  const mobileLinks = overlay?.querySelectorAll('.nav-link-mobile');
+  const mobileLinks = overlay?.querySelectorAll('.nav-mobile-link');
   mobileLinks?.forEach(link => {
     link.addEventListener('click', closeMenu);
   });
 
   /* =========================================
-     SMART SCROLL BEHAVIOR (iOS Safari-style)
+     SMART HIDE/SHOW ON SCROLL (Desktop)
      ========================================= */
 
+  const nav = document.getElementById('main-nav');
   let lastScrollY = 0;
-  let scrollThreshold = 100;
+  let scrollThreshold = 80;
   let ticking = false;
 
   function updateNavOnScroll() {
     const currentScrollY = window.scrollY;
     
-    if (!nav) return;
+    if (!nav || window.innerWidth < 768) return;
 
-    // Add shadow when scrolled
-    if (currentScrollY > 10) {
-      nav.classList.add('nav-scrolled');
-    } else {
-      nav.classList.remove('nav-scrolled');
-    }
-
-    // Hide/show nav based on scroll direction (only after threshold)
+    // Hide when scrolling down, show when scrolling up
     if (currentScrollY > scrollThreshold) {
-      if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
-        // Scrolling down - hide nav
+      if (currentScrollY > lastScrollY) {
         nav.classList.add('nav-hidden');
       } else {
-        // Scrolling up - show nav
         nav.classList.remove('nav-hidden');
       }
+    } else {
+      nav.classList.remove('nav-hidden');
     }
 
     lastScrollY = currentScrollY;
     ticking = false;
   }
 
-  // Throttled scroll handler for performance
   window.addEventListener('scroll', () => {
     if (!ticking) {
-      window.requestAnimationFrame(updateNavOnScroll);
+      requestAnimationFrame(updateNavOnScroll);
       ticking = true;
     }
   }, { passive: true });
 
   /* =========================================
-     SLIDING UNDERLINE INDICATOR (Desktop)
+     SLIDING INDICATOR (Desktop)
      ========================================= */
-  function initUnderline() {
-    const menu = document.querySelector('.nav-menu') as HTMLElement | null;
-    if (!menu) return;
-    const links = Array.from(menu.querySelectorAll('.nav-link')) as HTMLAnchorElement[];
-    if (links.length === 0) return;
 
-    const setUnderlineTo = (el: HTMLElement | null) => {
-      if (!menu || !el) return;
-      const menuRect = menu.getBoundingClientRect();
+  function initIndicator() {
+    if (window.innerWidth < 768) return;
+
+    const links = document.querySelector('.nav-links') as HTMLElement | null;
+    const indicator = document.querySelector('.nav-indicator') as HTMLElement | null;
+    const navLinks = Array.from(document.querySelectorAll('.nav-link')) as HTMLAnchorElement[];
+    
+    if (!links || !indicator || navLinks.length === 0) return;
+
+    const setIndicatorTo = (el: HTMLElement | null) => {
+      if (!links || !el) return;
+      const linksRect = links.getBoundingClientRect();
       const rect = el.getBoundingClientRect();
-      const left = Math.round(rect.left - menuRect.left);
-      const width = Math.round(rect.width);
-      menu.style.setProperty('--underline-left', left + 'px');
-      menu.style.setProperty('--underline-width', width + 'px');
-      menu.style.setProperty('--underline-opacity', '1');
+      const left = rect.left - linksRect.left;
+      const width = rect.width;
+      
+      links.style.setProperty('--indicator-left', left + 'px');
+      links.style.setProperty('--indicator-width', width + 'px');
+      links.style.setProperty('--indicator-opacity', '1');
     };
 
-    const active = links.find(l => l.classList.contains('active')) || links[0];
-    setUnderlineTo(active);
-
-    links.forEach(link => {
-      link.addEventListener('mouseenter', () => setUnderlineTo(link));
-      link.addEventListener('focus', () => setUnderlineTo(link));
+    const active = navLinks.find(l => l.classList.contains('active')) || navLinks[0];
+    
+    // Set initial position after DOM is ready
+    requestAnimationFrame(() => {
+      setIndicatorTo(active);
     });
 
-    menu.addEventListener('mouseleave', () => setUnderlineTo(active));
-    window.addEventListener('resize', () => setUnderlineTo(active));
+    navLinks.forEach(link => {
+      link.addEventListener('mouseenter', () => setIndicatorTo(link));
+      link.addEventListener('focus', () => setIndicatorTo(link));
+    });
+
+    links.addEventListener('mouseleave', () => setIndicatorTo(active));
+    window.addEventListener('resize', () => setIndicatorTo(active));
   }
 
-  document.addEventListener('DOMContentLoaded', initUnderline);
-
-  /* =========================================
-     HAPTIC-STYLE FEEDBACK FOR LINKS
-     ========================================= */
-
-  // Add active state feedback to all nav links
-  const allLinks = document.querySelectorAll('.nav-link, .nav-link-mobile, .nav-logo');
-  
-  allLinks.forEach(link => {
-    link.addEventListener('touchstart', function() {
-      this.style.transition = 'transform 100ms cubic-bezier(0.32, 0.72, 0, 1)';
-    }, { passive: true });
-
-    link.addEventListener('touchend', function() {
-      this.style.transition = '';
-    }, { passive: true });
-  });
-
-  /* =========================================
-     SWIPE GESTURES (Mobile Menu)
-     ========================================= */
-  
-  // Swipe-to-close gesture for mobile menu
-  if (overlay) {
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchEndX = 0;
-    let touchEndY = 0;
-    
-    const mobileMenu = document.querySelector('.nav-menu-mobile');
-    
-    if (mobileMenu) {
-      mobileMenu.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY;
-      }, { passive: true });
-      
-      mobileMenu.addEventListener('touchmove', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        touchEndY = e.changedTouches[0].screenY;
-        
-        // Calculate swipe distance
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = Math.abs(touchEndY - touchStartY);
-        
-        // Only track right swipes (to close) with primarily horizontal movement
-        if (deltaX > 0 && deltaY < 100) {
-          // Apply transform to follow finger
-          const progress = Math.min(deltaX / 300, 1);
-          mobileMenu.style.transform = `translateX(${deltaX}px)`;
-          mobileMenu.style.transition = 'none';
-          
-          // Fade backdrop
-          if (backdrop) {
-            backdrop.style.opacity = String(1 - progress * 0.6);
-          }
-        }
-      }, { passive: true });
-      
-      mobileMenu.addEventListener('touchend', () => {
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = Math.abs(touchEndY - touchStartY);
-        
-        // If swiped far enough to the right, close menu
-        if (deltaX > 100 && deltaY < 100) {
-          closeMenu();
-        }
-        
-        // Reset transform with transition
-        mobileMenu.style.transition = '';
-        mobileMenu.style.transform = '';
-        
-        if (backdrop) {
-          backdrop.style.opacity = '';
-        }
-      }, { passive: true });
-    }
-  }
+  document.addEventListener('DOMContentLoaded', initIndicator);
 </script>
-

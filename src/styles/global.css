@@ -133,6 +133,10 @@ html {
   /* Smooth color transitions for theme switching */
   transition: background-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
               color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  
+  /* Prevent scroll when content doesn't overflow */
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Apply smooth transitions to all elements that use theme colors */
@@ -148,6 +152,9 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 main {
