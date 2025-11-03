@@ -531,21 +531,78 @@
   opacity: 0.5;
 }
 
-/* Enhanced mobile menu glass effect - more transparent */
+/* Enhanced mobile menu glass effect */
 [data-visual-mode="enhanced"] .nav-mobile-menu {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(50px);
   -webkit-backdrop-filter: blur(50px);
   box-shadow: 4px 0 48px rgba(102, 126, 234, 0.15);
   border-right: 1px solid rgba(102, 126, 234, 0.2);
 }
 
+/* Dark mode enhanced - keep it as is (user likes it) */
 [data-visual-mode="enhanced"][data-theme="dark"] .nav-mobile-menu {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(50px);
   -webkit-backdrop-filter: blur(50px);
   box-shadow: 4px 0 48px rgba(129, 140, 248, 0.2);
   border-right: 1px solid rgba(129, 140, 248, 0.2);
+}
+
+/* Gradient text on mobile menu links in enhanced mode */
+[data-visual-mode="enhanced"] .nav-mobile-link {
+  background: linear-gradient(
+    135deg,
+    #667eea 0%,
+    #764ba2 50%,
+    #667eea 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 8s ease infinite;
+}
+
+[data-visual-mode="enhanced"] .nav-mobile-link.active {
+  background: linear-gradient(
+    135deg,
+    #4facfe 0%,
+    #00f2fe 50%,
+    #4facfe 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s ease infinite;
+}
+
+/* Dark mode enhanced gradient text - brighter */
+[data-visual-mode="enhanced"][data-theme="dark"] .nav-mobile-link {
+  background: linear-gradient(
+    135deg,
+    #818cf8 0%,
+    #a78bfa 50%,
+    #818cf8 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-visual-mode="enhanced"][data-theme="dark"] .nav-mobile-link.active {
+  background: linear-gradient(
+    135deg,
+    #60a5fa 0%,
+    #38bdf8 50%,
+    #60a5fa 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* =========================================
