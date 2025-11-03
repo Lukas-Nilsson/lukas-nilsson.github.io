@@ -575,6 +575,35 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ### November 3, 2025 (Evening) - Further Refinements
 
+**Decision:** Keep navigation visible during page transitions (only fade main content).
+
+**Problem:**
+- Entire body (including nav) was fading during transitions
+- Navigation disappearing broke visual continuity
+- Felt jarring, not cohesive
+
+**Reasoning:**
+- Navigation should provide visual anchor point
+- Consistent nav = better sense of place
+- App-like feel (nav stays, content changes)
+- Only content area should transition
+
+**Solution:**
+- Fade only `<main>` element, not entire body
+- Navigation stays at full opacity throughout
+- Fast, subtle fade (100ms, opacity 0.95) for content only
+- Nav provides visual continuity between pages
+
+**Why this is better:**
+- Visual continuity (nav always visible)
+- Better sense of location (always know where you are)
+- App-like polish (common in modern web apps)
+- Feels more cohesive, less jarring
+
+**Result:** Navigation stays visible, only content fades. Much better UX.
+
+---
+
 **Decision:** Fast, subtle fade without overlay (avoids flash on all browsers).
 
 **Problem:**

@@ -99,7 +99,7 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
     }
 
     /* =========================================
-       SMOOTH PAGE TRANSITIONS (Fast fade, no overlay)
+       SMOOTH PAGE TRANSITIONS (Nav stays, content fades)
        ========================================= */
     
     // Hide overlay (not needed)
@@ -108,15 +108,18 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
       transitionOverlay.style.display = 'none';
     }
     
-    // Fade in on page load
+    // Fade in main content on page load (nav stays visible)
     window.addEventListener('DOMContentLoaded', () => {
-      requestAnimationFrame(() => {
-        document.body.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
-        document.body.style.opacity = '1';
-      });
+      const main = document.querySelector('main');
+      if (main) {
+        requestAnimationFrame(() => {
+          main.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
+          main.style.opacity = '1';
+        });
+      }
     });
 
-    // Handle navigation with fast fade
+    // Handle navigation with fast fade (nav stays visible)
     function handlePageExit(e: Event) {
       const target = e.currentTarget as HTMLAnchorElement;
       const href = target.getAttribute('href');
@@ -134,9 +137,12 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 
       e.preventDefault();
 
-      // Fast fade out (keeps content visible, very quick transition)
-      document.body.style.transition = 'opacity 100ms cubic-bezier(0.32, 0.72, 0, 1)';
-      document.body.style.opacity = '0.95'; // Very subtle fade, keeps content mostly visible
+      const main = document.querySelector('main');
+      if (main) {
+        // Fast fade out main content (nav stays visible)
+        main.style.transition = 'opacity 100ms cubic-bezier(0.32, 0.72, 0, 1)';
+        main.style.opacity = '0.95'; // Very subtle fade, keeps content mostly visible
+      }
 
       // Navigate immediately (fast enough to prevent flash)
       requestAnimationFrame(() => {
@@ -146,8 +152,11 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 
     // Add to all internal links
     document.addEventListener('DOMContentLoaded', () => {
-      // Start body at opacity 0
-      document.body.style.opacity = '0';
+      // Start main at opacity 0 (nav stays visible)
+      const main = document.querySelector('main');
+      if (main) {
+        main.style.opacity = '0';
+      }
       
       const links = document.querySelectorAll('a[href^="/"]');
       links.forEach(link => {
