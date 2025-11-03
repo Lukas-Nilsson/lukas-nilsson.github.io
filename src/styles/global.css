@@ -50,66 +50,28 @@ h6 {
    ========================================= */
 
 :root {
-  /* Colors - Light mode (default) */
+  /* Light mode colors */
   --color-bg: #ffffff;
   --color-text: #1e293b;
   --color-text-muted: #64748b;
   --color-border: #e2e8f0;
   --color-accent: #3b82f6;
   --color-accent-hover: #2563eb;
-}
-
-/* Dark mode colors (beautiful, not harsh) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #0f172a;
-    --color-text: #f1f5f9;
-    --color-text-muted: #94a3b8;
-    --color-border: #1e293b;
-    --color-accent: #60a5fa;
-    --color-accent-hover: #3b82f6;
-  }
-}
-
-/* Dark mode class (manual override) */
-[data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-border: #1e293b;
-  --color-accent: #60a5fa;
-  --color-accent-hover: #3b82f6;
-}
-
-/* Light mode class (manual override) */
-[data-theme="light"] {
-  --color-bg: #ffffff;
-  --color-text: #1e293b;
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-}
-
-  /* Typography Scale (fluid, enhanced hierarchy) */
+  --color-surface: #f8fafc;
+  --color-surface-elevated: #ffffff;
+  
+  /* Typography Scale (fluid) */
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  /* Enhanced scale with clearer hierarchy (1.25x ratio) */
-  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);      /* 12-14px */
-  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);        /* 14-16px */
-  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);      /* 16-18px */
-  --text-lg: clamp(1.25rem, 1.15rem + 0.5vw, 1.75rem);       /* 20-28px (was 18-24px) */
-  --text-xl: clamp(1.75rem, 1.5rem + 1.25vw, 2.5rem);         /* 28-40px (was 24-32px) */
-  --text-2xl: clamp(2.5rem, 2rem + 2.5vw, 4rem);             /* 40-64px (was 32-48px) */
-  --text-3xl: clamp(3.5rem, 2.75rem + 3.75vw, 6rem);         /* 56-96px (was 48-72px) */
-  --text-4xl: clamp(5rem, 3.5rem + 7.5vw, 9rem);             /* 80-144px (was 64-96px) */
-  
-  /* Font weight scale for hierarchy */
-  --weight-normal: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.5rem);
+  --text-xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --text-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
+  --text-3xl: clamp(3rem, 2.4rem + 3vw, 4.5rem);
+  --text-4xl: clamp(4rem, 3rem + 5vw, 6rem);
 
   /* Spacing */
   --space-xs: 0.5rem;
@@ -123,6 +85,39 @@ h6 {
   /* Layout */
   --max-width: 1200px;
   --content-width: 800px;
+  
+  /* Color transition */
+  color-scheme: light;
+}
+
+/* Dark mode colors */
+[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --color-accent: #60a5fa;
+  --color-accent-hover: #93c5fd;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #334155;
+  
+  color-scheme: dark;
+}
+
+/* System preference (no user override) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg: #0f172a;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-border: #334155;
+    --color-accent: #60a5fa;
+    --color-accent-hover: #93c5fd;
+    --color-surface: #1e293b;
+    --color-surface-elevated: #334155;
+    
+    color-scheme: dark;
+  }
 }
 
 /* =========================================
@@ -134,32 +129,19 @@ html {
   font-size: 16px;
   color: var(--color-text);
   background: var(--color-bg);
-  /* Smooth theme transitions */
-  transition: background-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
-              color 300ms cubic-bezier(0.32, 0.72, 0, 1);
-  /* Smooth scroll for anchor links */
-  scroll-behavior: smooth;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-}
-
-body {
+  
+  /* Smooth color transitions for theme switching */
   transition: background-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
               color 300ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Smooth theme transitions (only for color properties) */
-a, button, input, textarea, select,
-.nav, .nav-link, .theme-toggle,
-.content-page, h1, h2, h3, h4, h5, h6, p,
-.project-card {
-  transition: background-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
-              border-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
-              color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+/* Apply smooth transitions to all elements that use theme colors */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 body {
@@ -206,88 +188,7 @@ main {
   pointer-events: auto;
 }
 
-/* Skip to Main Content Link (Accessibility) */
-.skip-link {
-  position: absolute;
-  top: -100px;
-  left: var(--space-md);
-  z-index: 10000;
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--color-accent);
-  color: white;
-  text-decoration: none;
-  font-weight: 600;
-  border-radius: 6px;
-  transition: top 200ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.skip-link:focus {
-  top: var(--space-md);
-  outline: 3px solid var(--color-accent);
-  outline-offset: 4px;
-}
-
-/* Seamless Skeleton Loading States */
-.skeleton-loader {
-  padding: var(--space-2xl) var(--space-lg);
-  max-width: 800px;
-  margin: 0 auto;
-  animation: skeletonFade 800ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-@keyframes skeletonFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.skeleton-line {
-  height: 1.5em;
-  background: linear-gradient(
-    90deg,
-    var(--color-border) 0%,
-    rgba(255, 255, 255, 0.5) 50%,
-    var(--color-border) 100%
-  );
-  background-size: 200% 100%;
-  border-radius: 4px;
-  margin-bottom: var(--space-md);
-  animation: skeletonShimmer 1.5s ease-in-out infinite;
-}
-
-[data-theme="dark"] .skeleton-line {
-  background: linear-gradient(
-    90deg,
-    var(--color-border) 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    var(--color-border) 100%
-  );
-  background-size: 200% 100%;
-}
-
-.skeleton-title {
-  height: 2.5em;
-  width: 60%;
-  margin-bottom: var(--space-lg);
-}
-
-.skeleton-text {
-  width: 100%;
-}
-
-.skeleton-short {
-  width: 75%;
-}
-
-@keyframes skeletonShimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Typography - Enhanced Hierarchy */
+/* Typography - Enhanced hierarchy with spacing */
 h1,
 h2,
 h3,
@@ -295,48 +196,102 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
+  font-weight: 600;
   line-height: 1.2;
   color: var(--color-text);
-  letter-spacing: -0.02em; /* Tighter for large headings */
+  margin-bottom: 0.5em;
+  letter-spacing: -0.02em;
 }
 
 h1 {
   font-size: var(--text-4xl);
-  font-weight: var(--weight-bold);
+  font-weight: 700;
+  line-height: 1.1;
   letter-spacing: -0.03em;
-  line-height: 0.95; /* Tighter for hero text */
+  margin-bottom: 0.5em;
 }
 
 h2 {
   font-size: var(--text-3xl);
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.02em;
+  font-weight: 650;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
 }
 
 h3 {
   font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin-top: 1.25em;
 }
 
 h4 {
   font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-weight: 600;
+  margin-top: 1em;
 }
 
 h5 {
   font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
+  font-weight: 600;
 }
 
 h6 {
   font-size: var(--text-base);
-  font-weight: var(--weight-medium);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 p {
-  line-height: 1.7;
+  font-size: var(--text-base);
+  line-height: 1.8;
   color: var(--color-text);
+  margin-bottom: 1.25em;
+  max-width: 70ch; /* Optimal reading width */
+}
+
+/* Lead paragraph (first in section) */
+p:first-of-type {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* Small text */
+small {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Strong emphasis */
+strong {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Lists with better spacing */
+ul, ol {
+  margin-bottom: 1.25em;
+  padding-left: 1.5em;
+}
+
+li {
+  margin-bottom: 0.5em;
+  line-height: 1.7;
+}
+
+/* Blockquotes with elegant styling */
+blockquote {
+  margin: 2em 0;
+  padding-left: 1.5em;
+  border-left: 3px solid var(--color-accent);
+  font-style: italic;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}
+
+blockquote p:first-of-type {
+  font-size: inherit;
 }
 
 a {
@@ -380,6 +335,128 @@ a:focus-visible {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* =========================================
+   MICRO-INTERACTIONS (Ripple Effect)
+   ========================================= */
+
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
+.ripple:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 0;
+  transition: all 600ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Success state animation */
+@keyframes successPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.success-pulse {
+  animation: successPulse 400ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-elevated) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Bounce animation for interactive elements */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce {
+  animation: bounce 600ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Heartbeat animation for emphasis */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.05);
+  }
+}
+
+.heartbeat {
+  animation: heartbeat 800ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Ripple effect element */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  transform: scale(0);
+  animation: ripple-animation 600ms cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Dark mode adjustments for ripple */
+[data-theme="dark"] .ripple-effect {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* =========================================

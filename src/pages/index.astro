@@ -116,30 +116,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   @media (hover: hover) {
     .hero-title-line {
       display: inline-block;
-      transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
-                  color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+      transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
     }
 
     .hero-title-line:hover {
       transform: scale(1.02);
       color: var(--color-accent);
-    }
-  }
-
-  /* Micro-interaction: Subtle bounce on click */
-  .hero-title-line:active {
-    transform: scale(0.98);
-  }
-
-  /* Micro-interaction: Tagline fade on hover */
-  @media (hover: hover) {
-    .hero-tagline {
-      transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1);
-    }
-
-    .hero-title:hover ~ .hero-tagline,
-    .hero-title:hover + .hero-tagline {
-      opacity: 0.8;
     }
   }
 </style>

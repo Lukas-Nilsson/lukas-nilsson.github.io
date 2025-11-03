@@ -50,11 +50,25 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <!-- Contact & Social -->
   <meta name="author" content="Lukas Nilsson" />
   <link rel="me" href="https://github.com/Lukas-Nilsson" />
+  
+  <!-- Theme Script (before render to prevent flash) -->
+  <script is:inline>
+    // Apply theme immediately before page renders
+    (function() {
+      const getTheme = () => {
+        const stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      };
+      
+      const theme = getTheme();
+      if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 </head>
 <body>
-  <!-- Skip to Main Content (Accessibility) -->
-  <a href="#main-content" class="skip-link">Skip to main content</a>
-  
   <!-- Scroll Progress Indicator -->
   <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
   
@@ -62,17 +76,139 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <div class="page-transition" id="page-transition" aria-hidden="true" style="display: none;"></div>
   
   <Navigation />
-  <!-- Seamless Skeleton Loader (replaced by content on load) -->
-  <div class="skeleton-loader" aria-hidden="true">
-    <div class="skeleton-line skeleton-title"></div>
-    <div class="skeleton-line skeleton-text"></div>
-    <div class="skeleton-line skeleton-text skeleton-short"></div>
-  </div>
-  <main id="main-content" style="opacity: 0;">
+  <main>
     <slot />
   </main>
 
   <script>
+    /* =========================================
+       THEME TOGGLE SYSTEM
+       ========================================= */
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    
+    function getTheme() {
+      const stored = localStorage.getItem('theme');
+      if (stored) return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    function setTheme(theme: string) {
+      if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      localStorage.setItem('theme', theme);
+    }
+    
+    function toggleTheme() {
+      const current = getTheme();
+      const next = current === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+    }
+    
+    // Initialize theme button
+    if (themeToggle) {
+      themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Listen to system preference changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      // Only update if user hasn't set explicit preference
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+    
+    /* =========================================
+       HAPTIC FEEDBACK (Touch Devices)
+       ========================================= */
+    
+    function hapticFeedback(intensity: 'light' | 'medium' | 'heavy' = 'light') {
+      // Check if Vibration API is supported
+      if ('vibrate' in navigator) {
+        const patterns = {
+          light: 10,
+          medium: 20,
+          heavy: 30
+        };
+        navigator.vibrate(patterns[intensity]);
+      }
+    }
+    
+    // Add haptic feedback to interactive elements
+    function initHaptics() {
+      // Buttons
+      const buttons = document.querySelectorAll('button, .nav-link, .nav-link-mobile');
+      buttons.forEach(button => {
+        button.addEventListener('touchstart', () => hapticFeedback('light'), { passive: true });
+      });
+      
+      // Links
+      const links = document.querySelectorAll('a[href]');
+      links.forEach(link => {
+        link.addEventListener('touchstart', () => hapticFeedback('light'), { passive: true });
+      });
+      
+      // Theme toggle gets medium feedback
+      if (themeToggle) {
+        themeToggle.addEventListener('touchstart', () => hapticFeedback('medium'), { passive: true });
+      }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', initHaptics);
+    
+    /* =========================================
+       MICRO-INTERACTIONS (Button Ripple Effect)
+       ========================================= */
+    
+    function createRipple(event: MouseEvent) {
+      const button = event.currentTarget as HTMLElement;
+      
+      // Create ripple element
+      const ripple = document.createElement('span');
+      const diameter = Math.max(button.clientWidth, button.clientHeight);
+      const radius = diameter / 2;
+      
+      // Position ripple at click location
+      const rect = button.getBoundingClientRect();
+      ripple.style.width = ripple.style.height = `${diameter}px`;
+      ripple.style.left = `${event.clientX - rect.left - radius}px`;
+      ripple.style.top = `${event.clientY - rect.top - radius}px`;
+      ripple.classList.add('ripple-effect');
+      
+      // Remove existing ripples
+      const existingRipple = button.querySelector('.ripple-effect');
+      if (existingRipple) {
+        existingRipple.remove();
+      }
+      
+      button.appendChild(ripple);
+      
+      // Remove ripple after animation
+      setTimeout(() => ripple.remove(), 600);
+    }
+    
+    // Add ripple to buttons
+    function initRipples() {
+      const buttons = document.querySelectorAll('button, .project-card, .nav-link');
+      buttons.forEach(button => {
+        button.addEventListener('click', createRipple as EventListener);
+      });
+    }
+    
+    document.addEventListener('DOMContentLoaded', initRipples);
+    
+    // Add success pulse animation to theme toggle
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        themeToggle.classList.add('success-pulse');
+        setTimeout(() => themeToggle.classList.remove('success-pulse'), 400);
+      });
+    }
+    
     /* =========================================
        SCROLL PROGRESS INDICATOR (Safari-style)
        ========================================= */
@@ -117,15 +253,9 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
       transitionOverlay.style.display = 'none';
     }
     
-    // Remove skeleton and fade in main content on page load (nav stays visible)
+    // Fade in main content on page load (nav stays visible)
     window.addEventListener('DOMContentLoaded', () => {
       const main = document.querySelector('main');
-      const skeleton = document.querySelector('.skeleton-loader');
-      
-      if (skeleton) {
-        skeleton.remove();
-      }
-      
       if (main) {
         requestAnimationFrame(() => {
           main.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';

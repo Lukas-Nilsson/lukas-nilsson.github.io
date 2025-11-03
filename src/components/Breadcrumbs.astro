@@ -1,45 +1,74 @@
 ---
-interface Props {
-  items: Array<{ name: string; href: string }>;
+interface Crumb {
+  label: string;
+  href?: string;
 }
 
-const { items } = Astro.props;
+interface Props {
+  crumbs: Crumb[];
+}
+
+const { crumbs } = Astro.props;
 ---
 
-{items.length > 1 && (
-  <nav class="breadcrumbs" aria-label="Breadcrumb">
-    <ol class="breadcrumbs-list">
-      {items.map((item, index) => (
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol class="breadcrumb-list">
+    <li class="breadcrumb-item">
+      <a href="/" class="breadcrumb-link">Home</a>
+      <span class="breadcrumb-separator" aria-hidden="true">/</span>
+    </li>
+    {crumbs.map((crumb, index) => {
+      const isLast = index === crumbs.length - 1;
+      return (
         <li class="breadcrumb-item">
-          {index < items.length - 1 ? (
-            <a href={item.href} class="breadcrumb-link">
-              {item.name}
-            </a>
+          {crumb.href && !isLast ? (
+            <>
+              <a href={crumb.href} class="breadcrumb-link">{crumb.label}</a>
+              <span class="breadcrumb-separator" aria-hidden="true">/</span>
+            </>
           ) : (
-            <span class="breadcrumb-current" aria-current="page">
-              {item.name}
-            </span>
-          )}
-          {index < items.length - 1 && (
-            <span class="breadcrumb-separator" aria-hidden="true">/</span>
+            <span class="breadcrumb-current" aria-current="page">{crumb.label}</span>
           )}
         </li>
-      ))}
-    </ol>
-  </nav>
-)}
+      );
+    })}
+  </ol>
+</nav>
 
 <style>
+  /* =========================================
+     BREADCRUMBS - Elegant Navigation Aid
+     ========================================= */
+  
   .breadcrumbs {
     margin-bottom: var(--space-lg);
+    padding: var(--space-sm) 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    animation: fadeInDown 400ms cubic-bezier(0.32, 0.72, 0, 1) 100ms forwards;
   }
 
-  .breadcrumbs-list {
-    list-style: none;
+  @keyframes fadeInDown {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .breadcrumbs {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  .breadcrumb-list {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-xs);
+    list-style: none;
     padding: 0;
     margin: 0;
   }
@@ -54,23 +83,36 @@ const { items } = Astro.props;
     font-size: var(--text-sm);
     color: var(--color-text-muted);
     text-decoration: none;
-    transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+                transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    border-radius: 4px;
+    padding: 2px 6px;
   }
 
   .breadcrumb-link:hover {
     color: var(--color-accent);
+    background: var(--color-surface);
+  }
+
+  .breadcrumb-link:active {
+    transform: scale(0.96);
+  }
+
+  .breadcrumb-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .breadcrumb-separator {
+    font-size: var(--text-sm);
+    color: var(--color-border);
+    user-select: none;
   }
 
   .breadcrumb-current {
     font-size: var(--text-sm);
     color: var(--color-text);
-    font-weight: var(--weight-medium);
-  }
-
-  .breadcrumb-separator {
-    color: var(--color-text-muted);
-    opacity: 0.5;
-    font-size: var(--text-sm);
+    font-weight: 500;
   }
 </style>
 

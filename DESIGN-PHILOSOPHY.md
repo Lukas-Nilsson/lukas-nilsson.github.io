@@ -573,6 +573,387 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ## 🔄 Decision Log
 
+### November 3, 2025 (Late Evening) - Comprehensive UX Enhancements
+
+**Major implementation:** 9 Apple-inspired UX improvements to create a "buttery smooth" experience.
+
+---
+
+#### 1. Dark Mode (System-Integrated)
+
+**Decision:** Implement beautiful dark mode that respects system preferences with smooth transitions.
+
+**Why:**
+- Reduces eye strain in low-light environments
+- Modern expectation (most apps have dark mode)
+- Shows attention to detail
+- Respects user's system preference
+
+**Implementation:**
+```css
+/* Light mode (default) */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1e293b;
+  /* ... */
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-text: #e2e8f0;
+  /* ... */
+}
+
+/* System preference (auto) */
+@media (prefers-color-scheme: dark) {
+  /* Dark colors automatically applied */
+}
+```
+
+**Key features:**
+- Theme toggle button in navigation (sun/moon icons)
+- localStorage persistence (remembers preference)
+- Smooth 300ms transition between themes
+- Beautiful dark color palette (not just inverted)
+- Respects `prefers-color-scheme` by default
+- Manual override takes precedence
+
+**Color choices for dark mode:**
+- Background: Deep slate (`#0f172a`) - not pure black (softer)
+- Text: Light slate (`#e2e8f0`) - not pure white (less harsh)
+- Accent: Brighter blue (`#60a5fa`) - better contrast
+- Surfaces: Layered elevation (subtle depth)
+
+**Result:** Seamless dark mode that feels native, not added as afterthought.
+
+---
+
+#### 2. Enhanced Typography Hierarchy
+
+**Decision:** Accentuate visual hierarchy through refined typography scale.
+
+**Why:**
+- Makes content scannable (users don't read, they scan)
+- Creates rhythm and flow
+- Guides attention to important content
+- Professional polish
+
+**Enhancements:**
+```css
+/* Tighter letter-spacing for headings */
+h1, h2, h3 { letter-spacing: -0.02em; }
+h1 { letter-spacing: -0.03em; }  /* Large headings even tighter */
+
+/* Proper spacing rhythm */
+h2 { margin-top: 1.5em; }  /* Breathe before major sections */
+h3 { margin-top: 1.25em; }
+
+/* Lead paragraph emphasis */
+p:first-of-type {
+  font-size: var(--text-lg);  /* Slightly larger */
+  color: var(--color-text-muted);  /* Distinct color */
+}
+
+/* Optimal reading width */
+p { max-width: 70ch; }  /* ~70 characters per line */
+
+/* Elegant blockquotes */
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  font-size: var(--text-lg);
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+```
+
+**Result:** Clear visual hierarchy, better readability, more professional feel.
+
+---
+
+#### 3. Progressive Disclosure (Collapsible Sections)
+
+**Decision:** Add automatic collapsible sections for long-form content pages.
+
+**Why:**
+- Reduces cognitive load (see overview, dig into details)
+- Better for mobile (less scrolling)
+- User controls depth of engagement
+- Common pattern in documentation (familiar)
+
+**How it works:**
+- Detects all `<h2>` headings in markdown content
+- Automatically makes sections with 3+ elements collapsible
+- Adds disclosure triangle icon (rotates on toggle)
+- Smooth 400ms max-height transition
+- Keyboard accessible (Enter/Space to toggle)
+- All sections open by default (progressive enhancement)
+
+**Implementation:**
+```javascript
+// Finds h2 elements, wraps content, makes collapsible
+heading.addEventListener('click', toggle);
+heading.addEventListener('keydown', handleKeyboard);
+```
+
+**User experience:**
+- See all section headings at once
+- Click to collapse/expand sections
+- Hover changes heading color (shows interactivity)
+- Smooth animation (not jarring)
+- Respects reduced motion preference
+
+**Result:** Long content feels more manageable, users can focus on what interests them.
+
+---
+
+#### 4. Empty State Fallbacks
+
+**Decision:** Create elegant empty states for projects, writing, and error scenarios.
+
+**Why:**
+- Communicates state clearly (not broken, just empty)
+- Provides context (what will appear here)
+- Sets expectations (check back later)
+- More polished than blank page
+
+**Implementation:**
+```astro
+{allProjects.length > 0 ? (
+  <ProjectGrid />
+) : (
+  <EmptyState
+    icon="📦"
+    title="No Projects Yet"
+    message="Projects are currently in development. Check back soon."
+  />
+)}
+```
+
+**Design details:**
+- Large emoji icon (friendly, not intimidating)
+- Clear message (what's missing, when it'll appear)
+- Staggered fade-in animation (polished entrance)
+- Centered layout (balanced, clear)
+- Muted colors (don't draw too much attention)
+
+**Result:** Empty pages feel intentional, not broken. Users understand state.
+
+---
+
+#### 5. Breadcrumbs (Elegant Navigation Aid)
+
+**Decision:** Add breadcrumbs to project pages for wayfinding.
+
+**Why:**
+- Shows current location in hierarchy
+- Provides quick back navigation
+- Professional convention (especially for documentation)
+- Low visual weight (doesn't dominate)
+
+**Implementation:**
+```astro
+<Breadcrumbs crumbs={[
+  { label: 'Projects', href: '/projects' },
+  { label: title }
+]} />
+```
+
+**Design details:**
+- Home always first (anchor point)
+- Last item not clickable (current page)
+- Slash separator (clear, minimal)
+- Subtle color (don't compete with content)
+- Hover state (clear affordance)
+- Fade-in animation (polished entrance)
+
+**Result:** Users always know where they are, can navigate up hierarchy easily.
+
+---
+
+#### 6. Content Preview on Hover (Desktop)
+
+**Decision:** Show animated preview when hovering project cards.
+
+**Why:**
+- Gives more context before clicking
+- Delightful interaction (feels premium)
+- Desktop-specific enhancement (doesn't interfere with mobile)
+- Reduces unnecessary clicks
+
+**How it works:**
+- Hover triggers 300ms slide-up animation
+- Main card content fades out
+- Preview content fades in with "Preview" label
+- Shows expanded summary + "Click to read more →"
+- Returns to normal on mouse leave
+
+**Implementation:**
+```css
+@media (hover: hover) and (min-width: 768px) {
+  .project-card:hover .project-preview {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+**Progressive enhancement:**
+- Only on devices with hover capability
+- Only on desktop (768px+)
+- Mobile users see normal card (no loss of functionality)
+
+**Result:** Desktop users get richer preview, doesn't affect mobile experience.
+
+---
+
+#### 7. Haptic Feedback (Touch Devices)
+
+**Decision:** Add subtle vibration feedback for touch interactions.
+
+**Why:**
+- Tactile confirmation (interaction registered)
+- Premium feel (like iOS/Android)
+- Reinforces interactivity
+- Subtle, not annoying
+
+**Implementation:**
+```javascript
+function hapticFeedback(intensity: 'light' | 'medium' | 'heavy') {
+  if ('vibrate' in navigator) {
+    const patterns = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(patterns[intensity]);
+  }
+}
+```
+
+**Applied to:**
+- Buttons: Light vibration (10ms)
+- Links: Light vibration
+- Theme toggle: Medium vibration (20ms) - more significant action
+- Navigation items: Light vibration
+
+**Respectful implementation:**
+- Very short durations (10-30ms, barely noticeable)
+- Only on touchstart (not every interaction)
+- Graceful fallback (no vibration API = no error)
+- Can't be disabled by user (but so subtle it's not intrusive)
+
+**Result:** Touch interactions feel more responsive, premium feel on mobile.
+
+---
+
+#### 8. Swipe Gestures (Mobile)
+
+**Decision:** Implement swipe-to-close for mobile menu.
+
+**Why:**
+- Natural mobile interaction (familiar from iOS/Android)
+- Faster than tapping close button
+- Feels more fluid, less mechanical
+- Shows attention to mobile UX
+
+**How it works:**
+- Swipe right on menu panel to close
+- Menu follows finger during swipe (real-time feedback)
+- Backdrop fades as menu moves
+- Threshold: 100px swipe = close
+- Must be primarily horizontal (prevents scroll conflicts)
+
+**Implementation:**
+```javascript
+mobileMenu.addEventListener('touchmove', (e) => {
+  const deltaX = touchEndX - touchStartX;
+  // Apply transform to follow finger
+  mobileMenu.style.transform = `translateX(${deltaX}px)`;
+});
+```
+
+**Safety checks:**
+- Only horizontal swipes (< 100px vertical movement)
+- Only right swipes (closing direction)
+- Resets if swipe is too short
+- Smooth transition back if cancelled
+
+**Result:** Menu feels native, mobile users can close naturally.
+
+---
+
+#### 9. Micro-Interactions (Delightful Details)
+
+**Decision:** Add ripple effects, success pulses, and other small delights.
+
+**Why:**
+- Adds polish and premium feel
+- Confirms actions visually
+- Creates emotional connection
+- Differentiates from generic sites
+
+**Implementations:**
+
+**Ripple effect (button clicks):**
+```javascript
+function createRipple(event: MouseEvent) {
+  // Creates expanding circle from click point
+  // 600ms animation, fades out
+  // Material Design inspired
+}
+```
+
+**Success pulse (theme toggle):**
+```css
+@keyframes successPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+```
+
+**Shimmer loading state:**
+```css
+@keyframes shimmer {
+  /* Subtle shine effect for skeleton loaders */
+  /* Makes loading feel faster */
+}
+```
+
+**Bounce animation:**
+```css
+@keyframes bounce {
+  /* For celebratory moments */
+  /* Subtle, not cartoonish */
+}
+```
+
+**When to use:**
+- Ripple: On click for buttons, cards
+- Success pulse: After successful actions (theme change)
+- Shimmer: Loading states (future)
+- Bounce: Special moments (future - form submit success)
+
+**Philosophy:**
+- Subtle, not flashy
+- Purposeful, not decorative
+- Fast (< 600ms), not slow
+- Respects `prefers-reduced-motion`
+
+**Result:** Site feels more alive, more polished, more premium.
+
+---
+
+### Summary of UX Enhancements
+
+**All improvements follow core principles:**
+1. **Performant:** No heavy frameworks, smooth 60fps animations
+2. **Accessible:** Keyboard navigation, reduced motion support
+3. **Mobile-first:** Works great on mobile, enhanced on desktop
+4. **Progressive enhancement:** Core functionality works without JS
+5. **Apple-inspired:** Physics-based timing, subtle delights
+6. **Purposeful:** Every animation serves a purpose
+
+**Result:** The site now feels "buttery smooth" - responsive, polished, delightful. Every interaction has been considered and refined. Users feel the quality before they consciously notice it.
+
+---
+
 ### November 3, 2025 (Evening) - Further Refinements
 
 **Decision:** Keep navigation visible during page transitions (only fade main content).

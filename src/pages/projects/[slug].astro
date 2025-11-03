@@ -19,17 +19,13 @@ export async function getStaticPaths() {
 const { project } = Astro.props;
 const { Content } = await project.render();
 const { title, summary } = project.data;
-
-const breadcrumbs = [
-  { name: 'Home', href: '/' },
-  { name: 'Projects', href: '/projects' },
-  { name: title || 'Project', href: '' },
-];
 ---
 
 <ContentPage title={title} description={summary}>
-  <Breadcrumbs items={breadcrumbs} />
+  <Breadcrumbs crumbs={[
+    { label: 'Projects', href: '/projects' },
+    { label: title || 'Project' }
+  ]} />
   <Content />
 </ContentPage>
-
 

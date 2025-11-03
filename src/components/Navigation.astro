@@ -26,18 +26,31 @@ const currentPath = Astro.url.pathname;
           </a>
         </li>
       ))}
-      <li>
-        <button 
-          class="theme-toggle"
-          aria-label="Toggle dark mode"
-          id="theme-toggle"
-          title="Toggle dark mode"
-        >
-          <span class="theme-icon" aria-hidden="true">🌙</span>
-        </button>
-      </li>
     </ul>
 
+    <!-- Theme Toggle Button -->
+    <button 
+      class="theme-toggle" 
+      aria-label="Toggle theme"
+      id="theme-toggle"
+      title="Toggle dark mode"
+    >
+      <svg class="theme-icon theme-icon-light" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="theme-icon theme-icon-dark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+    
     <!-- Mobile Menu Button -->
     <button 
       class="nav-toggle" 
@@ -65,15 +78,6 @@ const currentPath = Astro.url.pathname;
             </a>
           </li>
         ))}
-        <li>
-          <button 
-            class="theme-toggle-mobile nav-link-mobile"
-            aria-label="Toggle dark mode"
-            id="theme-toggle-mobile"
-          >
-            <span>🌙</span> Theme
-          </button>
-        </li>
       </ul>
     </div>
   </div>
@@ -206,32 +210,31 @@ const currentPath = Astro.url.pathname;
 
   /* Theme Toggle Button */
   .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 44px;
     height: 44px;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 50%;
     color: var(--color-text-muted);
-    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
-    border-radius: 8px;
+    transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+                background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+                transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
+    position: relative;
   }
 
   .theme-toggle:hover {
     color: var(--color-text);
-    background: rgba(0, 0, 0, 0.05);
-  }
-
-  [data-theme="dark"] .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-surface);
   }
 
   .theme-toggle:active {
-    transform: scale(0.95);
+    transform: scale(0.9);
   }
 
   .theme-toggle:focus-visible {
@@ -240,52 +243,29 @@ const currentPath = Astro.url.pathname;
   }
 
   .theme-icon {
-    font-size: 20px;
-    line-height: 1;
-    transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
-    display: inline-block;
+    position: absolute;
+    transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1),
+                transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  [data-theme="dark"] .theme-icon {
-    transform: rotate(180deg);
+  .theme-icon-light {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
   }
 
-  /* Micro-interaction: Theme icon bounce on click */
-  .theme-toggle:active .theme-icon {
-    transform: scale(1.2);
+  .theme-icon-dark {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
   }
 
-  [data-theme="dark"] .theme-toggle:active .theme-icon {
-    transform: rotate(180deg) scale(1.2);
+  [data-theme="dark"] .theme-icon-light {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.5);
   }
 
-  .theme-toggle-mobile {
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: var(--text-lg);
-    font-weight: 500;
-    color: var(--color-text);
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-md);
-    border-radius: 8px;
-    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .theme-toggle-mobile:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-
-  [data-theme="dark"] .theme-toggle-mobile:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .theme-toggle-mobile:active {
-    transform: scale(0.97);
+  [data-theme="dark"] .theme-icon-dark {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
   }
 
   /* Mobile Toggle Button with haptic feedback */
@@ -622,98 +602,64 @@ const currentPath = Astro.url.pathname;
   });
 
   /* =========================================
-     THEME TOGGLE (Dark Mode)
+     SWIPE GESTURES (Mobile Menu)
      ========================================= */
-
-  function getThemePreference() {
-    // Check localStorage first
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || stored === 'light') {
-      return stored;
-    }
-    // Fall back to system preference
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  function setTheme(theme: 'dark' | 'light') {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }
-
-  function toggleTheme() {
-    const current = getThemePreference();
-    const newTheme = current === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    
-    // Haptic feedback if available
-    if ('vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
-  }
-
-  // Initialize theme on load
-  const initialTheme = getThemePreference();
-  setTheme(initialTheme);
-
-  // Listen for system theme changes
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    // Only apply if user hasn't manually set a preference
-    if (!localStorage.getItem('theme')) {
-      setTheme(e.matches ? 'dark' : 'light');
-    }
-  });
-
-  // Theme toggle buttons
-  const themeToggle = document.getElementById('theme-toggle');
-  const themeToggleMobile = document.getElementById('theme-toggle-mobile');
-
-  themeToggle?.addEventListener('click', toggleTheme);
-  themeToggleMobile?.addEventListener('click', () => {
-    toggleTheme();
-    closeMenu(); // Close mobile menu after toggling
-  });
-
-  /* =========================================
-     SWIPE GESTURES (Mobile Navigation)
-     ========================================= */
-
-  if (overlay && 'ontouchstart' in window) {
+  
+  // Swipe-to-close gesture for mobile menu
+  if (overlay) {
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
     let touchEndY = 0;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      touchEndX = e.changedTouches[0].screenX;
-      touchEndY = e.changedTouches[0].screenY;
-      handleSwipe();
-    };
-
-    const handleSwipe = () => {
-      const deltaX = touchEndX - touchStartX;
-      const deltaY = touchEndY - touchStartY;
+    
+    const mobileMenu = document.querySelector('.nav-menu-mobile');
+    
+    if (mobileMenu) {
+      mobileMenu.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
       
-      // Only trigger if horizontal swipe is dominant (> 2x vertical)
-      if (Math.abs(deltaX) > Math.abs(deltaY) * 2) {
-        // Swipe right to close (when menu is open)
-        if (deltaX > 100 && overlay.getAttribute('aria-hidden') === 'false') {
-          closeMenu();
+      mobileMenu.addEventListener('touchmove', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        
+        // Calculate swipe distance
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = Math.abs(touchEndY - touchStartY);
+        
+        // Only track right swipes (to close) with primarily horizontal movement
+        if (deltaX > 0 && deltaY < 100) {
+          // Apply transform to follow finger
+          const progress = Math.min(deltaX / 300, 1);
+          mobileMenu.style.transform = `translateX(${deltaX}px)`;
+          mobileMenu.style.transition = 'none';
           
-          // Haptic feedback
-          if ('vibrate' in navigator) {
-            navigator.vibrate(10);
+          // Fade backdrop
+          if (backdrop) {
+            backdrop.style.opacity = String(1 - progress * 0.6);
           }
         }
-      }
-    };
-
-    overlay.addEventListener('touchstart', handleTouchStart, { passive: true });
-    overlay.addEventListener('touchend', handleTouchEnd, { passive: true });
+      }, { passive: true });
+      
+      mobileMenu.addEventListener('touchend', () => {
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = Math.abs(touchEndY - touchStartY);
+        
+        // If swiped far enough to the right, close menu
+        if (deltaX > 100 && deltaY < 100) {
+          closeMenu();
+        }
+        
+        // Reset transform with transition
+        mobileMenu.style.transition = '';
+        mobileMenu.style.transform = '';
+        
+        if (backdrop) {
+          backdrop.style.opacity = '';
+        }
+      }, { passive: true });
+    }
   }
 </script>
 
