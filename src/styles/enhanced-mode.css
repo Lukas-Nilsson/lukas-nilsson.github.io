@@ -75,9 +75,8 @@
   animation: enhancedFloat 30s ease-in-out infinite;
   
   /* Performance optimizations */
-  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
-  will-change: auto;
+  will-change: transform, filter;
   contain: layout style paint;
 }
 
@@ -156,8 +155,8 @@
     );
   
   animation: particleFloat 35s ease-in-out infinite;
-  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
 [data-visual-mode="enhanced"][data-theme="dark"]::after {
@@ -191,34 +190,34 @@
 @keyframes enhancedFloat {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
-    filter: hue-rotate(0deg);
+    filter: hue-rotate(0deg) saturate(1);
   }
   25% {
-    transform: translate3d(2px, -3px, 0) scale(1.001);
-    filter: hue-rotate(5deg);
+    transform: translate3d(10px, -15px, 0) scale(1.02);
+    filter: hue-rotate(10deg) saturate(1.1);
   }
   50% {
-    transform: translate3d(-2px, 2px, 0) scale(0.999);
-    filter: hue-rotate(-3deg);
+    transform: translate3d(-10px, 10px, 0) scale(0.98);
+    filter: hue-rotate(-8deg) saturate(0.95);
   }
   75% {
-    transform: translate3d(1px, -1px, 0) scale(1.0005);
-    filter: hue-rotate(2deg);
+    transform: translate3d(5px, -5px, 0) scale(1.01);
+    filter: hue-rotate(5deg) saturate(1.05);
   }
 }
 
 @keyframes particleFloat {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.6;
-  }
-  33% {
-    transform: translate3d(3px, -2px, 0) scale(1.02);
     opacity: 0.8;
   }
+  33% {
+    transform: translate3d(15px, -10px, 0) scale(1.05);
+    opacity: 1;
+  }
   66% {
-    transform: translate3d(-2px, 3px, 0) scale(0.98);
-    opacity: 0.7;
+    transform: translate3d(-10px, 15px, 0) scale(0.95);
+    opacity: 0.9;
   }
 }
 

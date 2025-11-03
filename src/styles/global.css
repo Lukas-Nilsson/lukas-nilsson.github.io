@@ -133,6 +133,11 @@ html {
   /* Smooth color transitions for theme switching */
   transition: background-color 300ms cubic-bezier(0.32, 0.72, 0, 1),
               color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Enhanced mode: transparent background so animated layers show through */
+[data-visual-mode="enhanced"] body {
+  background: transparent;
   
   /* Prevent scroll when content doesn't overflow */
   height: 100%;
