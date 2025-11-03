@@ -40,8 +40,27 @@
   z-index: -1;
   pointer-events: none;
   
-  /* Light mode: Soft colorful gradients */
+  /* Light mode: Soft colorful gradients with shaped fade-outs */
   background: 
+    /* Top fade - large elliptical shape blending to white */
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      #ffffff 0%,
+      #ffffff 25%,
+      rgba(255, 255, 255, 0.8) 40%,
+      rgba(255, 255, 255, 0.3) 60%,
+      transparent 80%
+    ),
+    /* Bottom fade - large elliptical shape blending to white */
+    radial-gradient(
+      ellipse 140% 100% at 50% 120%,
+      #ffffff 0%,
+      #ffffff 20%,
+      rgba(255, 255, 255, 0.7) 35%,
+      rgba(255, 255, 255, 0.2) 55%,
+      transparent 75%
+    ),
+    /* Colorful gradient layers */
     radial-gradient(
       ellipse 80% 60% at 20% 30%,
       var(--enhanced-blue) 0%,
@@ -83,6 +102,25 @@
 /* Dark mode enhanced background */
 [data-visual-mode="enhanced"][data-theme="dark"]::before {
   background: 
+    /* Top fade - large elliptical shape blending to black */
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      #000000 0%,
+      #000000 25%,
+      rgba(0, 0, 0, 0.8) 40%,
+      rgba(0, 0, 0, 0.3) 60%,
+      transparent 80%
+    ),
+    /* Bottom fade - large elliptical shape blending to black */
+    radial-gradient(
+      ellipse 140% 100% at 50% 120%,
+      #000000 0%,
+      #000000 20%,
+      rgba(0, 0, 0, 0.7) 35%,
+      rgba(0, 0, 0, 0.2) 55%,
+      transparent 75%
+    ),
+    /* Colorful gradient layers */
     radial-gradient(
       ellipse 80% 60% at 20% 30%,
       var(--enhanced-blue) 0%,
