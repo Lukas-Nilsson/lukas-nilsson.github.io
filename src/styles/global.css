@@ -186,8 +186,8 @@ body::before {
 
 /* Bottom fade - extends into safe area */
 body::after {
-  bottom: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  bottom: calc(0px - env(safe-area-inset-bottom, 0px));
+  height: calc(10px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(
     to top,
     #ffffff 0%,
