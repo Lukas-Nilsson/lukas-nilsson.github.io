@@ -441,15 +441,13 @@ const currentPath = Astro.url.pathname;
   .nav-mobile-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0);
+    background: transparent;
     backdrop-filter: blur(0px);
     -webkit-backdrop-filter: blur(0px);
-    transition: background 400ms cubic-bezier(0.32, 0.72, 0, 1),
-                backdrop-filter 400ms cubic-bezier(0.32, 0.72, 0, 1);
+    transition: backdrop-filter 400ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .nav-mobile-overlay[aria-hidden="false"] .nav-mobile-backdrop {
-    background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
