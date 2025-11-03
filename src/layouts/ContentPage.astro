@@ -37,7 +37,13 @@ const { title, description } = Astro.props;
 
 <style>
   .content-page {
-    padding: var(--space-2xl) 0;
+    padding-top: calc(var(--space-2xl) + 6rem); /* Extra space for nav capsule at top */
+    padding-bottom: var(--space-2xl);
+  }
+  
+  /* When breadcrumbs are present, reduce top padding slightly */
+  .content-page:has(.breadcrumbs) {
+    padding-top: calc(var(--space-2xl) + 4rem);
   }
 
   .content-container {
