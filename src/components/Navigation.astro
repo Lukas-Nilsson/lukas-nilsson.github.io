@@ -52,35 +52,32 @@ const currentPath = Astro.url.pathname;
     </button>
   </div>
 
-  <!-- Mobile Buttons (only on mobile) -->
-  <div class="nav-mobile-buttons">
-    <!-- Visual Mode Toggle -->
-    <button 
-      class="nav-mobile-visual-toggle" 
-      id="visual-mode-toggle-mobile"
-      aria-label="Toggle visual mode"
-    >
-      <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="4"></circle>
-        <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
-      </svg>
-      <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
-      </svg>
-    </button>
-    
-    <!-- Menu Toggle -->
-    <button 
-      class="nav-mobile-menu-toggle" 
-      aria-label="Toggle menu"
-      aria-expanded="false"
-      id="menu-toggle"
-    >
-      <span class="toggle-bar"></span>
-      <span class="toggle-bar"></span>
-      <span class="toggle-bar"></span>
-    </button>
-  </div>
+  <!-- Mobile Menu Button (Left) -->
+  <button 
+    class="nav-mobile-menu-toggle" 
+    aria-label="Toggle menu"
+    aria-expanded="false"
+    id="menu-toggle"
+  >
+    <span class="toggle-bar"></span>
+    <span class="toggle-bar"></span>
+    <span class="toggle-bar"></span>
+  </button>
+
+  <!-- Visual Mode Toggle (Right - Mobile only) -->
+  <button 
+    class="nav-mobile-visual-toggle" 
+    id="visual-mode-toggle-mobile"
+    aria-label="Toggle visual mode"
+  >
+    <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="4"></circle>
+      <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
+    </svg>
+    <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+    </svg>
+  </button>
 </nav>
 
 <!-- Mobile Navigation Overlay -->
@@ -345,29 +342,63 @@ const currentPath = Astro.url.pathname;
   }
 
   /* =========================================
-     MOBILE BUTTONS (Right Side)
+     MOBILE MENU BUTTON (Left Side)
      ========================================= */
 
-  .nav-mobile-buttons {
+  .nav-mobile-menu-toggle {
     display: none; /* Hidden on desktop */
-    gap: var(--space-xs);
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.1),
+      0 8px 32px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-tap-highlight-color: transparent;
     position: fixed;
     top: calc(env(safe-area-inset-top) + 1rem);
-    right: 1rem;
+    left: 1rem;
     z-index: 1000;
-    pointer-events: none;
   }
 
   @media (max-width: 767px) {
-    .nav-mobile-buttons {
+    .nav-mobile-menu-toggle {
       display: flex;
     }
   }
 
-  /* Visual Mode Toggle (Mobile) */
+  [data-theme="dark"] .nav-mobile-menu-toggle {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .nav-mobile-menu-toggle:active {
+    transform: scale(0.92);
+  }
+
+  /* =========================================
+     VISUAL MODE TOGGLE (Right Side - Mobile Only)
+     ========================================= */
+
   .nav-mobile-visual-toggle {
-    display: flex;
+    display: none; /* Hidden on desktop */
     align-items: center;
     justify-content: center;
     width: 44px;
@@ -387,7 +418,16 @@ const currentPath = Astro.url.pathname;
     transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
     color: var(--color-text-muted);
-    position: relative;
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 1rem);
+    right: 1rem;
+    z-index: 1000;
+  }
+
+  @media (max-width: 767px) {
+    .nav-mobile-visual-toggle {
+      display: flex;
+    }
   }
 
   [data-theme="dark"] .nav-mobile-visual-toggle {
@@ -428,45 +468,6 @@ const currentPath = Astro.url.pathname;
   [data-visual-mode="enhanced"] .nav-mobile-visual-toggle .icon-enhanced {
     opacity: 1;
     transform: scale(1);
-  }
-
-  /* Menu Toggle Button */
-  .nav-mobile-menu-toggle {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: none;
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.1),
-      0 8px 32px rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    pointer-events: auto;
-    transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  [data-theme="dark"] .nav-mobile-menu-toggle {
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 
-      0 4px 16px rgba(0, 0, 0, 0.5),
-      0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  .nav-mobile-menu-toggle:active {
-    transform: scale(0.92);
   }
 
   @media (min-width: 768px) {
