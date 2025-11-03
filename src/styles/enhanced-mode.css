@@ -440,6 +440,18 @@
   border-color: rgba(129, 140, 248, 0.4);
 }
 
+/* Ensure project card text is always visible - override any gradient text */
+[data-visual-mode="enhanced"] .project-card h3,
+[data-visual-mode="enhanced"] .project-card p,
+[data-visual-mode="enhanced"] .project-link h3,
+[data-visual-mode="enhanced"] .project-link p {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  color: var(--color-text) !important;
+}
+
 /* =========================================
    FLOATING SHADOWS WITH COLOR
    ========================================= */
