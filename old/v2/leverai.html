@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="LeverAI - AI training workshops for teams. Learn to use AI tools effectively through hands-on workshops and practical guidance.">
+  <meta name="theme-color" content="#1e3a8a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="LeverAI Training - AI Workshops for Teams">
+  <meta property="og:description" content="AI training workshops to help teams use AI tools effectively. Based in Melbourne, Australia.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lukas-nilsson.github.io/leverai.html">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="LeverAI Training - AI Workshops for Teams">
+  <meta name="twitter:description" content="AI training workshops to help teams use AI tools effectively. Based in Melbourne, Australia.">
+  
+  <title>LeverAI Training - AI Workshops for Teams</title>
+  
+  <!-- Preload critical assets -->
+  <link rel="preload" as="style" href="css/leverai.css">
+  <link rel="preload" as="font" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Serif+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" crossorigin>
+  
+  <link rel="stylesheet" href="css/leverai.css?v=2.0">
+  <link rel="stylesheet" href="css/liquid-glass.css?v=2.0">
+  <link rel="icon" type="image/svg+xml" href="assets/leverai-favicon.svg">
+</head>
+<body class="liquid-glass-container">
+  <!-- Liquid Glass Background -->
+  <div class="liquid-glass-bg">
+    <div class="liquid-glass-bloom"></div>
+  </div>
+  
+  <!-- Skip to content link -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+  
+  <!-- Header -->
+  <header class="site-header" role="banner">
+    <nav class="nav-container" role="navigation" aria-label="Main navigation">
+      <div class="nav-brand">
+        <a href="#home" class="brand-link" aria-label="LeverAI Training">
+          <svg class="logo" width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L30 8v16L16 30L2 24V8L16 2z" fill="currentColor"/>
+            <path d="M16 6L26 10v12L16 26L6 22V10L16 6z" fill="currentColor" opacity="0.6"/>
+            <circle cx="16" cy="16" r="3" fill="white"/>
+          </svg>
+          <span class="brand-text">LeverAI</span>
+        </a>
+      </div>
+      
+      <ul class="nav-menu">
+        <li><a href="#program" class="nav-link">Program</a></li>
+        <li><a href="#approach" class="nav-link">Approach</a></li>
+        <li><a href="#about" class="nav-link">About</a></li>
+        <li><a href="#resources" class="nav-link">Resources</a></li>
+        <li><a href="#contact" class="nav-link">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <a href="#assessment" class="btn btn-outline">Free Assessment</a>
+        <a href="#enroll" class="btn btn-primary">Start Training</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <main id="main" tabindex="-1">
+    <!-- Hero Section -->
+    <section id="home" class="hero-section">
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-text">
+            <h1 class="hero-title">
+              <span class="hero-title-primary">Learn to Use AI Effectively</span>
+              <span class="hero-title-secondary">Practical AI Training for Teams</span>
+            </h1>
+            <p class="hero-subtitle">
+              Join the first wave of teams learning to integrate AI into daily work. 
+              Our workshops help you move from AI-curious to AI-confident through hands-on, practical training.
+            </p>
+            
+            <div class="hero-cta">
+              <a href="#assessment" class="btn btn-primary btn-large">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 12l2 2 4-4"/>
+                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+                </svg>
+                Get Your Free AI Readiness Assessment
+              </a>
+              <a href="#program" class="btn btn-ghost btn-large">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Learn About Our Approach
+              </a>
+            </div>
+            
+            <div class="hero-social-proof">
+              <p class="social-proof-text">Currently working with</p>
+              <div class="client-logos">
+                <div class="logo-item">Early Pilot Teams</div>
+                <div class="logo-item">Melbourne Startups</div>
+                <div class="logo-item">Local Businesses</div>
+                <div class="logo-item">Creative Agencies</div>
+                <div class="logo-item">Tech Teams</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="hero-visual">
+            <div class="ai-dashboard">
+              <div class="dashboard-header">
+                <div class="dashboard-title">Learning Approach</div>
+                <div class="dashboard-status">
+                  <div class="status-indicator"></div>
+                  <span>Active Development</span>
+                </div>
+              </div>
+              <div class="dashboard-metrics">
+                <div class="metric">
+                  <div class="metric-value">8</div>
+                  <div class="metric-label">Week Program</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-value">100%</div>
+                  <div class="metric-label">Hands-On</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-value">Small</div>
+                  <div class="metric-label">Group Size</div>
+                </div>
+              </div>
+              <div class="ai-visualization">
+                <div class="learning-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                  </div>
+                  <div class="progress-labels">
+                    <span>Week 1</span>
+                    <span>Week 4</span>
+                    <span>Week 8</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Problem/Solution Section -->
+    <section class="problem-solution-section">
+      <div class="container">
+        <div class="problem-solution-grid">
+          <div class="problem-side">
+            <h2 class="section-title">The AI Learning Challenge</h2>
+            <div class="problem-list">
+              <div class="problem-item">
+                <div class="problem-icon">⚠️</div>
+                <div class="problem-content">
+                  <h3>Teams Feeling Overwhelmed</h3>
+                  <p>Many teams want to use AI but don't know where to start or how to integrate it effectively into their workflows.</p>
+                </div>
+              </div>
+              <div class="problem-item">
+                <div class="problem-icon">💸</div>
+                <div class="problem-content">
+                  <h3>Wasted Time and Effort</h3>
+                  <p>Without proper guidance, teams often struggle with AI tools, leading to frustration and abandoned projects.</p>
+                </div>
+              </div>
+              <div class="problem-item">
+                <div class="problem-icon">😰</div>
+                <div class="problem-content">
+                  <h3>Fear of the Unknown</h3>
+                  <p>Employees may feel uncertain about AI, creating resistance to learning new tools that could help them work more effectively.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="solution-side">
+            <h2 class="section-title">The LeverAI Approach</h2>
+            <div class="solution-list">
+              <div class="solution-item">
+                <div class="solution-icon">🎯</div>
+                <div class="solution-content">
+                  <h3>Practical Learning</h3>
+                  <p>Our developing 8-week curriculum is built from real workflows and hands-on experience with AI tools.</p>
+                </div>
+              </div>
+              <div class="solution-item">
+                <div class="solution-icon">📈</div>
+                <div class="solution-content">
+                  <h3>Measurable Progress</h3>
+                  <p>We focus on practical outcomes and help teams track their AI learning progress through real projects.</p>
+                </div>
+              </div>
+              <div class="solution-item">
+                <div class="solution-icon">🤝</div>
+                <div class="solution-content">
+                  <h3>Supportive Environment</h3>
+                  <p>We create a safe space for learning, where teams can experiment with AI tools without fear of failure.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Program Structure Section -->
+    <section id="program" class="program-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">8-Week AI Learning Program</h2>
+          <p class="section-subtitle">A developing curriculum designed to take your team from AI-curious to AI-confident through practical, hands-on learning</p>
+        </header>
+        
+        <div class="program-timeline">
+          <div class="timeline-item">
+            <div class="timeline-week">Week 1-2</div>
+            <div class="timeline-content">
+              <h3>AI Fundamentals & Strategy</h3>
+              <p>Understanding AI capabilities, exploring use cases, and building confidence with basic AI tools.</p>
+              <ul class="timeline-features">
+                <li>AI landscape overview</li>
+                <li>Identifying practical use cases</li>
+                <li>Basic tool exploration workshop</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-week">Week 3-4</div>
+            <div class="timeline-content">
+              <h3>Hands-On AI Tools</h3>
+              <p>Master the essential AI tools your team will use daily, with practical exercises and real-world applications.</p>
+              <ul class="timeline-features">
+                <li>ChatGPT & Claude mastery</li>
+                <li>AI writing & content creation</li>
+                <li>Data analysis with AI</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-week">Week 5-6</div>
+            <div class="timeline-content">
+              <h3>Advanced Applications</h3>
+              <p>Explore specialized AI applications for your industry, with custom training modules tailored to your needs.</p>
+              <ul class="timeline-features">
+                <li>Industry-specific AI tools</li>
+                <li>Automation workflows</li>
+                <li>AI integration strategies</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-week">Week 7-8</div>
+            <div class="timeline-content">
+              <h3>Implementation & Practice</h3>
+              <p>Apply your AI skills to real projects, with ongoing support and guidance for continued learning.</p>
+              <ul class="timeline-features">
+                <li>Real project implementation</li>
+                <li>Progress measurement</li>
+                <li>Continued learning plans</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="program-delivery">
+          <h3>How We Deliver Learning</h3>
+          <div class="delivery-grid">
+            <div class="delivery-item">
+              <div class="delivery-icon">🎥</div>
+              <h4>Interactive Workshops</h4>
+              <p>Live sessions with hands-on exercises and Q&A opportunities.</p>
+            </div>
+            <div class="delivery-item">
+              <div class="delivery-icon">📚</div>
+              <h4>Self-Paced Modules</h4>
+              <p>Learning materials and exercises you can complete at your own pace.</p>
+            </div>
+            <div class="delivery-item">
+              <div class="delivery-icon">🛠️</div>
+              <h4>Practical Projects</h4>
+              <p>Real-world projects that apply AI to your actual business challenges.</p>
+            </div>
+            <div class="delivery-item">
+              <div class="delivery-icon">👥</div>
+              <h4>Peer Learning</h4>
+              <p>Collaborate with other professionals and learn from shared experiences.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approach Section -->
+    <section id="approach" class="results-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">Our Learning Approach</h2>
+          <p class="section-subtitle">How we help teams become AI-literate, efficient, and confident</p>
+        </header>
+        
+        <div class="results-grid">
+          <div class="result-stat">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">Hands-On Learning</div>
+            <div class="stat-description">Every session includes practical exercises and real tool usage</div>
+          </div>
+          
+          <div class="result-stat">
+            <div class="stat-number">8</div>
+            <div class="stat-label">Week Program</div>
+            <div class="stat-description">Comprehensive curriculum covering fundamentals to advanced applications</div>
+          </div>
+          
+          <div class="result-stat">
+            <div class="stat-number">Small</div>
+            <div class="stat-label">Group Sizes</div>
+            <div class="stat-description">Intimate workshops for personalized attention and peer learning</div>
+          </div>
+          
+          <div class="result-stat">
+            <div class="stat-number">Real</div>
+            <div class="stat-label">World Focus</div>
+            <div class="stat-description">Practical applications based on actual business workflows</div>
+          </div>
+        </div>
+        
+        <div class="testimonials">
+          <h3>What Early Participants Are Saying</h3>
+          <div class="testimonial-grid">
+            <div class="testimonial">
+              <div class="testimonial-content">
+                <p>"The hands-on approach really helped our team understand how to use AI tools effectively. We're already seeing improvements in our daily workflows."</p>
+              </div>
+              <div class="testimonial-author">
+                <div class="author-info">
+                  <div class="author-name">Sarah Chen</div>
+                  <div class="author-title">Team Lead, Local Startup</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="testimonial">
+              <div class="testimonial-content">
+                <p>"Finally, AI training that focuses on practical skills rather than theory. Our team feels much more confident using AI tools now."</p>
+              </div>
+              <div class="testimonial-author">
+                <div class="author-info">
+                  <div class="author-name">Michael Rodriguez</div>
+                  <div class="author-title">Creative Director, Agency</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="testimonial">
+              <div class="testimonial-content">
+                <p>"The workshop format worked perfectly for our team. We learned by doing, which made everything click into place."</p>
+              </div>
+              <div class="testimonial-author">
+                <div class="author-info">
+                  <div class="author-name">Jennifer Walsh</div>
+                  <div class="author-title">Operations Manager, Tech Company</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+      <div class="container">
+        <div class="about-grid">
+          <div class="about-content">
+            <h2 class="section-title">Meet Your AI Learning Guide</h2>
+            <div class="founder-story">
+              <p>I'm Lukas Nilsson, and I've been working with AI-driven creative and web systems for several years. After building The Human Archives and working on various AI-integrated projects, I've seen firsthand how proper guidance can make all the difference in AI adoption.</p>
+              
+              <p>Most teams struggle with AI not because of the technology itself, but because they lack practical, hands-on experience. That's why I started LeverAI—to help teams learn by doing, in a supportive environment.</p>
+              
+              <div class="credentials">
+                <h3>Background & Experience</h3>
+                <ul>
+                  <li>Creator of The Human Archives</li>
+                  <li>Experience with AI-driven creative systems</li>
+                  <li>Independent AI trainer and consultant</li>
+                  <li>Based in Melbourne, Australia</li>
+                  <li>Focus on practical, hands-on learning</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div class="about-visual">
+            <div class="founder-photo">
+              <div class="photo-placeholder">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+                  <circle cx="100" cy="100" r="100" fill="#e2e8f0"/>
+                  <circle cx="100" cy="80" r="30" fill="#94a3b8"/>
+                  <path d="M50 160c0-27.6 22.4-50 50-50s50 22.4 50 50" fill="#94a3b8"/>
+                </svg>
+              </div>
+            </div>
+            <div class="certification-badges">
+              <div class="badge">AI Trainer</div>
+              <div class="badge">Creator</div>
+              <div class="badge">Melbourne</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Resources Section -->
+    <section id="resources" class="resources-section">
+      <div class="container">
+        <header class="section-header">
+          <h2 class="section-title">Free Resources</h2>
+          <p class="section-subtitle">Get started with our free AI learning tools and guides</p>
+        </header>
+        
+        <div class="resources-grid">
+          <div class="resource-card">
+            <div class="resource-icon">📊</div>
+            <h3>AI Readiness Assessment</h3>
+            <p>Discover your team's current AI comfort level and get personalized recommendations for learning.</p>
+            <a href="#assessment" class="btn btn-outline">Take Assessment</a>
+          </div>
+          
+          <div class="resource-card">
+            <div class="resource-icon">📖</div>
+            <h3>AI Learning Guide</h3>
+            <p>Step-by-step guide to getting started with AI tools, based on real experience and practical tips.</p>
+            <a href="#guide" class="btn btn-outline">Download Guide</a>
+          </div>
+          
+          <div class="resource-card">
+            <div class="resource-icon">🎥</div>
+            <h3>Learning Sessions</h3>
+            <p>Regular "AI for Teams" sessions featuring practical insights and hands-on demonstrations.</p>
+            <a href="#webinar" class="btn btn-outline">Register Now</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="enroll" class="cta-section">
+      <div class="container">
+        <div class="cta-content">
+          <h2 class="cta-title">Ready to Learn AI with Your Team?</h2>
+          <p class="cta-subtitle">Join the first wave of teams learning to integrate AI effectively. Limited spots available for our next workshop series.</p>
+          
+          <div class="cta-offer">
+            <div class="offer-badge">Early Bird Pricing</div>
+            <div class="offer-price">
+              <span class="price-original">$2,500</span>
+              <span class="price-current">$1,500</span>
+              <span class="price-note">per team (up to 8 people)</span>
+            </div>
+            <div class="offer-guarantee">Satisfaction Guarantee</div>
+          </div>
+          
+          <div class="cta-actions">
+            <a href="#enroll" class="btn btn-primary btn-large">Start Your AI Learning Journey</a>
+            <a href="#consultation" class="btn btn-ghost btn-large">Book Free Consultation</a>
+          </div>
+          
+          <div class="cta-features">
+            <div class="feature">✅ 8-week hands-on program</div>
+            <div class="feature">✅ Interactive workshops</div>
+            <div class="feature">✅ Self-paced modules</div>
+            <div class="feature">✅ Ongoing support</div>
+            <div class="feature">✅ Satisfaction guarantee</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact-section">
+      <div class="container">
+        <div class="contact-grid">
+          <div class="contact-info">
+            <h2 class="section-title">Get in Touch</h2>
+            <p class="contact-description">Have questions about our AI learning program? We're here to help you get started.</p>
+            
+            <div class="contact-methods">
+              <div class="contact-method">
+                <div class="method-icon">📧</div>
+                <div class="method-info">
+                  <h3>Email Us</h3>
+                  <p>lukasnilssonbusiness@gmail.com</p>
+                </div>
+              </div>
+              
+              <div class="contact-method">
+                <div class="method-icon">📍</div>
+                <div class="method-info">
+                  <h3>Location</h3>
+                  <p>Melbourne, Australia</p>
+                </div>
+              </div>
+              
+              <div class="contact-method">
+                <div class="method-icon">💬</div>
+                <div class="method-info">
+                  <h3>Chat</h3>
+                  <p>Available for questions and consultations</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="contact-form">
+            <form class="form" id="contact-form">
+              <div class="form-group">
+                <label for="name" class="form-label">Full Name</label>
+                <input type="text" id="name" name="name" class="form-input" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input type="email" id="email" name="email" class="form-input" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="company" class="form-label">Company</label>
+                <input type="text" id="company" name="company" class="form-input" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="team-size" class="form-label">Team Size</label>
+                <select id="team-size" name="team-size" class="form-select" required>
+                  <option value="">Select team size</option>
+                  <option value="1-5">1-5 people</option>
+                  <option value="6-15">6-15 people</option>
+                  <option value="16-50">16-50 people</option>
+                  <option value="50+">50+ people</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="message" class="form-label">Message</label>
+                <textarea id="message" name="message" class="form-textarea" rows="4" placeholder="Tell us about your AI learning goals..."></textarea>
+              </div>
+              
+              <button type="submit" class="btn btn-primary btn-full">Send Message</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <svg class="logo" width="24" height="24" viewBox="0 0 32 32" fill="none">
+              <path d="M16 2L30 8v16L16 30L2 24V8L16 2z" fill="currentColor"/>
+              <path d="M16 6L26 10v12L16 26L6 22V10L16 6z" fill="currentColor" opacity="0.6"/>
+              <circle cx="16" cy="16" r="3" fill="white"/>
+            </svg>
+            <span>LeverAI</span>
+          </div>
+          <p class="footer-description">AI training workshops to help teams use AI tools effectively through hands-on learning.</p>
+        </div>
+        
+        <div class="footer-links">
+          <div class="footer-column">
+            <h3>Program</h3>
+            <ul>
+              <li><a href="#program">8-Week Program</a></li>
+              <li><a href="#approach">Our Approach</a></li>
+              <li><a href="#resources">Free Resources</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h3>Company</h3>
+            <ul>
+              <li><a href="#about">About Us</a></li>
+              <li><a href="#contact">Contact</a></li>
+              <li><a href="#privacy">Privacy Policy</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h3>Connect</h3>
+            <ul>
+              <li><a href="https://linkedin.com/in/lukaspnilsson">LinkedIn</a></li>
+              <li><a href="mailto:lukasnilssonbusiness@gmail.com">Email</a></li>
+              <li><a href="https://lukas-nilsson.github.io">Portfolio</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 LeverAI Training. All rights reserved.</p>
+        <p>Made with ❤️ in Melbourne, Australia</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/leverai.js" defer></script>
+</body>
+</html>
