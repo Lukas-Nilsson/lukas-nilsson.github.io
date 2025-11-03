@@ -30,6 +30,49 @@ const { title, description } = Astro.props;
       link.setAttribute('href', fixed);
     }
   });
+
+  /* Progressive Disclosure - Collapsible Sections */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Find h2 headings and make following content collapsible
+    const h2Elements = document.querySelectorAll('.content-page h2');
+    
+    h2Elements.forEach((h2, index) => {
+      // Skip first h2, or if section is short (< 500px)
+      if (index === 0) return;
+      
+      // Find content between this h2 and next h2
+      let content = [];
+      let current = h2.nextElementSibling;
+      
+      while (current && current.tagName !== 'H2' && current.tagName !== 'H1') {
+        content.push(current);
+        current = current.nextElementSibling;
+      }
+      
+      // Only make collapsible if content is substantial
+      if (content.length > 3) {
+        // Create wrapper
+        const wrapper = document.createElement('details');
+        wrapper.className = 'collapsible-section';
+        const summary = document.createElement('summary');
+        summary.textContent = h2.textContent;
+        summary.setAttribute('aria-label', `Toggle ${h2.textContent} section`);
+        
+        // Move h2 into summary (hidden, for semantics)
+        const h2Clone = h2.cloneNode(true) as HTMLElement;
+        h2Clone.style.display = 'none';
+        summary.appendChild(h2Clone);
+        
+        wrapper.appendChild(summary);
+        
+        // Move content into wrapper
+        content.forEach(el => wrapper.appendChild(el));
+        
+        // Replace h2 and content with wrapper
+        h2.replaceWith(wrapper);
+      }
+    });
+  });
 </script>
 
 <style>
@@ -145,6 +188,36 @@ const { title, description } = Astro.props;
     transform: scale(0.98);
   }
 
+  /* Micro-interaction: Code block copy hint */
+  .content-page :global(pre:hover) {
+    position: relative;
+  }
+
+  .content-page :global(pre:hover::after) {
+    content: 'Click to select';
+    position: absolute;
+    top: var(--space-xs);
+    right: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 4px;
+    opacity: 0;
+    animation: fadeInHint 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+
+  @keyframes fadeInHint {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .content-page :global(a:focus-visible) {
     outline: 3px solid var(--color-accent);
     outline-offset: 4px;
@@ -161,6 +234,81 @@ const { title, description } = Astro.props;
     height: auto;
     border-radius: 8px;
     margin: var(--space-lg) 0;
+  }
+
+  /* Progressive Disclosure - Collapsible Sections */
+  .content-page :global(.collapsible-section) {
+    margin: var(--space-xl) 0;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .content-page :global(.collapsible-section summary) {
+    padding: var(--space-md) var(--space-lg);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    cursor: pointer;
+    list-style: none;
+    position: relative;
+    user-select: none;
+    transition: background-color 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .content-page :global(.collapsible-section summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  .content-page :global(.collapsible-section summary::after) {
+    content: '▼';
+    position: absolute;
+    right: var(--space-lg);
+    font-size: var(--text-sm);
+    transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    opacity: 0.6;
+  }
+
+  .content-page :global(.collapsible-section[open] summary::after) {
+    transform: rotate(180deg);
+  }
+
+  .content-page :global(.collapsible-section summary:hover) {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  [data-theme="dark"] .content-page :global(.collapsible-section summary:hover) {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .content-page :global(.collapsible-section summary:focus-visible) {
+    outline: 3px solid var(--color-accent);
+    outline-offset: -3px;
+  }
+
+  .content-page :global(.collapsible-section > :not(summary)) {
+    padding: 0 var(--space-lg) var(--space-lg);
+  }
+
+  .content-page :global(.collapsible-section[open] > :not(summary)) {
+    animation: slideDown 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .content-page :global(.collapsible-section > :not(summary)) {
+      animation: none;
+    }
   }
 </style>
 

@@ -14,22 +14,45 @@ const allProjects = await getCollection('public', (entry) => {
   <h1>Projects</h1>
   <p class="intro">A collection of projects exploring the intersection of philosophy, technology, and human potential.</p>
   
-  <div class="projects-grid">
-    {allProjects.map(async (project, index) => {
-      const slug = project.id.replace('Projects/', '').replace('.md', '');
-      return (
-        <article class="project-card" data-index={index}>
-          <a href={`/projects/${slug}/`} class="project-link">
-            <h3>{project.data.title || slug}</h3>
-            {project.data.summary && (
-              <p>{project.data.summary}</p>
-            )}
-            <span class="project-arrow" aria-hidden="true">→</span>
-          </a>
-        </article>
-      );
-    })}
-  </div>
+  {allProjects.length > 0 ? (
+    <div class="projects-grid">
+      {allProjects.map(async (project, index) => {
+        const slug = project.id.replace('Projects/', '').replace('.md', '');
+        const previewText = project.data.summary || '';
+        return (
+          <article class="project-card" data-index={index}>
+            <a 
+              href={`/projects/${slug}/`} 
+              class="project-link"
+              data-preview={previewText}
+            >
+              <h3>{project.data.title || slug}</h3>
+              {project.data.summary && (
+                <p class="project-summary">{project.data.summary}</p>
+              )}
+              <span class="project-arrow" aria-hidden="true">→</span>
+            </a>
+            <!-- Preview Tooltip (desktop only) -->
+            <div class="preview-tooltip" role="tooltip" aria-hidden="true">
+              <div class="preview-content">
+                <h4>{project.data.title || slug}</h4>
+                {project.data.summary && (
+                  <p>{project.data.summary}</p>
+                )}
+                <span class="preview-link">View project →</span>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  ) : (
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">✨</div>
+      <h2>Projects Coming Soon</h2>
+      <p>I'm currently working on some exciting projects. Check back soon to see what I've been building.</p>
+    </div>
+  )}
 </ContentPage>
 
 <style>
@@ -161,6 +184,86 @@ const allProjects = await getCollection('public', (entry) => {
 
   .project-card:hover h3 {
     color: var(--color-accent);
+  }
+
+  /* Content Preview on Hover (Desktop) */
+  @media (min-width: 1024px) and (hover: hover) {
+    .preview-tooltip {
+      position: absolute;
+      top: calc(100% + var(--space-md));
+      left: 0;
+      right: 0;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+      padding: var(--space-lg);
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+      pointer-events: none;
+      z-index: 10;
+      transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
+      max-width: 400px;
+    }
+
+    .project-card {
+      position: relative;
+    }
+
+    .project-card:hover .preview-tooltip {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .preview-content h4 {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semibold);
+      margin-bottom: var(--space-sm);
+      color: var(--color-text);
+    }
+
+    .preview-content p {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      margin-bottom: var(--space-sm);
+    }
+
+    .preview-link {
+      font-size: var(--text-sm);
+      color: var(--color-accent);
+      font-weight: var(--weight-medium);
+      display: inline-block;
+      margin-top: var(--space-xs);
+    }
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-md);
+    margin-top: var(--space-2xl);
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: var(--space-lg);
+    opacity: 0.6;
+  }
+
+  .empty-state h2 {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-md);
+    color: var(--color-text);
+  }
+
+  .empty-state p {
+    font-size: var(--text-lg);
+    color: var(--color-text-muted);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
   }
 </style>
 

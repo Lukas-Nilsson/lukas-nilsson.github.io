@@ -26,6 +26,16 @@ const currentPath = Astro.url.pathname;
           </a>
         </li>
       ))}
+      <li>
+        <button 
+          class="theme-toggle"
+          aria-label="Toggle dark mode"
+          id="theme-toggle"
+          title="Toggle dark mode"
+        >
+          <span class="theme-icon" aria-hidden="true">🌙</span>
+        </button>
+      </li>
     </ul>
 
     <!-- Mobile Menu Button -->
@@ -55,6 +65,15 @@ const currentPath = Astro.url.pathname;
             </a>
           </li>
         ))}
+        <li>
+          <button 
+            class="theme-toggle-mobile nav-link-mobile"
+            aria-label="Toggle dark mode"
+            id="theme-toggle-mobile"
+          >
+            <span>🌙</span> Theme
+          </button>
+        </li>
       </ul>
     </div>
   </div>
@@ -183,6 +202,90 @@ const currentPath = Astro.url.pathname;
     outline: 3px solid var(--color-accent);
     outline-offset: 4px;
     border-radius: 4px;
+  }
+
+  /* Theme Toggle Button */
+  .theme-toggle {
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    border-radius: 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .theme-toggle:hover {
+    color: var(--color-text);
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme="dark"] .theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .theme-toggle:active {
+    transform: scale(0.95);
+  }
+
+  .theme-toggle:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  .theme-icon {
+    font-size: 20px;
+    line-height: 1;
+    transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    display: inline-block;
+  }
+
+  [data-theme="dark"] .theme-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Micro-interaction: Theme icon bounce on click */
+  .theme-toggle:active .theme-icon {
+    transform: scale(1.2);
+  }
+
+  [data-theme="dark"] .theme-toggle:active .theme-icon {
+    transform: rotate(180deg) scale(1.2);
+  }
+
+  .theme-toggle-mobile {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-radius: 8px;
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .theme-toggle-mobile:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme="dark"] .theme-toggle-mobile:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .theme-toggle-mobile:active {
+    transform: scale(0.97);
   }
 
   /* Mobile Toggle Button with haptic feedback */
@@ -517,5 +620,100 @@ const currentPath = Astro.url.pathname;
       this.style.transition = '';
     }, { passive: true });
   });
+
+  /* =========================================
+     THEME TOGGLE (Dark Mode)
+     ========================================= */
+
+  function getThemePreference() {
+    // Check localStorage first
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') {
+      return stored;
+    }
+    // Fall back to system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function setTheme(theme: 'dark' | 'light') {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }
+
+  function toggleTheme() {
+    const current = getThemePreference();
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    
+    // Haptic feedback if available
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  }
+
+  // Initialize theme on load
+  const initialTheme = getThemePreference();
+  setTheme(initialTheme);
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    // Only apply if user hasn't manually set a preference
+    if (!localStorage.getItem('theme')) {
+      setTheme(e.matches ? 'dark' : 'light');
+    }
+  });
+
+  // Theme toggle buttons
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+
+  themeToggle?.addEventListener('click', toggleTheme);
+  themeToggleMobile?.addEventListener('click', () => {
+    toggleTheme();
+    closeMenu(); // Close mobile menu after toggling
+  });
+
+  /* =========================================
+     SWIPE GESTURES (Mobile Navigation)
+     ========================================= */
+
+  if (overlay && 'ontouchstart' in window) {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleSwipe();
+    };
+
+    const handleSwipe = () => {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      
+      // Only trigger if horizontal swipe is dominant (> 2x vertical)
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 2) {
+        // Swipe right to close (when menu is open)
+        if (deltaX > 100 && overlay.getAttribute('aria-hidden') === 'false') {
+          closeMenu();
+          
+          // Haptic feedback
+          if ('vibrate' in navigator) {
+            navigator.vibrate(10);
+          }
+        }
+      }
+    };
+
+    overlay.addEventListener('touchstart', handleTouchStart, { passive: true });
+    overlay.addEventListener('touchend', handleTouchEnd, { passive: true });
+  }
 </script>
 

@@ -52,6 +52,9 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <link rel="me" href="https://github.com/Lukas-Nilsson" />
 </head>
 <body>
+  <!-- Skip to Main Content (Accessibility) -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  
   <!-- Scroll Progress Indicator -->
   <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
   
@@ -59,7 +62,13 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <div class="page-transition" id="page-transition" aria-hidden="true" style="display: none;"></div>
   
   <Navigation />
-  <main>
+  <!-- Seamless Skeleton Loader (replaced by content on load) -->
+  <div class="skeleton-loader" aria-hidden="true">
+    <div class="skeleton-line skeleton-title"></div>
+    <div class="skeleton-line skeleton-text"></div>
+    <div class="skeleton-line skeleton-text skeleton-short"></div>
+  </div>
+  <main id="main-content" style="opacity: 0;">
     <slot />
   </main>
 
@@ -108,9 +117,15 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
       transitionOverlay.style.display = 'none';
     }
     
-    // Fade in main content on page load (nav stays visible)
+    // Remove skeleton and fade in main content on page load (nav stays visible)
     window.addEventListener('DOMContentLoaded', () => {
       const main = document.querySelector('main');
+      const skeleton = document.querySelector('.skeleton-loader');
+      
+      if (skeleton) {
+        skeleton.remove();
+      }
+      
       if (main) {
         requestAnimationFrame(() => {
           main.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
