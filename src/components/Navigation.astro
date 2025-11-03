@@ -270,12 +270,13 @@ const currentPath = Astro.url.pathname;
     z-index: 1000;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
+    /* Don't transition overlay opacity - let blur handle visual transition */
   }
 
   .nav-overlay[aria-hidden="false"] {
     pointer-events: auto;
     opacity: 1;
+    /* Show immediately when menu opens */
   }
 
   @media (min-width: 768px) {
@@ -284,17 +285,20 @@ const currentPath = Astro.url.pathname;
     }
   }
 
-  /* Backdrop with blur (iOS style) - Gradual blur transition */
+  /* Backdrop with blur (iOS style) - Starts transitioning immediately */
   .nav-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0);
     backdrop-filter: blur(0px);
     -webkit-backdrop-filter: blur(0px);
+    /* Start transitioning as soon as overlay becomes visible */
     transition: background 400ms cubic-bezier(0.32, 0.72, 0, 1),
                 backdrop-filter 400ms cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: backdrop-filter, background;
   }
 
+  /* Transition starts immediately when overlay is shown */
   .nav-overlay[aria-hidden="false"] .nav-backdrop {
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
@@ -408,7 +412,16 @@ const currentPath = Astro.url.pathname;
   function openMenu() {
     if (!toggle || !overlay) return;
     toggle.setAttribute('aria-expanded', 'true');
+    
+    // Show overlay immediately and trigger blur transition
     overlay.setAttribute('aria-hidden', 'false');
+    
+    // Force reflow to ensure transition starts immediately
+    requestAnimationFrame(() => {
+      // Trigger transition by accessing computed style
+      void overlay.offsetHeight;
+    });
+    
     document.body.style.overflow = 'hidden';
   }
 

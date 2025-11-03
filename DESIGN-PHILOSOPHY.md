@@ -573,7 +573,54 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ## 🔄 Decision Log
 
-### November 3, 2025 (Evening) - Refinements
+### November 3, 2025 (Evening) - Further Refinements
+
+**Decision:** Fade to/from black overlay for page transitions instead of content fade.
+
+**Problem:**
+- Previous solution faded body opacity but browser still showed blank flash
+- Black/white flash occurred during navigation
+- Felt jarring, broke continuity
+
+**Reasoning:**
+- Browser renders blank screen briefly during navigation
+- Can't prevent that, but can cover it with intentional black overlay
+- Fade to black → navigate → fade from black = smooth, intentional
+
+**Solution:**
+- Black overlay (`#000000`) with z-index 99999
+- Fade to black on navigation (200ms)
+- Start new page with overlay visible (black)
+- Fade out overlay to reveal content (300ms)
+- Total transition: ~350ms (feels intentional)
+
+**Result:** Smooth, cinematic transitions. No more jarring flashes.
+
+---
+
+**Decision:** Make blur transition start immediately when menu opens.
+
+**Problem:**
+- Blur was transitioning but only started after overlay opacity finished
+- Created delay before blur appeared
+- Felt like blur "popped" in after menu panel appeared
+
+**Reasoning:**
+- Overlay had its own opacity transition (400ms)
+- Backdrop blur was waiting for overlay to finish
+- Should start simultaneously for smoother effect
+
+**Solution:**
+- Remove overlay opacity transition (show immediately)
+- Backdrop blur transition starts as soon as `aria-hidden="false"`
+- Use `will-change` for performance hint
+- Force reflow to ensure transition kicks in immediately
+
+**Result:** Blur fades in smoothly alongside menu panel, not after it.
+
+---
+
+### November 3, 2025 (Evening) - Initial Refinements
 
 **Decision:** Gradual backdrop blur instead of instant pop-in.
 

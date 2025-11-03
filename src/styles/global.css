@@ -125,6 +125,21 @@ main {
   opacity: 1;
 }
 
+/* Page Transition Overlay (fade to/from black) */
+.page-transition {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.page-transition[aria-hidden="false"] {
+  pointer-events: auto;
+}
+
 /* Typography */
 h1,
 h2,
