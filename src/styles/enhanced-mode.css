@@ -454,9 +454,27 @@
 }
 
 /* Ensure project card content stays visible above the border */
-[data-visual-mode="enhanced"] .project-card > * {
+[data-visual-mode="enhanced"] .project-link {
   position: relative;
   z-index: 2;
+}
+
+[data-visual-mode="enhanced"] .project-card-main {
+  position: relative;
+  z-index: 3;
+}
+
+[data-visual-mode="enhanced"] .project-link h3,
+[data-visual-mode="enhanced"] .project-link p,
+[data-visual-mode="enhanced"] .project-arrow {
+  position: relative;
+  z-index: 4;
+  /* Ensure text is visible - override any inherited styles */
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: inherit !important;
+  color: inherit !important;
 }
 
 @keyframes gradientBorder {
