@@ -284,10 +284,18 @@ const currentPath = Astro.url.pathname;
     }
   }
 
-  /* Backdrop with blur (iOS style) */
+  /* Backdrop with blur (iOS style) - Gradual blur transition */
   .nav-backdrop {
     position: absolute;
     inset: 0;
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    transition: background 400ms cubic-bezier(0.32, 0.72, 0, 1),
+                backdrop-filter 400ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .nav-overlay[aria-hidden="false"] .nav-backdrop {
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);

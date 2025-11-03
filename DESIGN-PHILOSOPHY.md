@@ -573,6 +573,63 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ## 🔄 Decision Log
 
+### November 3, 2025 (Evening) - Refinements
+
+**Decision:** Gradual backdrop blur instead of instant pop-in.
+
+**Reasoning:**
+- Backdrop blur was transitioning opacity but blur appeared at full strength instantly
+- Created jarring "pop" effect when menu opened
+- Felt unpolished, not smooth
+
+**Solution:**
+- Transition both `background` AND `backdrop-filter` properties
+- Start at `blur(0px)`, transition to `blur(10px)`
+- Start at `rgba(0,0,0,0)`, transition to `rgba(0,0,0,0.4)`
+- 400ms spring curve for smooth ramp-up
+
+**Result:** Blur fades in gradually, feels much smoother and more polished.
+
+---
+
+**Decision:** Add page transition fade to prevent jarring flash when navigating.
+
+**Problem:**
+- When clicking between pages, screen would flash white/black
+- Content would "pop" in abruptly
+- Felt jarring, not smooth
+
+**Reasoning:**
+- Browser loads new page, briefly showing blank screen
+- Breaks the flow, feels cheap
+- No continuity between pages
+
+**Solution:**
+- Fade out current page (150ms)
+- Navigate while faded
+- Fade in new page (200ms)
+- Only applies to internal navigation
+- Respects modified clicks (Cmd+click for new tab)
+
+**Implementation:**
+```javascript
+// Fade out on click
+body.opacity = 0 (150ms)
+// Navigate
+window.location.href = href
+// Fade in on load
+body.opacity = 1 (200ms)
+```
+
+**Why these timings:**
+- 150ms fade out: Fast enough to feel responsive, visible enough to see
+- 200ms fade in: Slightly slower for smoother entrance
+- Total ~350ms: Feels intentional, not accidental
+
+**Result:** Smooth, clean transitions between pages. No jarring flashes.
+
+---
+
 ### November 3, 2025
 
 **Decision:** Implement iOS-style overlay menu instead of dropdown.
