@@ -40,25 +40,27 @@
   z-index: -1;
   pointer-events: none;
   
-  /* Light mode: Soft colorful gradients with shaped fade-outs */
+  /* Light mode: Soft colorful gradients with shaped edge fades */
   background: 
-    /* Top fade - large elliptical shape blending to white */
+    /* Top fade - large organic shape blending to white */
     radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      #ffffff 0%,
-      #ffffff 25%,
-      rgba(255, 255, 255, 0.8) 40%,
-      rgba(255, 255, 255, 0.3) 60%,
-      transparent 80%
+      ellipse 150% 60% at 50% -10%,
+      transparent 0%,
+      transparent 30%,
+      rgba(255, 255, 255, 0.3) 45%,
+      rgba(255, 255, 255, 0.7) 60%,
+      rgba(255, 255, 255, 0.9) 75%,
+      #ffffff 90%
     ),
-    /* Bottom fade - large elliptical shape blending to white */
+    /* Bottom fade - large organic shape blending to white */
     radial-gradient(
-      ellipse 140% 100% at 50% 120%,
-      #ffffff 0%,
-      #ffffff 20%,
-      rgba(255, 255, 255, 0.7) 35%,
-      rgba(255, 255, 255, 0.2) 55%,
-      transparent 75%
+      ellipse 160% 70% at 50% 110%,
+      transparent 0%,
+      transparent 25%,
+      rgba(255, 255, 255, 0.3) 40%,
+      rgba(255, 255, 255, 0.6) 55%,
+      rgba(255, 255, 255, 0.85) 70%,
+      #ffffff 85%
     ),
     /* Colorful gradient layers */
     radial-gradient(
@@ -99,26 +101,28 @@
   contain: layout style paint;
 }
 
-/* Dark mode enhanced background */
+/* Dark mode enhanced background with shaped edge fades */
 [data-visual-mode="enhanced"][data-theme="dark"]::before {
   background: 
-    /* Top fade - large elliptical shape blending to black */
+    /* Top fade - large organic shape blending to black */
     radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      #000000 0%,
-      #000000 25%,
-      rgba(0, 0, 0, 0.8) 40%,
-      rgba(0, 0, 0, 0.3) 60%,
-      transparent 80%
+      ellipse 150% 60% at 50% -10%,
+      transparent 0%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.3) 45%,
+      rgba(0, 0, 0, 0.7) 60%,
+      rgba(0, 0, 0, 0.9) 75%,
+      #000000 90%
     ),
-    /* Bottom fade - large elliptical shape blending to black */
+    /* Bottom fade - large organic shape blending to black */
     radial-gradient(
-      ellipse 140% 100% at 50% 120%,
-      #000000 0%,
-      #000000 20%,
-      rgba(0, 0, 0, 0.7) 35%,
-      rgba(0, 0, 0, 0.2) 55%,
-      transparent 75%
+      ellipse 160% 70% at 50% 110%,
+      transparent 0%,
+      transparent 25%,
+      rgba(0, 0, 0, 0.3) 40%,
+      rgba(0, 0, 0, 0.6) 55%,
+      rgba(0, 0, 0, 0.85) 70%,
+      #000000 85%
     ),
     /* Colorful gradient layers */
     radial-gradient(
