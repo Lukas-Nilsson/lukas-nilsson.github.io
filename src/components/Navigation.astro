@@ -51,35 +51,35 @@ const currentPath = Astro.url.pathname;
       </svg>
     </button>
   </div>
-
-  <!-- Mobile Menu Button (only on mobile) -->
-  <button 
-    class="nav-mobile-toggle" 
-    aria-label="Toggle menu"
-    aria-expanded="false"
-    id="menu-toggle"
-  >
-    <span class="toggle-bar"></span>
-    <span class="toggle-bar"></span>
-    <span class="toggle-bar"></span>
-  </button>
-
-  <!-- Mobile Visual Mode Toggle (only on mobile, top right) -->
-  <button 
-    class="nav-mobile-visual-toggle" 
-    id="visual-mode-toggle-mobile"
-    aria-label="Toggle enhanced visual mode"
-    title="Toggle enhanced visual mode"
-  >
-    <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="4"></circle>
-      <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
-    </svg>
-    <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
-    </svg>
-  </button>
 </nav>
+
+<!-- Mobile Menu Button (only on mobile) - Outside nav-capsule for proper positioning -->
+<button 
+  class="nav-mobile-toggle" 
+  aria-label="Toggle menu"
+  aria-expanded="false"
+  id="menu-toggle"
+>
+  <span class="toggle-bar"></span>
+  <span class="toggle-bar"></span>
+  <span class="toggle-bar"></span>
+</button>
+
+<!-- Mobile Visual Mode Toggle (only on mobile, top right) - Outside nav-capsule for proper positioning -->
+<button 
+  class="nav-mobile-visual-toggle" 
+  id="visual-mode-toggle-mobile"
+  aria-label="Toggle enhanced visual mode"
+  title="Toggle enhanced visual mode"
+>
+  <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="4"></circle>
+    <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
+  </svg>
+  <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+  </svg>
+</button>
 
 <!-- Mobile Navigation Overlay -->
 <div class="nav-mobile-overlay" id="nav-overlay" aria-hidden="true">
