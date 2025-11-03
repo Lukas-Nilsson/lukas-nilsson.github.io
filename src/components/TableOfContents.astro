@@ -16,22 +16,30 @@
   function initTableOfContents() {
     // Only show on desktop
     if (window.innerWidth < 1024) {
+      const toc = document.getElementById('toc');
+      if (toc) toc.style.display = 'none';
       return;
     }
 
     const toc = document.getElementById('toc');
     const tocList = document.getElementById('toc-list');
-    const contentPage = document.querySelector('.content-page');
+    const contentContainer = document.querySelector('.content-container');
     
-    if (!toc || !tocList || !contentPage) return;
+    if (!toc || !tocList || !contentContainer) {
+      if (toc) toc.style.display = 'none';
+      return;
+    }
 
     // Find all headings (h2, h3) - skip h1 as it's the page title
-    const headings = Array.from(contentPage.querySelectorAll('h2, h3'));
+    const headings = Array.from(contentContainer.querySelectorAll('h2, h3'));
     
     if (headings.length === 0) {
       toc.style.display = 'none';
       return;
     }
+    
+    // Clear existing TOC
+    tocList.innerHTML = '';
 
     // Build TOC
     const tocItems = headings.map((heading, index) => {
@@ -67,13 +75,21 @@
         e.preventDefault();
         const target = document.getElementById(item.id);
         if (target) {
-          const offsetTop = target.getBoundingClientRect().top + window.pageYOffset - 120;
+          const headerOffset = 140;
+          const elementPosition = target.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          
           window.scrollTo({
-            top: offsetTop,
+            top: offsetPosition,
             behavior: 'smooth'
           });
-          // Update URL without scroll
-          history.pushState(null, '', `#${item.id}`);
+          
+          // Update URL hash
+          if (history.pushState) {
+            history.pushState(null, '', `#${item.id}`);
+          } else {
+            window.location.hash = `#${item.id}`;
+          }
         }
       });
       
@@ -142,13 +158,14 @@
     display: none; /* Hidden by default, shown via JS */
     position: fixed;
     top: calc(env(safe-area-inset-top) + 8rem);
-    right: max(calc((100vw - var(--content-width)) / 2 - 280px), 2rem);
-    width: 240px;
-    max-height: calc(100vh - 10rem);
+    right: 2rem;
+    width: 220px;
+    max-height: calc(100vh - 12rem);
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 100;
     padding: var(--space-sm);
+    pointer-events: auto;
     
     /* Subtle styling */
     font-size: var(--text-sm);
@@ -157,6 +174,13 @@
     /* Smooth scrolling */
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
+  }
+  
+  /* Position TOC to the right of content on larger screens */
+  @media (min-width: 1400px) {
+    .table-of-contents {
+      right: calc((100vw - 800px) / 2 - 260px);
+    }
   }
 
   .table-of-contents::-webkit-scrollbar {
@@ -239,13 +263,6 @@
   @media (max-width: 1023px) {
     .table-of-contents {
       display: none !important;
-    }
-  }
-
-  /* Prevent TOC from overlapping content on smaller desktop */
-  @media (max-width: 1200px) {
-    .table-of-contents {
-      right: 1rem;
     }
   }
 </style>
