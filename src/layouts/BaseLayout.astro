@@ -52,10 +52,47 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <link rel="me" href="https://github.com/Lukas-Nilsson" />
 </head>
 <body>
+  <!-- Scroll Progress Indicator -->
+  <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+  
   <Navigation />
   <main>
     <slot />
   </main>
+
+  <script>
+    /* Scroll Progress Indicator (Safari-style) */
+    const progressBar = document.getElementById('scroll-progress');
+    let progressTimeout: number;
+
+    function updateScrollProgress() {
+      if (!progressBar) return;
+
+      const windowHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const scrolled = window.scrollY;
+      const progress = Math.min(scrolled / windowHeight, 1);
+
+      progressBar.style.transform = `scaleX(${progress})`;
+      
+      // Show progress bar when scrolling
+      progressBar.classList.add('visible');
+
+      // Hide after stopping scroll for 1s
+      clearTimeout(progressTimeout);
+      progressTimeout = window.setTimeout(() => {
+        progressBar.classList.remove('visible');
+      }, 1000);
+    }
+
+    // Only show progress on content pages (not homepage)
+    const isContentPage = !window.location.pathname.match(/^\/(#|$)/);
+    
+    if (isContentPage) {
+      window.addEventListener('scroll', updateScrollProgress, { passive: true });
+      // Initial call
+      updateScrollProgress();
+    }
+  </script>
 </body>
 </html>
 

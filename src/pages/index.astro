@@ -5,11 +5,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 <BaseLayout>
   <div class="hero">
     <div class="hero-container">
-      <h1 class="hero-title">
-        <span class="hero-title-line">Lukas</span>
-        <span class="hero-title-line">Nilsson</span>
+      <h1 class="hero-title" aria-label="Lukas Nilsson">
+        <span class="hero-title-line" data-animate>Lukas</span>
+        <span class="hero-title-line" data-animate>Nilsson</span>
       </h1>
-      <p class="hero-tagline">
+      <p class="hero-tagline" data-animate>
         Tech creative, founder, and truth seeker building at the intersection of philosophy, technology, and human potential.
       </p>
     </div>
@@ -68,7 +68,30 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
   }
 
-  /* Add subtle entrance animation */
+  /* Apple-style staggered entrance animations */
+  [data-animate] {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    [data-animate] {
+      animation: fadeInUp 600ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+
+    .hero-title-line:first-child {
+      animation-delay: 100ms;
+    }
+
+    .hero-title-line:last-child {
+      animation-delay: 200ms;
+    }
+
+    .hero-tagline {
+      animation-delay: 400ms;
+    }
+  }
+
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -80,14 +103,26 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
   }
 
-  .hero-title,
-  .hero-tagline {
-    animation: fadeInUp 0.8s ease-out;
+  /* Respect reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    [data-animate] {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
   }
 
-  .hero-tagline {
-    animation-delay: 0.2s;
-    animation-fill-mode: both;
+  /* Interactive hover state for title */
+  @media (hover: hover) {
+    .hero-title-line {
+      display: inline-block;
+      transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .hero-title-line:hover {
+      transform: scale(1.02);
+      color: var(--color-accent);
+    }
   }
 </style>
 
