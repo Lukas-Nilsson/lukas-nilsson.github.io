@@ -9,13 +9,26 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <span class="hero-title-line" data-animate>Lukas</span>
         <span class="hero-title-line" data-animate>Nilsson</span>
       </h1>
-      <div class="hero-conversation" data-animate>
-        <p class="conversation-prompt">
-          "Based on everything you know about me, who am I in one sentence"
-        </p>
-        <p class="conversation-response">
-          <span class="chatgpt-label">ChatGPT</span> — "You are a visionary builder—philosopher, artist, and teacher—who uses story, technology, and disciplined optimism to inspire human agency and meaning by revealing the beauty in the world."
-        </p>
+      <div class="chat-container" data-animate aria-label="Chat transcript">
+        <!-- User message -->
+        <div class="chat-message user">
+          <div class="avatar user-avatar" aria-hidden="true">LN</div>
+          <div class="message">
+            <div class="message-content">"Based on everything you know about me, who am I in one sentence"</div>
+          </div>
+        </div>
+
+        <!-- Assistant message -->
+        <div class="chat-message assistant">
+          <div class="avatar assistant-avatar" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l2.6 1.5L18 6l.5 3 .5 3-2 2-2 2-3 .5-3 .5-2.5-1.5L6 15l-.5-3L6 9l2-2 2-2 2-.5z" opacity="0.9"/>
+            </svg>
+          </div>
+          <div class="message">
+            <div class="message-content">You are a visionary builder—philosopher, artist, and teacher—who uses story, technology, and disciplined optimism to inspire human agency and meaning by revealing the beauty in the world.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -48,29 +61,66 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     display: block;
   }
 
-  .hero-conversation {
-    max-width: 700px;
+  .chat-container {
     margin-top: var(--space-xl);
+    max-width: 800px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: transparent;
   }
 
-  .conversation-prompt {
-    font-size: var(--text-base);
-    line-height: 1.5;
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin-bottom: var(--space-md);
-    opacity: 0.8;
+  .chat-message {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
   }
 
-  .conversation-response {
-    font-size: var(--text-lg);
-    line-height: 1.6;
+  .chat-message + .chat-message {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Alternating background similar to ChatGPT */
+  .chat-message.assistant {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  [data-theme="dark"] .chat-message.assistant {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
     color: var(--color-text);
   }
 
-  .chatgpt-label {
-    font-weight: 600;
-    color: var(--color-accent);
+  .user-avatar {
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+  }
+
+  [data-theme="dark"] .user-avatar {
+    background: var(--color-surface);
+  }
+
+  .assistant-avatar {
+    background: linear-gradient(135deg, #10b981 0%, #22d3ee 100%);
+    color: white;
+  }
+
+  .message-content {
+    color: var(--color-text);
+    line-height: 1.7;
+    font-size: var(--text-base);
   }
 
   /* Responsive adjustments */
@@ -79,18 +129,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       margin-bottom: var(--space-xl);
     }
 
-    .conversation-prompt {
+    .message-content {
       font-size: var(--text-lg);
-    }
-
-    .conversation-response {
-      font-size: var(--text-xl);
     }
   }
 
   @media (min-width: 1024px) {
-    .hero-conversation {
-      max-width: 800px;
+    .chat-container {
+      max-width: 880px;
     }
   }
 
@@ -113,7 +159,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       animation-delay: 200ms;
     }
 
-    .hero-conversation {
+    .chat-container {
       animation-delay: 400ms;
     }
   }
