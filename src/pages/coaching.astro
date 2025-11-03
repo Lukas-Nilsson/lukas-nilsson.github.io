@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import ContentPage from '../layouts/ContentPage.astro';
+
+const entries = await getCollection('public');
+const coachingEntry = entries.find(entry => entry.id === 'Coaching/index.md');
+
+if (!coachingEntry) {
+  return Astro.redirect('/404');
+}
+
+const { Content } = await coachingEntry.render();
+const { title, summary } = coachingEntry.data;
+---
+
+<ContentPage title={title} description={summary}>
+  <Content />
+</ContentPage>
+
