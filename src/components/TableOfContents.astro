@@ -124,7 +124,7 @@
   }
 
   // Re-initialize on resize (if switching between mobile/desktop)
-  let resizeTimeout: NodeJS.Timeout;
+  let resizeTimeout: ReturnType<typeof setTimeout>;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
