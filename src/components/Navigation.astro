@@ -90,22 +90,15 @@ const currentPath = Astro.url.pathname;
         <button 
           class="nav-mobile-visual-toggle" 
           id="visual-mode-toggle-mobile"
-          aria-label="Toggle enhanced visual mode"
+          aria-label="Toggle visual mode"
         >
-          <span class="mobile-toggle-label">
-            <svg class="icon-default" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="4"></circle>
-              <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
-            </svg>
-            <svg class="icon-enhanced" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
-            </svg>
-            <span class="toggle-text">Enhanced Visuals</span>
-          </span>
-          <span class="mobile-toggle-state">
-            <span class="state-off">OFF</span>
-            <span class="state-on">ON</span>
-          </span>
+          <svg class="icon-default" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"></circle>
+            <circle cx="12" cy="12" r="10" opacity="0.3"></circle>
+          </svg>
+          <svg class="icon-enhanced" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+          </svg>
         </button>
       </li>
     </ul>
@@ -556,7 +549,7 @@ const currentPath = Astro.url.pathname;
     background: rgba(255, 255, 255, 0.12);
   }
 
-  /* Mobile Visual Mode Toggle */
+  /* Mobile Visual Mode Toggle - Simple and satisfying */
   .nav-mobile-toggle-item {
     margin-top: auto;
     padding-top: var(--space-lg);
@@ -566,142 +559,60 @@ const currentPath = Astro.url.pathname;
   .nav-mobile-visual-toggle {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     width: 100%;
-    padding: var(--space-md) var(--space-lg);
+    height: 56px;
+    padding: 0;
     border: none;
     background: rgba(0, 0, 0, 0.03);
-    color: var(--color-text);
-    font-size: var(--text-base);
-    font-weight: 500;
-    border-radius: 12px;
+    color: var(--color-text-muted);
     cursor: pointer;
-    transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    border-radius: 12px;
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
     position: relative;
-    overflow: hidden;
   }
 
   [data-theme="dark"] .nav-mobile-visual-toggle {
     background: rgba(255, 255, 255, 0.05);
   }
 
+  .nav-mobile-visual-toggle:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  [data-theme="dark"] .nav-mobile-visual-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Satisfying press */
   .nav-mobile-visual-toggle:active {
-    transform: scale(0.98);
+    transform: scale(0.96);
   }
 
-  .mobile-toggle-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    position: relative;
-  }
-
-  .mobile-toggle-label svg {
-    transition: all 400ms cubic-bezier(0.32, 0.72, 0, 1);
-    position: absolute;
-    left: 0;
-  }
-
-  .mobile-toggle-label .icon-default {
-    opacity: 1;
-    transform: rotate(0deg) scale(1);
-  }
-
-  .mobile-toggle-label .icon-enhanced {
-    opacity: 0;
-    transform: rotate(-90deg) scale(0.5);
-  }
-
-  [data-visual-mode="enhanced"] .mobile-toggle-label .icon-default {
-    opacity: 0;
-    transform: rotate(90deg) scale(0.5);
-  }
-
-  [data-visual-mode="enhanced"] .mobile-toggle-label .icon-enhanced {
-    opacity: 1;
-    transform: rotate(0deg) scale(1);
-  }
-
-  .toggle-text {
-    margin-left: 28px;
-  }
-
-  .mobile-toggle-state {
-    position: relative;
-    width: 48px;
-    height: 28px;
-    background: var(--color-border);
-    border-radius: 14px;
+  /* Smooth icon crossfade */
+  .nav-mobile-visual-toggle svg {
     transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .mobile-toggle-state::after {
-    content: '';
     position: absolute;
-    left: 2px;
-    top: 2px;
-    width: 24px;
-    height: 24px;
-    background: white;
-    border-radius: 50%;
-    transition: all 400ms cubic-bezier(0.32, 0.72, 0, 1);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  [data-visual-mode="enhanced"] .mobile-toggle-state {
-    background: var(--color-accent);
-  }
-
-  [data-visual-mode="enhanced"] .mobile-toggle-state::after {
-    left: 22px;
-  }
-
-  .state-off,
-  .state-on {
-    position: absolute;
-    font-size: 10px;
-    font-weight: 600;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: opacity 200ms ease;
-    pointer-events: none;
-  }
-
-  .state-off {
-    right: 6px;
+  .nav-mobile-visual-toggle .icon-default {
     opacity: 1;
-    color: var(--color-text-muted);
+    transform: scale(1);
   }
 
-  .state-on {
-    left: 6px;
+  .nav-mobile-visual-toggle .icon-enhanced {
     opacity: 0;
-    color: white;
+    transform: scale(0.8);
   }
 
-  [data-visual-mode="enhanced"] .state-off {
+  [data-visual-mode="enhanced"] .nav-mobile-visual-toggle .icon-default {
     opacity: 0;
+    transform: scale(0.8);
   }
 
-  [data-visual-mode="enhanced"] .state-on {
+  [data-visual-mode="enhanced"] .nav-mobile-visual-toggle .icon-enhanced {
     opacity: 1;
-  }
-
-  /* Ripple effect for mobile toggle */
-  .nav-mobile-visual-toggle::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--color-accent);
-    opacity: 0;
-    transform: scale(0);
-    transition: all 600ms cubic-bezier(0.32, 0.72, 0, 1);
-    pointer-events: none;
-  }
-
-  .nav-mobile-visual-toggle.toggling::after {
-    opacity: 0.2;
-    transform: scale(2);
+    transform: scale(1);
   }
 
   /* Prevent body scroll when overlay open */
@@ -834,43 +745,25 @@ const currentPath = Astro.url.pathname;
      VISUAL MODE TOGGLE (Desktop & Mobile)
      ========================================= */
   
-  function hapticFeedback(pattern = [10]) {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(pattern);
-    }
-  }
-
-  function toggleVisualMode(button: HTMLElement) {
+  function toggleVisualMode() {
     const currentMode = document.documentElement.getAttribute('data-visual-mode') || 'default';
     const newMode = currentMode === 'default' ? 'enhanced' : 'default';
     
-    // Add ripple animation
-    button.classList.add('toggling');
-    setTimeout(() => button.classList.remove('toggling'), 600);
-    
-    // Haptic feedback - different patterns for on/off
-    if (newMode === 'enhanced') {
-      hapticFeedback([15, 10, 15]); // Triple tap for "on"
-    } else {
-      hapticFeedback([20]); // Single tap for "off"
+    // Subtle haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(15);
     }
     
-    // Smooth transition with slight delay for animation
-    setTimeout(() => {
-      document.documentElement.setAttribute('data-visual-mode', newMode);
-      localStorage.setItem('visual-mode', newMode);
-    }, 100);
+    // Immediate toggle
+    document.documentElement.setAttribute('data-visual-mode', newMode);
+    localStorage.setItem('visual-mode', newMode);
   }
   
   // Desktop toggle
   const visualModeToggle = document.getElementById('visual-mode-toggle');
-  visualModeToggle?.addEventListener('click', (e) => {
-    toggleVisualMode(e.currentTarget as HTMLElement);
-  });
+  visualModeToggle?.addEventListener('click', toggleVisualMode);
   
   // Mobile toggle
   const visualModeToggleMobile = document.getElementById('visual-mode-toggle-mobile');
-  visualModeToggleMobile?.addEventListener('click', (e) => {
-    toggleVisualMode(e.currentTarget as HTMLElement);
-  });
+  visualModeToggleMobile?.addEventListener('click', toggleVisualMode);
 </script>
