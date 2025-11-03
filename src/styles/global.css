@@ -138,10 +138,6 @@ html {
 /* Enhanced mode: transparent background so animated layers show through */
 [data-visual-mode="enhanced"] body {
   background: transparent;
-  
-  /* Prevent scroll when content doesn't overflow */
-  height: 100%;
-  overflow: hidden;
 }
 
 /* Apply smooth transitions to all elements that use theme colors */

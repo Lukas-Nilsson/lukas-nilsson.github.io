@@ -6,24 +6,24 @@
 
 /* Enhanced mode root colors and variables */
 [data-visual-mode="enhanced"] {
-  /* Light mode enhanced colors */
-  --enhanced-bg-base: #f0f4f8;
-  --enhanced-bg-accent: #e0e7ff;
-  --enhanced-blue: #dbeafe;
-  --enhanced-purple: #ede9fe;
-  --enhanced-pink: #fce7f3;
-  --enhanced-yellow: #fef3c7;
+  /* Light mode enhanced colors - more vibrant */
+  --enhanced-bg-base: #e1e9f5;
+  --enhanced-bg-accent: #d4ddff;
+  --enhanced-blue: rgba(96, 165, 250, 0.35);
+  --enhanced-purple: rgba(168, 85, 247, 0.28);
+  --enhanced-pink: rgba(236, 72, 153, 0.25);
+  --enhanced-yellow: rgba(251, 191, 36, 0.22);
 }
 
 [data-visual-mode="enhanced"][data-theme="dark"] {
-  /* Dark mode enhanced colors */
-  --enhanced-bg-base: #0f172a;
-  --enhanced-bg-secondary: #1e293b;
-  --enhanced-bg-tertiary: #334155;
-  --enhanced-blue: rgba(59, 130, 246, 0.15);
-  --enhanced-purple: rgba(147, 51, 234, 0.12);
-  --enhanced-pink: rgba(236, 72, 153, 0.1);
-  --enhanced-yellow: rgba(251, 191, 36, 0.08);
+  /* Dark mode enhanced colors - more vibrant */
+  --enhanced-bg-base: #0a0e1a;
+  --enhanced-bg-secondary: #131826;
+  --enhanced-bg-tertiary: #1e2537;
+  --enhanced-blue: rgba(59, 130, 246, 0.25);
+  --enhanced-purple: rgba(147, 51, 234, 0.22);
+  --enhanced-pink: rgba(236, 72, 153, 0.18);
+  --enhanced-yellow: rgba(251, 191, 36, 0.15);
 }
 
 /* =========================================
