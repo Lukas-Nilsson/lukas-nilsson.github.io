@@ -1,0 +1,89 @@
+---
+import { getCollection } from 'astro:content';
+import ContentPage from '../../layouts/ContentPage.astro';
+
+// Get all published project entries
+const allProjects = await getCollection('public', (entry) => {
+  return entry.id.startsWith('Projects/') && 
+         !entry.id.includes('index.md') && 
+         entry.data.publish === true;
+});
+---
+
+<ContentPage title="Projects" description="Portfolio and creative works">
+  <h1>Projects</h1>
+  <p>A collection of projects exploring the intersection of philosophy, technology, and human potential.</p>
+  
+  <div class="projects-grid">
+    {allProjects.map(async (project) => {
+      const slug = project.id.replace('Projects/', '');
+      return (
+        <article class="project-card">
+          <a href={`/projects/${slug}`}>
+            <h3>{project.data.title || slug}</h3>
+            {project.data.summary && (
+              <p>{project.data.summary}</p>
+            )}
+          </a>
+        </article>
+      );
+    })}
+  </div>
+</ContentPage>
+
+<style>
+  h1 {
+    margin-bottom: var(--space-md);
+  }
+
+  h1 + p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .projects-grid {
+    display: grid;
+    gap: var(--space-lg);
+    margin-top: var(--space-xl);
+  }
+
+  @media (min-width: 768px) {
+    .projects-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .project-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: var(--space-lg);
+    transition: all 0.2s ease;
+  }
+
+  .project-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .project-card a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .project-card h3 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
+
+  .project-card p {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  .project-card a:hover h3 {
+    color: var(--color-accent);
+  }
+</style>
+

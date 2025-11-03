@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import ContentPage from '../layouts/ContentPage.astro';
+
+const entries = await getCollection('public');
+const contactEntry = entries.find(entry => entry.id === 'Contact/index.md');
+
+if (!contactEntry) {
+  return Astro.redirect('/404');
+}
+
+const { Content } = await contactEntry.render();
+const { title, summary } = contactEntry.data;
+---
+
+<ContentPage title={title} description={summary}>
+  <Content />
+</ContentPage>
+

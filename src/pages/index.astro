@@ -1,0 +1,93 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+  <div class="hero">
+    <div class="hero-container">
+      <h1 class="hero-title">
+        <span class="hero-title-line">Lukas</span>
+        <span class="hero-title-line">Nilsson</span>
+      </h1>
+      <p class="hero-tagline">
+        Tech creative, founder, and truth seeker building at the intersection of philosophy, technology, and human potential.
+      </p>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .hero {
+    min-height: calc(100vh - 80px);
+    display: flex;
+    align-items: center;
+    padding: var(--space-xl) 0;
+  }
+
+  .hero-container {
+    width: 100%;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 var(--space-md);
+  }
+
+  .hero-title {
+    font-size: clamp(3rem, 10vw, 8rem);
+    font-weight: 700;
+    line-height: 0.95;
+    margin-bottom: var(--space-lg);
+    color: var(--color-text);
+  }
+
+  .hero-title-line {
+    display: block;
+  }
+
+  .hero-tagline {
+    font-size: var(--text-lg);
+    line-height: 1.6;
+    color: var(--color-text-muted);
+    max-width: 600px;
+    margin-top: var(--space-xl);
+  }
+
+  /* Responsive adjustments */
+  @media (min-width: 768px) {
+    .hero-title {
+      margin-bottom: var(--space-xl);
+    }
+
+    .hero-tagline {
+      font-size: var(--text-xl);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .hero-tagline {
+      max-width: 700px;
+    }
+  }
+
+  /* Add subtle entrance animation */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hero-title,
+  .hero-tagline {
+    animation: fadeInUp 0.8s ease-out;
+  }
+
+  .hero-tagline {
+    animation-delay: 0.2s;
+    animation-fill-mode: both;
+  }
+</style>
+

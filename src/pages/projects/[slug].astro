@@ -1,0 +1,46 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import ContentPage from '../../layouts/ContentPage.astro';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('public', (entry) => {
+    return entry.id.startsWith('Projects/') && 
+           !entry.id.includes('index.md') &&
+           entry.data.publish === true;
+  });
+
+  return projects.map(project => ({
+    params: { slug: project.id.replace('Projects/', '').replace('.md', '') },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const { Content } = await project.render();
+const { title, summary } = project.data;
+---
+
+<ContentPage title={title} description={summary}>
+  <div class="back-link">
+    <a href="/projects">← Back to Projects</a>
+  </div>
+  <Content />
+</ContentPage>
+
+<style>
+  .back-link {
+    margin-bottom: var(--space-xl);
+  }
+
+  .back-link a {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .back-link a:hover {
+    color: var(--color-accent);
+  }
+</style>
+

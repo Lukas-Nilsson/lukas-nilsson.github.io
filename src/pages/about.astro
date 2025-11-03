@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import ContentPage from '../layouts/ContentPage.astro';
+
+const entries = await getCollection('public');
+const aboutEntry = entries.find(entry => entry.id === 'About/index.md');
+
+if (!aboutEntry) {
+  return Astro.redirect('/404');
+}
+
+const { Content } = await aboutEntry.render();
+const { title, summary } = aboutEntry.data;
+---
+
+<ContentPage title={title} description={summary}>
+  <Content />
+</ContentPage>
+

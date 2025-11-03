@@ -1,342 +1,239 @@
-# Lukas Nilsson - Portfolio
+# Lukas Nilsson - Personal Portfolio
 
-A modern, accessible, and performant portfolio site built with vanilla HTML, CSS, and JavaScript. Designed for GitHub Pages with offline-first capabilities.
+> Tech creative, founder, and truth seeker building at the intersection of philosophy, technology, and human potential.
 
-## Features
+🌐 **Live Site:** [lukas-nilsson.github.io](https://lukas-nilsson.github.io)
 
-✅ **Premium Design** - Clean, modern interface with fluid typography and generous spacing  
-✅ **Dark Mode** - Automatic theme detection with manual toggle  
-✅ **Command Palette** - Quick navigation with ⌘/Ctrl-K  
-✅ **AI Chatbot** - Local LLM with graceful fallback  
-✅ **Offline Ready** - Service Worker for offline functionality  
-✅ **Accessible** - WCAG 2.2 AA compliant  
-✅ **Fast** - Optimized Core Web Vitals  
-✅ **Responsive** - Mobile-first design  
-✅ **SEO Optimized** - Complete meta tags and sitemap  
+---
 
-## Quick Start
+## 🏗️ Tech Stack
 
-### Local Development
+- **Framework:** [Astro](https://astro.build) v5
+- **Styling:** Custom CSS with CSS Variables
+- **Content:** Markdown from [public-mindpalace](https://github.com/Lukas-Nilsson/public-mindpalace) (git submodule)
+- **Deployment:** GitHub Actions → GitHub Pages
+- **Typography:** System fonts (optimized for performance)
 
-1. Clone the repository:
-```bash
-git clone https://github.com/lukas-nilsson/lukas-nilsson.github.io.git
-cd lukas-nilsson.github.io
-```
+---
 
-2. Serve locally (Python):
-```bash
-python3 -m http.server 8080
-```
-
-3. Open http://localhost:8080 in your browser
-
-### GitHub Pages Deployment
-
-1. Push changes to the `main` branch
-2. Go to repository Settings → Pages
-3. Set Source to "Deploy from branch: main → / (root)"
-4. Site will be live at https://lukas-nilsson.github.io
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-/
-├── index.html              # Main HTML file
-├── /css
-│   ├── base.css           # Layout, typography, components
-│   └── theme.css          # Design tokens (colors, spacing)
-├── /js
-│   ├── app.js             # Application bootstrap
-│   ├── router.js          # Hash-based routing
-│   ├── palette.js         # Command palette
-│   ├── theme.js           # Theme management
-│   ├── forms.js           # Form validation
-│   ├── toast.js           # Toast notifications
-│   └── projects.js        # Project data & loading
-├── /assets
-│   ├── favicon.svg        # Site icon
-│   ├── portrait.jpg       # Profile image
-│   └── resume.pdf         # Downloadable resume
-├── /old
-│   └── index.html         # Archive index
-├── /obsolete              # Previous site versions
-├── sw.js                  # Service Worker
-├── robots.txt             # SEO
-├── sitemap.xml            # SEO
-└── README.md              # This file
+lukas-nilsson.github.io/
+├── src/
+│   ├── pages/
+│   │   ├── index.astro           # Custom homepage
+│   │   ├── about.astro
+│   │   ├── writing.astro
+│   │   ├── contact.astro
+│   │   ├── 404.astro
+│   │   └── projects/
+│   │       ├── index.astro       # Projects list
+│   │       └── [slug].astro      # Individual project pages
+│   ├── layouts/
+│   │   ├── BaseLayout.astro      # Base HTML structure
+│   │   └── ContentPage.astro     # Markdown content layout
+│   ├── components/
+│   │   └── Navigation.astro      # Responsive nav
+│   ├── styles/
+│   │   └── global.css            # Design system
+│   └── content/
+│       ├── config.ts             # Content collections config
+│       └── public/               # Submodule → public-mindpalace
+├── public/
+│   ├── favicon.svg
+│   └── robots.txt
+├── old/                          # Archived versions
+│   ├── index.html
+│   └── v2/                       # Previous site (2024-2025)
+└── .github/
+    └── workflows/
+        └── deploy.yml            # Deployment automation
 ```
 
-## Core Web Vitals Testing
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Chrome browser
-- Chrome DevTools
 
-### Testing LCP (Largest Contentful Paint)
+- Node.js 20+
+- npm 10+
 
-1. Open DevTools (F12)
-2. Go to **Lighthouse** tab
-3. Select "Desktop" and "Performance"
-4. Click "Analyze page load"
-5. Check LCP score (target: ≤ 2.5s)
-
-**Throttling:**
-- Go to **Network** tab
-- Select "Slow 4G" from throttling dropdown
-- Reload page and check LCP again
-
-### Testing CLS (Cumulative Layout Shift)
-
-1. Open DevTools → **More tools** → **Rendering**
-2. Check "Layout Shift Regions"
-3. Scroll through the page
-4. Observe any highlighted regions (target: ≤ 0.1)
-
-### Testing INP (Interaction to Next Paint)
-
-1. Open DevTools → **Performance** tab
-2. Click **Record**
-3. Interact with the page (click buttons, type in forms, open command palette)
-4. Stop recording
-5. Review interaction timings (target: "Good" rating)
-
-### Automated Testing
+### Installation
 
 ```bash
-# Install Lighthouse CLI
-npm install -g lighthouse
+# Clone the repository
+git clone https://github.com/Lukas-Nilsson/lukas-nilsson.github.io.git
+cd lukas-nilsson.github.io
 
-# Run Lighthouse
-lighthouse http://localhost:8080 --view
+# Initialize submodules (content)
+git submodule update --init --recursive
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-## Features Guide
+### Development Commands
 
-### Command Palette (⌘/Ctrl-K)
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server at `localhost:4321` |
+| `npm run build` | Build for production to `./dist/` |
+| `npm run preview` | Preview production build locally |
 
-The command palette provides quick access to all site features:
+---
 
-- **Navigation**: Jump to Home, Work, About, Contact
-- **Theme**: Toggle dark/light mode
-- **Actions**: Download resume
+## 📝 Content Management
 
-**Usage:**
-1. Press `⌘K` (Mac) or `Ctrl+K` (Windows/Linux)
-2. Type to filter commands
-3. Use `↑`/`↓` to navigate
-4. Press `Enter` to execute
-5. Press `Esc` to close
+Content is sourced from the [public-mindpalace](https://github.com/Lukas-Nilsson/public-mindpalace) repository, which auto-syncs from a private Obsidian vault.
 
-### AI Chatbot
+### Content Structure
 
-The site includes an intelligent chatbot with two modes:
-
-#### Local Mode (WebGPU)
-- **Model**: Llama-3.2-1B-Instruct (1.5GB)
-- **Inference**: On-device using WebLLM
-- **Speed**: Fast after initial load
-- **Privacy**: No data leaves your device
-- **Requirements**: WebGPU-capable device with 4GB+ RAM
-
-#### Fallback Mode (Rule-based)
-- **Engine**: Curated responses for portfolio Q&A
-- **Speed**: Instant responses
-- **Compatibility**: Works on all devices
-- **Features**: Smart intent detection, action buttons
-
-#### Chat Features
-- **Floating Button**: Bottom-right corner
-- **Keyboard Shortcuts**: `⌘/Ctrl+K` to open, `Esc` to close
-- **Slash Commands**: `/theme dark`, `/jump work`, `/download resume`
-- **Quick Actions**: Project links, email, resume download
-- **Accessibility**: Screen reader support, focus management
-
-#### Device Requirements
-- **Local Mode**: Modern laptop/desktop with WebGPU
-- **Fallback Mode**: Any device with JavaScript
-- **Disable Local**: Add `?nolocal=1` to URL
-
-#### Model Configuration
-Edit `js/engine.local.js` to change models:
-```javascript
-const MODEL_CONFIG = {
-  // Current: Llama-3.2-1B-Instruct (1.5GB)
-  modelUrl: 'https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC/resolve/main/',
-  
-  // Alternative: Llama-3.2-3B-Instruct (3GB)
-  // modelUrl: 'https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC/resolve/main/',
-};
+```
+src/content/public/
+├── About/index.md
+├── Projects/
+│   └── the-human-archives.md
+├── Writing/index.md
+└── Contact/index.md
 ```
 
-### Theme Management
+### Frontmatter Schema
 
-The site automatically detects your system preference and offers manual override:
+All content pages use this YAML frontmatter:
 
-- **Auto:** Follows system theme (prefers-color-scheme)
-- **Manual:** Click theme toggle in header
-- **Persistent:** Preference saved in localStorage
+```yaml
+---
+title: "Page Title"
+summary: "Brief description"
+publish: true
+tags: [tag1, tag2]
+updated: 2025-11-03
+---
+```
 
-### Forms
+### Updating Content
 
-Contact form includes:
-- Real-time inline validation
-- Descriptive error messages
-- Success confirmation
-- ARIA live regions for screen readers
+Content updates automatically when the submodule is updated:
 
-### Offline Support
-
-After first visit, the site works offline:
-- Core assets cached by Service Worker
-- "Ready offline" toast on successful installation
-- Cache-first strategy for static assets
-
-## Accessibility Features
-
-### WCAG 2.2 AA Compliance
-
-✅ **Focus Management**
-- Visible focus rings (3px)
-- Focus never obscured by other elements
-- Skip to content link (first tabbable element)
-
-✅ **Target Sizes**
-- All interactive elements ≥ 44×44 px
-- Adequate spacing between tap targets
-
-✅ **Motion Preferences**
-- Animations disabled when prefers-reduced-motion is set
-- Instant state changes replace transitions
-- Skeleton animations become static
-
-✅ **Semantic HTML**
-- Proper heading hierarchy (h1 → h2 → h3)
-- Landmark regions (header, main, nav, footer)
-- Form labels and ARIA attributes
-- Alt text for all images
-
-### Keyboard Navigation
-
-- `Tab` / `Shift+Tab`: Navigate through interactive elements
-- `Enter` / `Space`: Activate buttons and links
-- `⌘/Ctrl+K`: Open command palette
-- `↑` / `↓`: Navigate palette options
-- `Esc`: Close palette/modals
-
-## Performance Optimization
-
-### LCP Optimization
-- Critical CSS inlined in `<head>`
-- Hero image preloaded
-- System fonts (no web font loading)
-- Minimal render-blocking resources
-
-### CLS Prevention
-- Reserved space for images (width/height attributes)
-- `font-display: swap` for any web fonts
-- No layout-shifting ads or embeds
-
-### INP Optimization
-- Minimal JavaScript
-- Modular ES6 code (tree-shakeable)
-- No heavy main-thread tasks
-- Debounced input handlers
-
-## SEO
-
-### Meta Tags
-- Title and description
-- Open Graph (Facebook/LinkedIn)
-- Twitter Cards
-- Canonical URLs
-
-### Structured Data
-- robots.txt for crawler instructions
-- sitemap.xml for search engines
-- Clean hash-based URLs
-
-## Archiving Old Versions
-
-Before major updates:
-
-1. Create version directory:
 ```bash
-mkdir -p old/v2
-cp -r *.html css/ js/ assets/ old/v2/
+# Update content from public-mindpalace
+git submodule update --remote src/content/public
+
+# Commit the submodule reference
+git add src/content/public
+git commit -m "Update content"
+git push
 ```
 
-2. Update `/old/index.html` with new link
+GitHub Actions will automatically rebuild and deploy the site.
 
-3. Commit changes:
+---
+
+## 🎨 Design Philosophy
+
+**Principles:**
+- Minimal, clean aesthetics
+- Generous whitespace
+- System fonts (performance-first)
+- Mobile-first responsive design
+- Semantic HTML
+- Accessible (WCAG 2.1)
+
+**Color Palette:**
+- Neutral grays (black/white)
+- Single accent: Blue (`#3b82f6`)
+- High contrast for readability
+
+**Typography:**
+- System font stack
+- Fluid typography (clamp-based)
+- Line height: 1.7 for body, 1.2 for headings
+
+---
+
+## 🚢 Deployment
+
+Deployment is fully automated via GitHub Actions.
+
+### Workflow
+
+1. Push to `main` branch
+2. GitHub Actions builds the site
+3. Output deploys to GitHub Pages
+4. Live in ~2-3 minutes
+
+### Manual Deployment
+
 ```bash
-git add old/
-git commit -m "Archive v2 before redesign"
+# Build locally
+npm run build
+
+# Deploy (handled by GitHub Actions automatically)
 ```
 
-## Customization
+### GitHub Pages Configuration
 
-### Update Content
+- **Source:** GitHub Actions
+- **Branch:** `main`
+- **Directory:** `dist/` (built by Astro)
+- **Custom domain:** Not configured (using default)
 
-**Personal Info:**
-- Edit `index.html` sections (Hero, About, Contact)
-- Replace `assets/portrait.jpg` with your image
-- Update `assets/resume.pdf` with your resume
+---
 
-**Projects:**
-- Edit `js/projects.js` data array
-- Add project images to `assets/`
+## 🧪 Testing
 
-### Update Colors
+```bash
+# Build production version
+npm run build
 
-Edit `css/theme.css` variables:
+# Preview locally
+npm run preview
 
-```css
-:root {
-  --color-accent: #3b82f6;        /* Primary brand color */
-  --color-accent-hover: #2563eb;  /* Hover state */
-  --color-accent-subtle: #eff6ff; /* Subtle backgrounds */
-}
+# Check for accessibility issues
+# (Use browser DevTools Lighthouse)
 ```
 
-### Update Typography
+---
 
-Edit `css/theme.css` font stack:
+## 📦 Dependencies
 
-```css
-:root {
-  --font-base: -apple-system, BlinkMacSystemFont, ...;
-}
-```
+**Production:**
+- `astro` - Static site framework
+- `@astrojs/sitemap` - SEO sitemap generation
 
-## Browser Support
+**Dev:**
+- TypeScript (strict mode)
+- Astro content collections
 
-- Chrome/Edge (last 2 versions)
-- Firefox (last 2 versions)
-- Safari (last 2 versions)
-- Mobile browsers (iOS Safari, Chrome Mobile)
+---
 
-## Performance Benchmarks
+## 📜 Version History
 
-**Target Metrics:**
-- LCP: ≤ 2.5s ✅
-- CLS: ≤ 0.1 ✅
-- INP: "Good" ✅
-- First Contentful Paint: ≤ 1.8s ✅
-- Time to Interactive: ≤ 3.8s ✅
+- **v3.0** (2025) - Astro rebuild, content from public-mindpalace
+- **v2.0** (2024-2025) - Vanilla JS with command palette ([archived](old/v2/))
+- **v1.0** (2024) - Original portfolio ([archived](obsolete/))
 
-**Tested On:**
-- Desktop: MacBook Pro M1
-- Mobile: iPhone 13 Pro
-- Network: 4G Throttled
+---
 
-## License
+## 📧 Contact
 
-© 2025 Lukas Nilsson. All rights reserved.
+**Lukas Nilsson**
+- Email: [lukasnilssonbusiness@gmail.com](mailto:lukasnilssonbusiness@gmail.com)
+- GitHub: [@Lukas-Nilsson](https://github.com/Lukas-Nilsson)
+- LinkedIn: [lukaspnilsson](https://www.linkedin.com/in/lukaspnilsson/)
+- Website: [lukas-nilsson.github.io](https://lukas-nilsson.github.io)
 
-## Contact
+---
 
-- Email: lukasnilssonbusiness@gmail.com
-- LinkedIn: [linkedin.com/in/lukaspnilsson](https://linkedin.com/in/lukaspnilsson)
-- GitHub: [github.com/lukas-nilsson](https://github.com/lukas-nilsson)
+## 📄 License
 
+Content and code © 2025 Lukas Nilsson. All rights reserved.
+
+---
+
+*Built with [Astro](https://astro.build) 🚀*

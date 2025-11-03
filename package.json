@@ -1,0 +1,16 @@
+{
+  "name": "lukas-nilsson-portfolio",
+  "type": "module",
+  "version": "3.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^5.15.3",
+    "@astrojs/sitemap": "^3.4.0"
+  }
+}
+
