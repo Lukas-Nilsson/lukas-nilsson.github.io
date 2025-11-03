@@ -55,8 +55,8 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
   <!-- Scroll Progress Indicator -->
   <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
   
-  <!-- Page Transition Overlay (Firefox only - prevents flash) -->
-  <div class="page-transition" id="page-transition" aria-hidden="true"></div>
+  <!-- Page Transition Overlay (hidden, not used) -->
+  <div class="page-transition" id="page-transition" aria-hidden="true" style="display: none;"></div>
   
   <Navigation />
   <main>
@@ -99,52 +99,24 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
     }
 
     /* =========================================
-       SMOOTH PAGE TRANSITIONS (Browser-specific)
+       SMOOTH PAGE TRANSITIONS (Fast fade, no overlay)
        ========================================= */
     
-    // Detect Firefox (has flash issue, needs black overlay)
-    const isFirefox = /Firefox/i.test(navigator.userAgent);
+    // Hide overlay (not needed)
     const transitionOverlay = document.getElementById('page-transition');
-    
-    if (!isFirefox && transitionOverlay) {
-      // Hide overlay for non-Firefox browsers (not needed)
+    if (transitionOverlay) {
       transitionOverlay.style.display = 'none';
     }
     
-    if (isFirefox) {
-      // Firefox: Fade to/from black overlay
-      
-      // Fade in from black on page load
-      window.addEventListener('DOMContentLoaded', () => {
-        if (transitionOverlay) {
-          // Start with overlay visible (black screen)
-          transitionOverlay.style.opacity = '1';
-          
-          requestAnimationFrame(() => {
-            // Fade out overlay to reveal content
-            transitionOverlay.style.transition = 'opacity 300ms cubic-bezier(0.32, 0.72, 0, 1)';
-            transitionOverlay.style.opacity = '0';
-            
-            // Hide after transition
-            setTimeout(() => {
-              transitionOverlay.setAttribute('aria-hidden', 'true');
-            }, 300);
-          });
-        }
+    // Fade in on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      requestAnimationFrame(() => {
+        document.body.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
+        document.body.style.opacity = '1';
       });
-    } else {
-      // Chrome/Safari: Simple fade (no black overlay needed)
-      
-      // Fade in on page load
-      window.addEventListener('DOMContentLoaded', () => {
-        requestAnimationFrame(() => {
-          document.body.style.transition = 'opacity 200ms cubic-bezier(0.32, 0.72, 0, 1)';
-          document.body.style.opacity = '1';
-        });
-      });
-    }
+    });
 
-    // Handle navigation (browser-specific)
+    // Handle navigation with fast fade
     function handlePageExit(e: Event) {
       const target = e.currentTarget as HTMLAnchorElement;
       const href = target.getAttribute('href');
@@ -162,32 +134,20 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 
       e.preventDefault();
 
-      if (isFirefox && transitionOverlay) {
-        // Firefox: Fade to black overlay
-        transitionOverlay.setAttribute('aria-hidden', 'false');
-        transitionOverlay.style.transition = 'opacity 200ms cubic-bezier(0.32, 0.72, 0, 1)';
-        transitionOverlay.style.opacity = '1';
+      // Fast fade out (keeps content visible, very quick transition)
+      document.body.style.transition = 'opacity 100ms cubic-bezier(0.32, 0.72, 0, 1)';
+      document.body.style.opacity = '0.95'; // Very subtle fade, keeps content mostly visible
 
-        setTimeout(() => {
-          window.location.href = href;
-        }, 200);
-      } else {
-        // Chrome/Safari: Simple fade out
-        document.body.style.transition = 'opacity 150ms cubic-bezier(0.32, 0.72, 0, 1)';
-        document.body.style.opacity = '0';
-
-        setTimeout(() => {
-          window.location.href = href;
-        }, 150);
-      }
+      // Navigate immediately (fast enough to prevent flash)
+      requestAnimationFrame(() => {
+        window.location.href = href;
+      });
     }
 
     // Add to all internal links
     document.addEventListener('DOMContentLoaded', () => {
-      // Start body at opacity 0 for Chrome/Safari
-      if (!isFirefox) {
-        document.body.style.opacity = '0';
-      }
+      // Start body at opacity 0
+      document.body.style.opacity = '0';
       
       const links = document.querySelectorAll('a[href^="/"]');
       links.forEach(link => {

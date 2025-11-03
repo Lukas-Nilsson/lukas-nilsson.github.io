@@ -575,33 +575,33 @@ margin: var(--space-xl) 0;  /* 48px for hr, major headings */
 
 ### November 3, 2025 (Evening) - Further Refinements
 
-**Decision:** Browser-specific page transitions (Firefox needs black overlay, Chrome doesn't).
+**Decision:** Fast, subtle fade without overlay (avoids flash on all browsers).
 
 **Problem:**
-- Chrome/Safari: Simple fade worked perfectly (no flash)
-- Firefox: Showed black flash during navigation (browser quirk)
-- One-size-fits-all solution was overkill for Chrome
+- Black overlay felt too heavy/dramatic
+- User wanted to avoid any flash without using black overlay
+- Needed solution that works across browsers
 
 **Reasoning:**
-- Different browsers have different rendering behaviors
-- Firefox has a known flash issue during navigation
-- Chrome doesn't need the black overlay (adds unnecessary complexity)
-- Best solution: Detect browser and apply appropriate transition
+- Keep content visible during transition (prevents jarring blank screen)
+- Very fast, subtle fade (100ms, opacity 0.95)
+- Navigate immediately via requestAnimationFrame (before flash can appear)
+- No overlay = cleaner, simpler solution
 
 **Solution:**
-- Detect Firefox via user agent
-- **Firefox:** Use black overlay system (fade to/from black)
-- **Chrome/Safari:** Simple body opacity fade (cleaner, faster)
-- Hide overlay element on non-Firefox browsers
-- Each browser gets the optimal experience
+- Very subtle fade (opacity 0.95) - content stays mostly visible
+- 100ms transition (fast enough to prevent flash)
+- Navigate in requestAnimationFrame (immediate, smooth)
+- No overlay system (removed complexity)
+- Works on all browsers (unified approach)
 
-**Why this is better:**
-- Chrome users get the cleaner, simpler fade (no black overlay)
-- Firefox users get the fix they need (black overlay prevents flash)
-- No unnecessary complexity for browsers that don't need it
-- Performance: Overlay only rendered/used where needed
+**Why this works:**
+- Content stays visible = no jarring blank screen
+- Fast transition = happens before flash can appear
+- requestAnimationFrame = smooth timing, browser-optimized
+- Simple = easier to maintain, less code
 
-**Result:** Each browser gets the best experience for its rendering behavior.
+**Result:** Smooth transitions without flash, without heavy overlay system.
 
 ---
 
