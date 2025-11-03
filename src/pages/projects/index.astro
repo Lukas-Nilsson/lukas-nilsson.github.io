@@ -12,18 +12,19 @@ const allProjects = await getCollection('public', (entry) => {
 
 <ContentPage title="Projects" description="Portfolio and creative works">
   <h1>Projects</h1>
-  <p>A collection of projects exploring the intersection of philosophy, technology, and human potential.</p>
+  <p class="intro">A collection of projects exploring the intersection of philosophy, technology, and human potential.</p>
   
   <div class="projects-grid">
-    {allProjects.map(async (project) => {
-      const slug = project.id.replace('Projects/', '');
+    {allProjects.map(async (project, index) => {
+      const slug = project.id.replace('Projects/', '').replace('.md', '');
       return (
-        <article class="project-card">
-          <a href={`/projects/${slug}`}>
+        <article class="project-card" data-index={index}>
+          <a href={`/projects/${slug}/`} class="project-link">
             <h3>{project.data.title || slug}</h3>
             {project.data.summary && (
               <p>{project.data.summary}</p>
             )}
+            <span class="project-arrow" aria-hidden="true">→</span>
           </a>
         </article>
       );
@@ -32,13 +33,17 @@ const allProjects = await getCollection('public', (entry) => {
 </ContentPage>
 
 <style>
+  /* Following Design Philosophy: Clarity, Content First, Physics Over Linear */
+
   h1 {
     margin-bottom: var(--space-md);
   }
 
-  h1 + p {
+  .intro {
     color: var(--color-text-muted);
     margin-bottom: var(--space-2xl);
+    font-size: var(--text-lg);
+    max-width: 600px;
   }
 
   .projects-grid {
@@ -50,39 +55,111 @@ const allProjects = await getCollection('public', (entry) => {
   @media (min-width: 768px) {
     .projects-grid {
       grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-xl);
     }
   }
 
+  /* Project Card - Following feedback principle */
   .project-card {
     border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: var(--space-lg);
-    transition: all 0.2s ease;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1),
+                border-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* Staggered fade-in animation */
+  .project-card {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-card {
+      animation: fadeInUp 400ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+
+    .project-card[data-index="0"] { animation-delay: 0ms; }
+    .project-card[data-index="1"] { animation-delay: 100ms; }
+    .project-card[data-index="2"] { animation-delay: 200ms; }
+    .project-card[data-index="3"] { animation-delay: 300ms; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project-card {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  @keyframes fadeInUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hover: scale + shadow (following physics principle) */
   .project-card:hover {
+    transform: translateY(-4px) scale(1.01);
     border-color: var(--color-accent);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
 
-  .project-card a {
+  /* Active: compress (tactile feedback) */
+  .project-card:active {
+    transform: translateY(-2px) scale(0.99);
+  }
+
+  /* Link wrapper */
+  .project-link {
+    display: block;
+    padding: var(--space-lg);
     color: var(--color-text);
     text-decoration: none;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .project-card h3 {
-    font-size: var(--text-lg);
+  /* Focus state (accessibility) */
+  .project-link:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: 8px;
+  }
+
+  .project-link h3 {
+    font-size: var(--text-xl);
     margin-bottom: var(--space-sm);
     color: var(--color-text);
+    transition: color 200ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  .project-card p {
+  .project-link p {
     color: var(--color-text-muted);
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     line-height: 1.6;
+    margin-bottom: var(--space-md);
   }
 
-  .project-card a:hover h3 {
+  /* Arrow indicator (subtle affordance) */
+  .project-arrow {
+    display: inline-block;
+    color: var(--color-accent);
+    font-size: var(--text-lg);
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .project-card:hover .project-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .project-card:hover h3 {
     color: var(--color-accent);
   }
 </style>

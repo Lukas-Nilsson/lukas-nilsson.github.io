@@ -1,63 +1,161 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const navItems = [
+  { name: 'Home', href: '/' },
+  { name: 'About', href: '/about' },
+  { name: 'Projects', href: '/projects' },
+  { name: 'Writing', href: '/writing' },
+  { name: 'Contact', href: '/contact' },
+];
 ---
 
 <BaseLayout title="404 - Page Not Found">
   <div class="error-page">
     <div class="error-container">
-      <h1>404</h1>
-      <p>Page not found</p>
-      <a href="/" class="home-link">Go back home</a>
+      <div class="error-code" data-animate>404</div>
+      <h1 data-animate>Page Not Found</h1>
+      <p data-animate>The page you're looking for doesn't exist or has been moved.</p>
+      
+      <nav class="helpful-links" data-animate>
+        <p class="links-label">Try one of these instead:</p>
+        <ul>
+          {navItems.map(item => (
+            <li>
+              <a href={item.href}>{item.name}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   </div>
 </BaseLayout>
 
 <style>
+  /* Following Design Philosophy: Clarity, Helpful Errors, Physics Over Linear */
+
   .error-page {
     min-height: calc(100vh - 80px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-xl) 0;
+    padding: var(--space-2xl) var(--space-md);
   }
 
   .error-container {
     text-align: center;
     max-width: 600px;
-    padding: 0 var(--space-md);
+  }
+
+  /* Staggered entrance animation */
+  [data-animate] {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    [data-animate] {
+      animation: fadeInUp 400ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+
+    .error-code { animation-delay: 0ms; }
+    h1 { animation-delay: 100ms; }
+    p { animation-delay: 200ms; }
+    .helpful-links { animation-delay: 300ms; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-animate] {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  @keyframes fadeInUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .error-code {
+    font-size: clamp(4rem, 15vw, 8rem);
+    font-weight: 700;
+    color: var(--color-text-muted);
+    line-height: 1;
+    margin-bottom: var(--space-sm);
   }
 
   h1 {
-    font-size: clamp(4rem, 15vw, 8rem);
-    font-weight: 700;
+    font-size: var(--text-2xl);
+    font-weight: 600;
     color: var(--color-text);
     margin-bottom: var(--space-md);
-    line-height: 1;
   }
 
   p {
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
     color: var(--color-text-muted);
-    margin-bottom: var(--space-xl);
+    line-height: 1.6;
+    margin-bottom: var(--space-2xl);
   }
 
-  .home-link {
+  /* Helpful navigation */
+  .helpful-links {
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl);
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+  }
+
+  .links-label {
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+  }
+
+  .helpful-links ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+  }
+
+  .helpful-links li {
+    margin: 0;
+  }
+
+  .helpful-links a {
     display: inline-block;
     padding: var(--space-sm) var(--space-lg);
+    background: var(--color-bg);
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    font-weight: 500;
+    transition: all 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .helpful-links a:hover {
     background: var(--color-accent);
     color: white;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: background 0.2s ease;
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  .home-link:hover {
-    background: var(--color-accent-hover);
+  .helpful-links a:active {
+    transform: translateY(0) scale(0.98);
   }
 
-  .home-link:focus-visible {
-    outline: 2px solid var(--color-accent);
+  .helpful-links a:focus-visible {
+    outline: 3px solid var(--color-accent);
     outline-offset: 4px;
   }
 </style>
