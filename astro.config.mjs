@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://lukas-nilsson.github.io',
+  site: 'https://lukasnilsson.com',
   output: 'static',
   integrations: [sitemap()],
 });
