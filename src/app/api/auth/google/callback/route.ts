@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.redirect(new URL(`/dashboard/calendar?connected=${account}`, req.url));
     } catch (e) {
-        console.error('[google/callback] Error:', e);
-        return NextResponse.redirect(new URL(`/dashboard/calendar?error=exchange_failed`, req.url));
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('[google/callback] Error:', msg);
+        return NextResponse.redirect(new URL(`/dashboard/calendar?error=exchange_failed&detail=${encodeURIComponent(msg)}`, req.url));
     }
 }
