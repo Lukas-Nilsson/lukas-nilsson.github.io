@@ -9,7 +9,7 @@ interface TasksData {
     updated_at: string; total_open: number; total_done: number;
     categories: Record<string, { open: number; done: number; tasks: string[]; overdue: { name: string; due: string }[] }>;
     overdue_tasks: { name: string; due: string; category: string }[];
-    history: { date: string; open: number; done: number; completed?: number; added?: number }[];
+    history: { date: string; open: number; done: number; completed?: number; added?: number; removed?: number }[];
 }
 
 interface TaskMeta {
@@ -506,6 +506,7 @@ export default function TasksPage() {
         'Open pile': h.open,
         Completed: h.completed ?? 0,
         Added: h.added ?? 0,
+        Removed: h.removed ?? 0,
     }));
 
     // ── Render a single task row ──
@@ -741,6 +742,7 @@ export default function TasksPage() {
                                 { key: 'Open pile', color: '#c17f3a', name: 'Open pile' },
                                 { key: 'Completed', color: '#5a9a5a', name: 'Completed' },
                                 { key: 'Added', color: '#c07070', name: 'Added' },
+                                { key: 'Removed', color: '#8a6daa', name: 'Removed' },
                             ]}
                         />
                     </div>
