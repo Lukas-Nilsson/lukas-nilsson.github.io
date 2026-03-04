@@ -405,22 +405,24 @@ export default function TasksPage() {
         Added: h.added ?? 0,
     }));
 
-    // Inject live "today" point reflecting UI completions
+    // Compute live "today" from real data
     const todayLabel = shortDate(todayStr);
-    const uiCompletedCount = completedTasks.length;
-    const lastEntry = chartData[chartData.length - 1];
-    if (lastEntry && lastEntry.date === todayLabel) {
-        // Update today's entry with live data
-        lastEntry['Pile Size'] = openTasks.length;
-        lastEntry.Completed = Math.max(lastEntry.Completed, uiCompletedCount);
-    } else if (lastEntry) {
-        // Append today with adjusted numbers
-        chartData.push({
-            date: todayLabel,
-            'Pile Size': openTasks.length,
-            Completed: uiCompletedCount,
-            Added: 0,
-        });
+    const totalTasksNow = Object.values(tasks.categories ?? {}).reduce((s, c) => s + (c.tasks?.length ?? 0), 0);
+    const liveOpen = totalTasksNow - completedTasks.length;
+    const liveCompleted = completedTasks.length;
+
+    // "Added" = total tasks now - previous day's total tasks
+    const prevSnapshot = history[history.length - 1];
+    const prevTotal = prevSnapshot ? (prevSnapshot.open + (prevSnapshot.completed ?? 0)) : totalTasksNow;
+    const liveAdded = Math.max(0, totalTasksNow - prevTotal);
+
+    // Replace or append today's entry
+    const existingTodayIdx = chartData.findIndex(d => d.date === todayLabel);
+    const todayPoint = { date: todayLabel, 'Pile Size': liveOpen, Completed: liveCompleted, Added: liveAdded };
+    if (existingTodayIdx >= 0) {
+        chartData[existingTodayIdx] = todayPoint;
+    } else {
+        chartData.push(todayPoint);
     }
 
     // ── Render a single task row ──
