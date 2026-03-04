@@ -424,22 +424,27 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         setOverrides(o => ({ ...o, [key]: { done, time: value } }));
     };
 
-    const doneCount = checkDefs.filter(c => getCheck(c.key).done).length;
-    const pct = Math.round((doneCount / checkDefs.length) * 100);
+    const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
+    const isChallenge = data.day != null;
+    const activeDefs = isChallenge ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
 
-    // Calculate streak
+    const doneCount = activeDefs.filter(c => getCheck(c.key).done).length;
+    const pct = activeDefs.length > 0 ? Math.round((doneCount / activeDefs.length) * 100) : 0;
+
+    // Calculate streak — each day uses its own applicable habits
     const streak = (() => {
         if (!history?.length) return 0;
         let count = 0;
         for (let i = history.length - 1; i >= 0; i--) {
-            const allDone = checkDefs.every(c => history[i].checks?.[c.key]?.done);
+            const d = history[i];
+            const dayHabits = d.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
+            const allDone = dayHabits.every(c => d.checks?.[c.key]?.done);
             if (allDone) count++;
             else break;
         }
         return count;
     })();
 
-    const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
     const hard75Defs = checkDefs.filter(c => hard75Keys.has(c.key));
     const generalDefs = checkDefs.filter(c => !hard75Keys.has(c.key));
 
@@ -467,11 +472,11 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
             <div className={styles.widget}>
                 {/* Header: progress ring + title + streak */}
                 <div className={styles.kanbanHeader}>
-                    <ProgressRing done={doneCount} total={checkDefs.length} />
+                    <ProgressRing done={doneCount} total={activeDefs.length} />
                     <div style={{ flex: 1 }}>
                         <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                            {data.day != null ? `Day ${data.day} of 75 Hard` : 'Daily tracking'}
+                            {isChallenge ? `Day ${data.day} of 75 Hard` : 'Daily tracking'}
                         </div>
                     </div>
                     {streak > 0 && (
@@ -488,15 +493,17 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
                     <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : undefined }} />
                 </div>
 
-                {/* 75 Hard section */}
-                <div>
-                    <div className={styles.sectionLabel}>75 Hard</div>
-                    <ul className={styles.habitList}>{hard75Defs.map(renderItem)}</ul>
-                </div>
+                {/* 75 Hard section — only if challenge day */}
+                {isChallenge && (
+                    <div>
+                        <div className={styles.sectionLabel}>75 Hard</div>
+                        <ul className={styles.habitList}>{hard75Defs.map(renderItem)}</ul>
+                    </div>
+                )}
 
                 {/* General section */}
                 <div>
-                    <div className={styles.sectionLabel}>General</div>
+                    <div className={styles.sectionLabel}>{isChallenge ? 'General' : 'Habits'}</div>
                     <ul className={styles.habitList}>{generalDefs.map(renderItem)}</ul>
                 </div>
 
@@ -505,8 +512,8 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
 
                 {/* Footer */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    <span>{doneCount}/{checkDefs.length} complete</span>
-                    {data.finish_confidence != null && (
+                    <span>{doneCount}/{activeDefs.length} complete</span>
+                    {isChallenge && data.finish_confidence != null && (
                         <span>Confidence: <strong style={{ color: data.finish_confidence >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence}%</strong></span>
                     )}
                 </div>
