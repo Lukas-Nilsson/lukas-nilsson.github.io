@@ -638,6 +638,15 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
             allTasks.push({ name, cat, urgency, score, done: isDone, overdueDays, meta });
         }
     }
+
+    // Include completed tasks not in snapshot categories (Done section tasks, etc.)
+    const taskNames = new Set(allTasks.map(t => t.name));
+    for (const name of completions) {
+        if (!taskNames.has(name)) {
+            allTasks.push({ name, cat: 'Completed', urgency: 'done', score: -1, done: true, overdueDays: 0, meta: null });
+        }
+    }
+
     allTasks.sort((a, b) => b.score - a.score);
 
     const openTasks = allTasks.filter(t => !t.done);
