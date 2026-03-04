@@ -31,10 +31,7 @@ const checkDefs = [
     { key: 'water', icon: '💧', label: 'Gallon Water' },
     { key: 'diet', icon: '🥗', label: 'Whole Foods Diet' },
     { key: 'reading', icon: '📖', label: '10 Pages' },
-];
-
-const generalHabits = [
-    { icon: '🦷', label: 'Brush teeth (AM + PM)' },
+    { key: 'teeth', icon: '🦷', label: 'Brush Teeth' },
 ];
 
 const catColors: Record<string, string> = {
@@ -202,18 +199,6 @@ function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null
                 <span className={styles.widgetBadge}>{data.today_complete ? '✓ Success' : '× Incomplete'}</span>
             </div>
 
-            {/* General habits (e.g. Brush Teeth) */}
-            <ul className={styles.habitList} style={{ marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
-                {generalHabits.map(({ icon, label }) => (
-                    <li key={label} className={styles.habitItem}>
-                        {/* Currently stateless in Supabase, but UI exists for consistency */}
-                        <div className={styles.habitCheck} />
-                        <span className={styles.habitName}>{icon} {label}</span>
-                    </li>
-                ))}
-            </ul>
-
-            {/* 75 Hard progress bar */}
             <div className={styles.habitProgress}>
                 <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : 'linear-gradient(90deg, var(--accent-500), var(--accent-300))' }} />
             </div>
