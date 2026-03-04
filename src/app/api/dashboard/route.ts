@@ -129,6 +129,7 @@ export async function GET() {
         done: t.done_count,
         completed: t.completed_delta ?? 0,
         added: t.added_delta ?? 0,
+        removed: t.removed_delta ?? 0,
     }));
 
     // Note: individual tasks from 'tasks' table are used for the task list,

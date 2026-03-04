@@ -35,6 +35,9 @@ export async function PATCH(req: NextRequest) {
 
         const supabase = createAdminClient();
 
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+        const now = new Date().toISOString();
+
         if (action === 'complete') {
             const { error } = await supabase
                 .from('task_completions')
@@ -42,7 +45,7 @@ export async function PATCH(req: NextRequest) {
                     task_name,
                     category: category ?? null,
                     notes: notes ?? null,
-                    completed_at: new Date().toISOString(),
+                    completed_at: now,
                     completed_by: 'manual',
                 }, { onConflict: 'task_name' });
 
@@ -50,6 +53,16 @@ export async function PATCH(req: NextRequest) {
                 console.error('[tasks PATCH] complete error:', error);
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
+
+            // Update tasks table
+            await supabase.from('tasks').update({ status: 'done', completed_at: now, updated_at: now }).eq('name', task_name);
+
+            // Increment completed_delta in today's snapshot
+            const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
+            if (snap) {
+                await supabase.from('task_snapshots').update({ completed_delta: (snap.completed_delta ?? 0) + 1 }).eq('date', today);
+            }
+
             return NextResponse.json({ ok: true, task_name, action: 'complete' });
 
         } else if (action === 'uncomplete') {
@@ -62,6 +75,16 @@ export async function PATCH(req: NextRequest) {
                 console.error('[tasks PATCH] uncomplete error:', error);
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
+
+            // Update tasks table
+            await supabase.from('tasks').update({ status: 'open', completed_at: null, updated_at: now }).eq('name', task_name);
+
+            // Decrement completed_delta in today's snapshot
+            const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
+            if (snap) {
+                await supabase.from('task_snapshots').update({ completed_delta: Math.max(0, (snap.completed_delta ?? 0) - 1) }).eq('date', today);
+            }
+
             return NextResponse.json({ ok: true, task_name, action: 'uncomplete' });
 
         } else if (action === 'update_metadata') {
@@ -152,17 +175,18 @@ export async function PATCH(req: NextRequest) {
             await supabase.from('task_completions').delete().eq('task_name', task_name);
             // Remove from task_metadata
             await supabase.from('task_metadata').delete().eq('task_name', task_name);
+            // Remove from tasks table
+            await supabase.from('tasks').delete().eq('name', task_name);
             // Orphan any subtasks (clear their parent_task)
             await supabase
                 .from('task_metadata')
-                .update({ parent_task: null, updated_at: new Date().toISOString() })
+                .update({ parent_task: null, updated_at: now })
                 .eq('parent_task', task_name);
 
-            // Remove from task_snapshots categories JSON + adjust counts
-            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+            // Remove from task_snapshots categories JSON + adjust counts + track removal
             const { data: snap } = await supabase
                 .from('task_snapshots')
-                .select('date, categories, open_count, done_count')
+                .select('date, categories, open_count, done_count, removed_delta')
                 .eq('date', today)
                 .single();
             if (snap?.categories) {
@@ -184,6 +208,7 @@ export async function PATCH(req: NextRequest) {
                         .update({
                             categories: cats,
                             open_count: Math.max(0, (snap.open_count ?? 0) - 1),
+                            removed_delta: (snap.removed_delta ?? 0) + 1,
                         })
                         .eq('date', today);
                 }
@@ -192,14 +217,14 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
 
         } else if (action === 'abandon') {
-            // Mark as completed with 'abandoned' tag — keeps it in the system but out of the pile
+            // Mark as abandoned — keeps it in the system but out of the pile
             const { error } = await supabase
                 .from('task_completions')
                 .upsert({
                     task_name,
                     category: category ?? null,
                     notes: notes ?? 'Abandoned',
-                    completed_at: new Date().toISOString(),
+                    completed_at: now,
                     completed_by: 'abandoned',
                 }, { onConflict: 'task_name' });
 
@@ -207,6 +232,16 @@ export async function PATCH(req: NextRequest) {
                 console.error('[tasks PATCH] abandon error:', error);
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
+
+            // Update tasks table
+            await supabase.from('tasks').update({ status: 'abandoned', completed_at: now, updated_at: now }).eq('name', task_name);
+
+            // Track as removed from pile (not completed — abandoned)
+            const { data: snap } = await supabase.from('task_snapshots').select('removed_delta').eq('date', today).single();
+            if (snap) {
+                await supabase.from('task_snapshots').update({ removed_delta: (snap.removed_delta ?? 0) + 1 }).eq('date', today);
+            }
+
             return NextResponse.json({ ok: true, task_name, action: 'abandon' });
 
         } else if (action === 'add') {
@@ -215,10 +250,9 @@ export async function PATCH(req: NextRequest) {
             }
 
             // Add to today's task_snapshots categories JSON
-            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
             const { data: snap } = await supabase
                 .from('task_snapshots')
-                .select('date, categories, open_count, done_count')
+                .select('date, categories, open_count, done_count, added_delta')
                 .eq('date', today)
                 .single();
 
@@ -247,8 +281,20 @@ export async function PATCH(req: NextRequest) {
                 .update({
                     categories: cats,
                     open_count: (snap.open_count ?? 0) + 1,
+                    added_delta: (snap.added_delta ?? 0) + 1,
                 })
                 .eq('date', today);
+
+            // Add to tasks table
+            await supabase.from('tasks').upsert({
+                name: task_name,
+                category,
+                status: 'open',
+                tags: [],
+                progress: 0,
+                created_at: now,
+                updated_at: now,
+            }, { onConflict: 'name' });
 
             // Optionally set initial metadata if priority was provided
             if (priority) {
@@ -260,7 +306,7 @@ export async function PATCH(req: NextRequest) {
                     notes: notes ?? null,
                     context: context ?? null,
                     parent_task: parent_task ?? null,
-                    updated_at: new Date().toISOString(),
+                    updated_at: now,
                 }, { onConflict: 'task_name' });
             }
 
