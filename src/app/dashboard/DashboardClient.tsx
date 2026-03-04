@@ -431,16 +431,24 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
     const doneCount = activeDefs.filter(c => getCheck(c.key).done).length;
     const pct = activeDefs.length > 0 ? Math.round((doneCount / activeDefs.length) * 100) : 0;
 
-    // Calculate streak — each day uses its own applicable habits
+    // Calculate streak — skip today (not yet complete), count from yesterday back
     const streak = (() => {
-        if (!history?.length) return 0;
+        if (!history?.length || history.length < 2) return 0;
         let count = 0;
-        for (let i = history.length - 1; i >= 0; i--) {
+        // Start from second-to-last entry (yesterday) going backwards
+        for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
             const dayHabits = d.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const allDone = dayHabits.every(c => d.checks?.[c.key]?.done);
+            const allDone = dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done);
             if (allDone) count++;
             else break;
+        }
+        // If today is also fully done, add it too
+        const todayData = history[history.length - 1];
+        if (todayData) {
+            const todayHabits = todayData.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
+            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => getCheck(c.key).done);
+            if (todayAllDone) count++;
         }
         return count;
     })();
