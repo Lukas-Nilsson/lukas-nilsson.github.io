@@ -3,31 +3,56 @@
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import styles from './dashboard.module.css';
 
-interface Props {
-    user: User;
+interface Props { user: User; }
+
+interface DashboardData {
+    whoop: {
+        date: string; recovery: number; hrv: number; rhr: number;
+        strain: number; sleep_hours: number; sleep_performance: number;
+    } | null;
+    hard75: {
+        date: string; day: number; days_completed: number; today_complete: boolean;
+        checks: Record<string, { done: boolean; time: string | null }>;
+        finish_confidence: number;
+    } | null;
+    tasks: {
+        updated_at: string; total_open: number; total_done: number;
+        categories: Record<string, { open: number; done: number; tasks: string[]; overdue: { name: string; due: string }[] }>;
+        overdue_tasks: { name: string; due: string; category: string }[];
+    } | null;
+    sleep: { date: string; performance: number; hours_in_bed: number; deep: number; rem: number; light: number }[];
 }
 
-// ─── Widget components ───────────────────────────────────────────────────────
+// ─── Widget: Whoop ────────────────────────────────────────────────────────────
+function WhoopWidget({ data }: { data: DashboardData['whoop'] }) {
+    if (!data) {
+        return (
+            <div className={styles.widget}>
+                <div className={styles.widgetHeader}>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◎</span>Whoop</div>
+                    <span className={styles.widgetBadge}>No data yet</span>
+                </div>
+                <p className={styles.widgetNotice}>🔗 Run OpenClaw sync to see live Whoop data.</p>
+            </div>
+        );
+    }
 
-function WhoopWidget() {
-    // Placeholder: will connect to Whoop API with OAuth token stored in Supabase
+    const recoveryColor = data.recovery >= 67 ? 'var(--green-400)' : data.recovery >= 34 ? 'var(--yellow-400)' : 'var(--red-400)';
     const stats = [
-        { label: 'Recovery', value: '76%', color: 'var(--green-400)', sub: 'Good' },
-        { label: 'Strain', value: '12.4', color: 'var(--accent-400)', sub: 'Moderate' },
-        { label: 'Sleep', value: '7h 22m', color: 'var(--accent-300)', sub: '82% efficiency' },
-        { label: 'HRV', value: '58 ms', color: 'var(--green-400)', sub: 'Above avg' },
+        { label: 'Recovery', value: `${data.recovery}%`, color: recoveryColor, sub: data.recovery >= 67 ? 'Good' : data.recovery >= 34 ? 'OK' : 'Low' },
+        { label: 'Strain', value: String(data.strain ?? '—'), color: 'var(--accent-400)', sub: 'Today' },
+        { label: 'Sleep', value: data.sleep_hours ? `${data.sleep_hours}h` : '—', color: 'var(--accent-300)', sub: `${data.sleep_performance ?? '—'}% perf` },
+        { label: 'HRV', value: data.hrv ? `${data.hrv} ms` : '—', color: 'var(--green-400)', sub: `RHR ${data.rhr ?? '—'}` },
     ];
 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}>
-                    <span className={styles.widgetIcon}>◎</span>
-                    Whoop
-                </div>
-                <span className={styles.widgetBadge}>Today</span>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◎</span>Whoop</div>
+                <span className={styles.widgetBadge}>{new Date(data.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
             </div>
             <div className={styles.whoopGrid}>
                 {stats.map(({ label, value, color, sub }) => (
@@ -38,150 +63,169 @@ function WhoopWidget() {
                     </div>
                 ))}
             </div>
-            <p className={styles.widgetNotice}>
-                🔗 Connect your Whoop account in Settings to see live data.
-            </p>
         </div>
     );
 }
 
-function HabitsWidget() {
-    const habits = [
-        { name: 'Morning pages', done: true, streak: 14 },
-        { name: 'Workout', done: true, streak: 7 },
-        { name: 'Cold shower', done: false, streak: 3 },
-        { name: 'Read 30 min', done: true, streak: 21 },
-        { name: 'No alcohol', done: true, streak: 60 },
-        { name: 'Meditate', done: false, streak: 0 },
-    ];
+// ─── Widget: 75 Hard ─────────────────────────────────────────────────────────
+const checkDefs = [
+    { key: 'workout1', icon: '🏃', label: 'Outdoor Workout' },
+    { key: 'workout2', icon: '💪', label: '2nd Workout' },
+    { key: 'water', icon: '💧', label: 'Gallon Water' },
+    { key: 'diet', icon: '🥗', label: 'Whole Foods' },
+    { key: 'reading', icon: '📖', label: '10 Pages' },
+];
 
-    const completed = habits.filter(h => h.done).length;
+function Hard75Widget({ data }: { data: DashboardData['hard75'] }) {
+    if (!data) {
+        return (
+            <div className={styles.widget}>
+                <div className={styles.widgetHeader}>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>75 Hard</div>
+                    <span className={styles.widgetBadge}>No data yet</span>
+                </div>
+                <p className={styles.widgetNotice}>🔗 Run OpenClaw sync to see 75 Hard progress.</p>
+            </div>
+        );
+    }
+
+    const pct = Math.round((data.day / 75) * 100);
 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}>
-                    <span className={styles.widgetIcon}>◈</span>
-                    Habits
-                </div>
-                <span className={styles.widgetBadge}>{completed}/{habits.length} today</span>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>75 Hard</div>
+                <span className={styles.widgetBadge}>Day {data.day} / 75</span>
             </div>
             <div className={styles.habitProgress}>
-                <div
-                    className={styles.habitBar}
-                    style={{ width: `${(completed / habits.length) * 100}%` }}
-                />
+                <div className={styles.habitBar} style={{ width: `${pct}%` }} />
             </div>
             <ul className={styles.habitList}>
-                {habits.map(({ name, done, streak }) => (
-                    <li key={name} className={styles.habitItem}>
-                        <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
-                            {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                                <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>}
-                        </div>
-                        <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{name}</span>
-                        {streak > 0 && (
-                            <span className={styles.streak}>🔥{streak}</span>
-                        )}
-                    </li>
-                ))}
+                {checkDefs.map(({ key, icon, label }) => {
+                    const item = data.checks?.[key];
+                    const done = item?.done ?? false;
+                    return (
+                        <li key={key} className={styles.habitItem}>
+                            <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
+                                {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                                    <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>}
+                            </div>
+                            <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{icon} {label}</span>
+                            {item?.time && <span className={styles.streak}>{item.time}</span>}
+                        </li>
+                    );
+                })}
             </ul>
-        </div>
-    );
-}
-
-function TasksWidget() {
-    const tasks = [
-        { title: 'Review Pile integration docs', priority: 'high', done: false },
-        { title: 'Write essay on AI consciousness', priority: 'medium', done: false },
-        { title: 'Update Human Archives homepage', priority: 'high', done: true },
-        { title: 'Set up Whoop OAuth flow', priority: 'medium', done: false },
-        { title: 'Record intro video', priority: 'low', done: false },
-    ];
-
-    const priorityColor: Record<string, string> = {
-        high: 'var(--red-400)',
-        medium: 'var(--yellow-400)',
-        low: 'var(--neutral-500)',
-    };
-
-    return (
-        <div className={styles.widget}>
-            <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}>
-                    <span className={styles.widgetIcon}>◇</span>
-                    Tasks
-                </div>
-                <span className={styles.widgetBadge}>{tasks.filter(t => !t.done).length} open</span>
-            </div>
-            <ul className={styles.taskList}>
-                {tasks.map(({ title, priority, done }) => (
-                    <li key={title} className={`${styles.taskItem} ${done ? styles.taskDone : ''}`}>
-                        <div
-                            className={styles.priorityDot}
-                            style={{ background: done ? 'var(--neutral-400)' : priorityColor[priority] }}
-                        />
-                        <span className={styles.taskTitle}>{title}</span>
-                    </li>
-                ))}
-            </ul>
-            <p className={styles.widgetNotice}>
-                🔗 Connect your task manager (Notion, Todoist, or Pile) in Settings.
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
+                Finish confidence: <strong style={{ color: data.finish_confidence >= 80 ? 'var(--green-400)' : 'var(--yellow-400)' }}>{data.finish_confidence}%</strong>
             </p>
         </div>
     );
 }
 
-function CalendarWidget() {
-    const today = new Date();
-    const events = [
-        { time: '9:00 AM', title: 'Deep work block', type: 'focus' },
-        { time: '12:00 PM', title: 'Lunch + walk', type: 'personal' },
-        { time: '2:00 PM', title: 'Architecture review', type: 'work' },
-        { time: '5:00 PM', title: 'Gym', type: 'health' },
-        { time: '8:00 PM', title: 'Reading', type: 'personal' },
-    ];
+// ─── Widget: Tasks ────────────────────────────────────────────────────────────
+function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
+    if (!data) {
+        return (
+            <div className={styles.widget}>
+                <div className={styles.widgetHeader}>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>Tasks</div>
+                    <span className={styles.widgetBadge}>No data yet</span>
+                </div>
+                <p className={styles.widgetNotice}>🔗 Run OpenClaw sync to see task data.</p>
+            </div>
+        );
+    }
 
-    const typeColor: Record<string, string> = {
-        focus: 'var(--accent-400)',
-        work: 'var(--accent-500)',
-        health: 'var(--green-400)',
-        personal: 'var(--neutral-400)',
+    const priorityColor: Record<string, string> = {
+        Wedding: 'var(--accent-400)', THA: 'var(--accent-500)', Home: 'var(--yellow-400)',
+        Fitness: 'var(--green-400)', Finance: 'var(--accent-300)', Personal: 'var(--neutral-500)', Dev: 'var(--red-400)',
     };
+
+    const cats = Object.entries(data.categories ?? {});
 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}>
-                    <span className={styles.widgetIcon}>◉</span>
-                    Calendar
-                </div>
-                <span className={styles.widgetBadge}>
-                    {today.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' })}
-                </span>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>The Pile</div>
+                <span className={styles.widgetBadge}>{data.total_open} open · {data.total_done} done</span>
             </div>
-            <ul className={styles.eventList}>
-                {events.map(({ time, title, type }) => (
-                    <li key={title} className={styles.event}>
-                        <span className={styles.eventTime}>{time}</span>
-                        <div className={styles.eventBar} style={{ background: typeColor[type] }} />
-                        <span className={styles.eventTitle}>{title}</span>
+
+            {data.overdue_tasks?.length > 0 && (
+                <div style={{ background: 'rgba(192,112,112,0.1)', border: '1px solid rgba(192,112,112,0.2)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-2)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--red-400)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>⚠ Overdue</p>
+                    {data.overdue_tasks.map(t => (
+                        <p key={t.name} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', maxWidth: 'none', margin: '2px 0' }}>
+                            {t.name} <span style={{ color: 'var(--color-text-muted)' }}>· {t.category}</span>
+                        </p>
+                    ))}
+                </div>
+            )}
+
+            <ul className={styles.taskList}>
+                {cats.map(([cat, { open }]) => (
+                    <li key={cat} className={styles.taskItem}>
+                        <div className={styles.priorityDot} style={{ background: priorityColor[cat] ?? 'var(--neutral-400)' }} />
+                        <span className={styles.taskTitle}>{cat}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{open}</span>
                     </li>
                 ))}
             </ul>
-            <p className={styles.widgetNotice}>
-                🔗 Connect Google Calendar in Settings for live events.
+        </div>
+    );
+}
+
+// ─── Widget: Sleep ────────────────────────────────────────────────────────────
+function SleepWidget({ data }: { data: DashboardData['sleep'] }) {
+    if (!data?.length) {
+        return (
+            <div className={styles.widget}>
+                <div className={styles.widgetHeader}>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◉</span>Sleep</div>
+                    <span className={styles.widgetBadge}>No data yet</span>
+                </div>
+                <p className={styles.widgetNotice}>🔗 Run OpenClaw sync to see sleep history.</p>
+            </div>
+        );
+    }
+
+    const latest = data[0];
+    return (
+        <div className={styles.widget}>
+            <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◉</span>Sleep</div>
+                <span className={styles.widgetBadge}>Last {data.length} nights</span>
+            </div>
+            <ul className={styles.eventList}>
+                {data.map(s => (
+                    <li key={s.date} className={styles.event}>
+                        <span className={styles.eventTime}>{new Date(s.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric' })}</span>
+                        <div className={styles.eventBar} style={{ background: s.performance >= 85 ? 'var(--green-400)' : s.performance >= 70 ? 'var(--yellow-400)' : 'var(--red-400)' }} />
+                        <span className={styles.eventTitle}>{s.hours_in_bed}h · {s.performance}% perf</span>
+                    </li>
+                ))}
+            </ul>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: 'none' }}>
+                Last night: {latest.deep}h deep · {latest.rem}h REM · {latest.light}h light
             </p>
         </div>
     );
 }
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-
 export default function DashboardClient({ user }: Props) {
     const router = useRouter();
     const supabase = createClient();
+    const [data, setData] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/dashboard')
+            .then(r => r.json())
+            .then(d => { setData(d); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, []);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -190,9 +234,7 @@ export default function DashboardClient({ user }: Props) {
     };
 
     const today = new Date();
-    const greeting =
-        today.getHours() < 12 ? 'Good morning' :
-            today.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+    const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
     return (
         <div className={styles.shell}>
@@ -201,14 +243,12 @@ export default function DashboardClient({ user }: Props) {
                 <div className={styles.sidebarLogo}>
                     <div className={styles.logoMark} aria-label="Lukas Nilsson">LN</div>
                 </div>
-
                 <nav className={styles.sidebarNav}>
                     {[
                         { icon: '◉', label: 'Overview', href: '/dashboard', active: true },
-                        { icon: '◎', label: 'Health', href: '/dashboard/health', active: false },
-                        { icon: '◈', label: 'Habits', href: '/dashboard/habits', active: false },
-                        { icon: '◇', label: 'Tasks', href: '/dashboard/tasks', active: false },
-                        { icon: '◆', label: 'Calendar', href: '/dashboard/calendar', active: false },
+                        { icon: '◎', label: 'Health', href: '/dashboard/health' },
+                        { icon: '◈', label: '75 Hard', href: '/dashboard/habits' },
+                        { icon: '◇', label: 'Tasks', href: '/dashboard/tasks' },
                     ].map(({ icon, label, href, active }) => (
                         <a key={href} href={href} className={`${styles.navLink} ${active ? styles.navActive : ''}`}>
                             <span className={styles.navIcon} aria-hidden="true">{icon}</span>
@@ -216,14 +256,13 @@ export default function DashboardClient({ user }: Props) {
                         </a>
                     ))}
                 </nav>
-
                 <div className={styles.sidebarFooter}>
                     <a href="/" className={styles.siteLink}>← Public site</a>
                     <button className={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
                 </div>
             </aside>
 
-            {/* Main content */}
+            {/* Main */}
             <main className={styles.main}>
                 <header className={styles.header}>
                     <div>
@@ -233,25 +272,34 @@ export default function DashboardClient({ user }: Props) {
                         </p>
                     </div>
                     <div className={styles.headerMeta}>
+                        {!loading && data && (
+                            <span className={styles.userBadge} title="Data is live from OpenClaw → Supabase">🟢 live</span>
+                        )}
                         <span className={styles.userBadge}>{user.email}</span>
                     </div>
                 </header>
 
-                {/* Widget grid */}
-                <div className={styles.grid}>
-                    <div className={`${styles.gridItem} ${styles.gridItemFull} animate-fade-in-up`} style={{ animationDelay: '0ms' }}>
-                        <WhoopWidget />
+                {loading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+                        <span className="spinner" style={{ width: 16, height: 16 }} />
+                        Loading your data…
                     </div>
-                    <div className={`${styles.gridItem} animate-fade-in-up`} style={{ animationDelay: '80ms' }}>
-                        <HabitsWidget />
+                ) : (
+                    <div className={styles.grid}>
+                        <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
+                            <WhoopWidget data={data?.whoop ?? null} />
+                        </div>
+                        <div className={styles.gridItem}>
+                            <Hard75Widget data={data?.hard75 ?? null} />
+                        </div>
+                        <div className={styles.gridItem}>
+                            <TasksWidget data={data?.tasks ?? null} />
+                        </div>
+                        <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
+                            <SleepWidget data={data?.sleep ?? []} />
+                        </div>
                     </div>
-                    <div className={`${styles.gridItem} animate-fade-in-up`} style={{ animationDelay: '160ms' }}>
-                        <TasksWidget />
-                    </div>
-                    <div className={`${styles.gridItem} ${styles.gridItemFull} animate-fade-in-up`} style={{ animationDelay: '240ms' }}>
-                        <CalendarWidget />
-                    </div>
-                </div>
+                )}
             </main>
         </div>
     );
