@@ -527,15 +527,21 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
     const [completions, setCompletions] = useState<Set<string>>(new Set());
     const [metaMap, setMetaMap] = useState<Map<string, { priority: string | null; due_date: string | null; waiting_on: string | null; context: string | null; parent_task: string | null }>>(new Map());
     const [saving, setSaving] = useState<string | null>(null);
+    const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-        fetch('/api/dashboard/tasks').then(r => r.json()).then(d => {
-            setCompletions(new Set((d.completions ?? []).map((c: { task_name: string }) => c.task_name)));
-            const entries = (d.metadata ?? []).map((m: { task_name: string; priority: string | null; due_date: string | null; waiting_on: string | null; context: string | null; parent_task: string | null }) =>
-                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, context: m.context, parent_task: m.parent_task }] as const
-            );
-            setMetaMap(new Map(entries));
-        }).catch(() => { });
+        fetch('/api/dashboard/tasks')
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) console.error('[TasksWidget] API error:', d.error);
+                setCompletions(new Set((d.completions ?? []).map((c: { task_name: string }) => c.task_name)));
+                const entries = (d.metadata ?? []).map((m: { task_name: string; priority: string | null; due_date: string | null; waiting_on: string | null; context: string | null; parent_task: string | null }) =>
+                    [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, context: m.context, parent_task: m.parent_task }] as const
+                );
+                setMetaMap(new Map(entries));
+                setLoaded(true);
+            })
+            .catch(e => { console.error('[TasksWidget] fetch failed:', e); setLoaded(true); });
     }, []);
 
     const toggleTask = async (name: string, cat: string, done: boolean) => {
@@ -573,7 +579,6 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
             const dueDate = dueStr ? new Date(dueStr + 'T00:00:00') : null;
             const overdueDays = dueDate && dueDate < today ? Math.ceil((today.getTime() - dueDate.getTime()) / 86400000) : 0;
 
-            // Skip subtasks (they'll appear on full page)
             if (meta?.parent_task) continue;
 
             let urgency = 'backlog', score = 100;
@@ -588,12 +593,10 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
     }
     allTasks.sort((a, b) => b.score - a.score);
 
-    const open = allTasks.filter(t => !t.done);
-    const doneCount = allTasks.filter(t => t.done).length;
-
-    // Show max 12 items on overview
-    const visible = open.slice(0, 12);
-    const remaining = open.length - visible.length;
+    const openTasks = allTasks.filter(t => !t.done);
+    const doneTasks = allTasks.filter(t => t.done);
+    const visible = openTasks.slice(0, 12);
+    const remaining = openTasks.length - visible.length;
 
     const sectionLabel = (urgency: string) => {
         const labels: Record<string, { label: string; color: string }> = {
@@ -605,14 +608,13 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
         return labels[urgency] ?? { label: urgency.toUpperCase(), color: 'var(--color-text-muted)' };
     };
 
-    // Group visible tasks for section headers
     let lastUrgency = '';
 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}><span className={styles.widgetIcon}>⚡</span>The Pile</div>
-                <span className={styles.widgetBadge}>{open.length} open{doneCount > 0 ? ` · ${doneCount} ✓` : ''}</span>
+                <span className={styles.widgetBadge}>{openTasks.length} open{loaded && doneTasks.length > 0 ? ` · ${doneTasks.length} ✓` : ''}</span>
             </div>
 
             <ul className={styles.priorityList}>
@@ -647,6 +649,15 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
                 })}
             </ul>
 
+            {loaded && doneTasks.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)', marginTop: 'var(--space-2)', background: 'rgba(90,154,90,0.08)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', color: '#5a9a5a' }}>
+                    <span style={{ fontWeight: 700 }}>✓ {doneTasks.length} completed</span>
+                    <span style={{ color: 'var(--color-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doneTasks.slice(0, 3).map(t => t.name).join(', ')}{doneTasks.length > 3 ? '…' : ''}
+                    </span>
+                </div>
+            )}
+
             {remaining > 0 && (
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 'var(--space-3)', maxWidth: 'none' }}>+{remaining} more</p>
             )}
@@ -657,6 +668,7 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
         </div>
     );
 }
+
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 function EmptyWidget({ icon, title, message }: { icon: string; title: string; message: string }) {
