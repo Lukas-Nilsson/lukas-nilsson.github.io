@@ -852,3 +852,52 @@
     flex-shrink: 0;
     white-space: nowrap;
 }
+
+/* Task completion checkboxes */
+.taskCheck {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border-strong);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--duration-fast) var(--ease);
+    padding: 0;
+}
+
+.taskCheck:hover {
+    border-color: #5a9a5a;
+    background: rgba(90, 154, 90, 0.1);
+}
+
+.taskCheckDone {
+    border-color: #5a9a5a;
+    background: #5a9a5a;
+}
+
+.taskCheckDone:hover {
+    border-color: #4a8a4a;
+    background: #4a8a4a;
+}
+
+.taskCheck:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.priorityItemDone {
+    opacity: 0.5;
+}
+
+.priorityItemDone:hover {
+    opacity: 0.75;
+}
+
+.priorityNameDone {
+    text-decoration: line-through;
+    color: var(--color-text-muted);
+}
