@@ -1,12 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * PATCH /api/dashboard/habits
  * Body: { date, habit_id, done, value?, notes? }
  *
- * Upserts a single daily_habits row in Supabase.
- * source is set to 'manual' so the UI can distinguish from Whoop/sync overrides.
+ * Uses the service-role admin client to bypass RLS and upsert into daily_habits.
  */
 export async function PATCH(req: NextRequest) {
     try {
@@ -23,7 +22,8 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'date and habit_id are required' }, { status: 400 });
         }
 
-        const supabase = await createClient();
+        // Use admin client to bypass RLS on daily_habits
+        const supabase = createAdminClient();
         const { error } = await supabase
             .from('daily_habits')
             .upsert({
@@ -36,10 +36,14 @@ export async function PATCH(req: NextRequest) {
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'date,habit_id' });
 
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) {
+            console.error('[habits PATCH] Supabase error:', error);
+            return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+        }
 
         return NextResponse.json({ ok: true, date, habit_id, done, value, notes });
     } catch (e) {
+        console.error('[habits PATCH] Unexpected error:', e);
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }

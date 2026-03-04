@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const [sleepRes, habitRes, challengeRes, taskRes] = await Promise.all([
         // NEW: 14-day sleep + recovery from daily_sleep
