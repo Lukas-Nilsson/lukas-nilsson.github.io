@@ -8,20 +8,22 @@ import { NextRequest, NextResponse } from 'next/server';
  *   { task_name, category, action: 'complete' }
  *   { task_name, action: 'uncomplete' }
  *   { task_name, action: 'update_metadata', priority?, due_date?, waiting_on?, notes?, context?, parent_task? }
+ *   { task_name, action: 'rename', new_name: string }
  */
 export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
-        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task } = body as {
+        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name } = body as {
             task_name: string;
             category?: string;
-            action: 'complete' | 'uncomplete' | 'update_metadata';
+            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename';
             priority?: string | null;
             due_date?: string | null;
             waiting_on?: string | null;
             notes?: string | null;
             context?: string | null;
             parent_task?: string | null;
+            new_name?: string;
         };
 
         if (!task_name || !action) {
@@ -78,6 +80,69 @@ export async function PATCH(req: NextRequest) {
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
             return NextResponse.json({ ok: true, task_name, action: 'update_metadata' });
+
+        } else if (action === 'rename') {
+            if (!new_name || !new_name.trim()) {
+                return NextResponse.json({ error: 'new_name is required for rename' }, { status: 400 });
+            }
+            const trimmedName = new_name.trim();
+
+            // Update task_metadata (rename the PK)
+            const { data: existingMeta } = await supabase
+                .from('task_metadata')
+                .select('*')
+                .eq('task_name', task_name)
+                .single();
+            if (existingMeta) {
+                await supabase.from('task_metadata').delete().eq('task_name', task_name);
+                await supabase.from('task_metadata').upsert({ ...existingMeta, task_name: trimmedName, updated_at: new Date().toISOString() }, { onConflict: 'task_name' });
+            }
+
+            // Update task_completions (rename the PK)
+            const { data: existingComp } = await supabase
+                .from('task_completions')
+                .select('*')
+                .eq('task_name', task_name)
+                .single();
+            if (existingComp) {
+                await supabase.from('task_completions').delete().eq('task_name', task_name);
+                await supabase.from('task_completions').upsert({ ...existingComp, task_name: trimmedName }, { onConflict: 'task_name' });
+            }
+
+            // Update any subtasks that reference this task as parent_task
+            await supabase
+                .from('task_metadata')
+                .update({ parent_task: trimmedName, updated_at: new Date().toISOString() })
+                .eq('parent_task', task_name);
+
+            // Update task_snapshots categories JSON (replace old name with new name in task arrays)
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+            const { data: snapshot } = await supabase
+                .from('task_snapshots')
+                .select('date, categories')
+                .eq('date', today)
+                .single();
+            if (snapshot?.categories) {
+                const cats = snapshot.categories as Record<string, { tasks?: string[];[k: string]: unknown }>;
+                let updated = false;
+                for (const [, catData] of Object.entries(cats)) {
+                    if (catData.tasks) {
+                        const idx = catData.tasks.indexOf(task_name);
+                        if (idx >= 0) {
+                            catData.tasks[idx] = trimmedName;
+                            updated = true;
+                        }
+                    }
+                }
+                if (updated) {
+                    await supabase
+                        .from('task_snapshots')
+                        .update({ categories: cats })
+                        .eq('date', today);
+                }
+            }
+
+            return NextResponse.json({ ok: true, task_name, new_name: trimmedName, action: 'rename' });
         }
 
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

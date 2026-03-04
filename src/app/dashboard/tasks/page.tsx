@@ -141,6 +141,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
     onClose: () => void;
     onSave: (taskName: string, meta: TaskMeta) => void;
 }) {
+    const [taskName, setTaskName] = useState(task.name);
     const [priority, setPriority] = useState(task.meta?.priority ?? '');
     const [dueDate, setDueDate] = useState(task.meta?.due_date ?? '');
     const [waitingOn, setWaitingOn] = useState(task.meta?.waiting_on ?? '');
@@ -152,11 +153,34 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
     const handleSave = async () => {
         setSaving(true);
         try {
+            const trimmedName = taskName.trim() || task.name;
+            const nameChanged = trimmedName !== task.name;
+
+            // Rename first if name changed
+            if (nameChanged) {
+                const renameRes = await fetch('/api/dashboard/tasks', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_name: task.name,
+                        action: 'rename',
+                        new_name: trimmedName,
+                    }),
+                });
+                if (!renameRes.ok) {
+                    const err = await renameRes.json();
+                    alert(`Rename failed: ${err.error}`);
+                    setSaving(false);
+                    return;
+                }
+            }
+
+            const activeName = nameChanged ? trimmedName : task.name;
             const res = await fetch('/api/dashboard/tasks', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    task_name: task.name,
+                    task_name: activeName,
                     action: 'update_metadata',
                     priority: priority || null,
                     due_date: dueDate || null,
@@ -172,7 +196,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
                 setSaving(false);
                 return;
             }
-            onSave(task.name, {
+            onSave(nameChanged ? trimmedName : task.name, {
                 priority: priority || null,
                 due_date: dueDate || null,
                 waiting_on: waitingOn || null,
@@ -194,9 +218,20 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
                     <h3 className={styles.modalTitle}>
                         <span style={{ color: catColors[task.category] ?? 'var(--color-text-muted)' }}>{task.category}</span>
                         {' · '}
-                        {task.name}
                     </h3>
                     <button className={styles.modalClose} onClick={onClose}>✕</button>
+                </div>
+
+                {/* Task name (editable) */}
+                <div className={styles.modalField}>
+                    <label className={styles.modalLabel}>Task Name</label>
+                    <input
+                        type="text"
+                        className={styles.modalInput}
+                        value={taskName}
+                        onChange={e => setTaskName(e.target.value)}
+                        style={{ fontWeight: 600, fontSize: '14px' }}
+                    />
                 </div>
 
                 {/* Priority picker */}
@@ -350,8 +385,40 @@ export default function TasksPage() {
     }, []);
 
     const handleMetaSave = useCallback((taskName: string, meta: TaskMeta) => {
-        setMetaMap(prev => { const next = new Map(prev); next.set(taskName, meta); return next; });
-    }, []);
+        setMetaMap(prev => {
+            const next = new Map(prev);
+            // If renamed, remove old key and move completions
+            if (editingTask && editingTask.name !== taskName) {
+                next.delete(editingTask.name);
+                // Update completions set
+                setCompletions(cp => {
+                    if (cp.has(editingTask.name)) {
+                        const nc = new Set(cp);
+                        nc.delete(editingTask.name);
+                        nc.add(taskName);
+                        return nc;
+                    }
+                    return cp;
+                });
+                // Update task categories in local state
+                setTasks(prev => {
+                    if (!prev) return prev;
+                    const cats = { ...prev.categories };
+                    for (const [cat, data] of Object.entries(cats)) {
+                        const idx = data.tasks?.indexOf(editingTask.name) ?? -1;
+                        if (idx >= 0) {
+                            const newTasks = [...data.tasks];
+                            newTasks[idx] = taskName;
+                            cats[cat] = { ...data, tasks: newTasks };
+                        }
+                    }
+                    return { ...prev, categories: cats };
+                });
+            }
+            next.set(taskName, meta);
+            return next;
+        });
+    }, [editingTask]);
 
     const toggleParent = useCallback((name: string) => {
         setExpandedParents(prev => {
