@@ -34,6 +34,7 @@ const checkDefs = [
     { key: 'teeth', icon: '🦷', label: 'Brush Teeth' },
     { key: 'bedtime', icon: '🛌', label: 'In Bed by 11pm' },
     { key: 'wake', icon: '🌅', label: 'Up by 7am' },
+    { key: 'phone_down', icon: '📱', label: 'Phone Down', target: '11:30pm' },
 ];
 
 const catColors: Record<string, string> = {
@@ -209,6 +210,7 @@ const habitIdMap: Record<string, string> = {
     teeth: 'teeth',
     bedtime: 'bedtime',
     wake: 'wake',
+    phone_down: 'phone_down',
 };
 
 // ─── Habit Modal ──────────────────────────────────────────────────────────────

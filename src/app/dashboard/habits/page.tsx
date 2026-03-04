@@ -21,6 +21,7 @@ const allHabits = [
     { key: 'teeth', icon: '🦷', label: 'Brush teeth (AM + PM)', group: 'Health', weight: 12 },
     { key: 'bedtime', icon: '🌙', label: 'In bed by 11pm', group: 'Sleep', weight: 12 },
     { key: 'wake', icon: '🌅', label: 'Up by 7am', group: 'Sleep', weight: 12 },
+    { key: 'phone_down', icon: '📱', label: 'Phone Down by 11:30pm', group: 'Sleep', weight: 12 },
 ];
 
 const totalWeight = allHabits.reduce((s, h) => s + h.weight, 0);
@@ -29,6 +30,7 @@ const habitIdMap: Record<string, string> = {
     workout1: 'workout_outdoor', workout2: 'workout_2',
     water: 'water', diet: 'diet', reading: 'reading',
     teeth: 'teeth', bedtime: 'bedtime', wake: 'wake',
+    phone_down: 'phone_down',
 };
 
 const modalFields: Record<string, { descLabel: string; timeLabel?: string }> = {
@@ -40,6 +42,7 @@ const modalFields: Record<string, { descLabel: string; timeLabel?: string }> = {
     teeth: { descLabel: 'Notes' },
     bedtime: { descLabel: 'Notes', timeLabel: 'Actual bedtime' },
     wake: { descLabel: 'Notes', timeLabel: 'Actual wake time' },
+    phone_down: { descLabel: 'Notes', timeLabel: 'Last message time' },
 };
 
 function shortDate(d: string) {

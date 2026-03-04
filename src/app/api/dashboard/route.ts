@@ -59,6 +59,7 @@ export async function GET() {
             teeth: { done: checks['teeth']?.done ?? false, time: checks['teeth']?.value ?? null },
             bedtime: { done: checks['bedtime']?.done ?? false, time: checks['bedtime']?.value ?? null },
             wake: { done: checks['wake']?.done ?? false, time: checks['wake']?.value ?? null },
+            phone_down: { done: checks['phone_down']?.done ?? false, time: checks['phone_down']?.value ?? null },
         };
         const doneCount = Object.values(checksMapped).filter(c => c.done).length;
         return {
@@ -66,7 +67,7 @@ export async function GET() {
             day: cd.day_number ?? null,
             today_complete: cd.completed ?? false,
             checks: checksMapped,
-            discipline_score: Math.round((doneCount / 8) * 100),
+            discipline_score: Math.round((doneCount / 9) * 100),
             finish_confidence: null,
         };
     });
@@ -85,6 +86,7 @@ export async function GET() {
             teeth: { done: checks['teeth']?.done ?? false, time: checks['teeth']?.value ?? null },
             bedtime: { done: checks['bedtime']?.done ?? false, time: checks['bedtime']?.value ?? null },
             wake: { done: checks['wake']?.done ?? false, time: checks['wake']?.value ?? null },
+            phone_down: { done: checks['phone_down']?.done ?? false, time: checks['phone_down']?.value ?? null },
         };
         hard75History.unshift({
             date, day: null, today_complete: false,
