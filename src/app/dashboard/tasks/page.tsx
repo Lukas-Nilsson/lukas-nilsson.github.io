@@ -135,11 +135,13 @@ function buildPriorityStack(
 }
 
 // ─── Task Edit Modal ─────────────────────────────────────────────────────────
-function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
+function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbandon }: {
     task: ScoredTask;
     allTaskNames: string[];
     onClose: () => void;
     onSave: (taskName: string, meta: TaskMeta) => void;
+    onDelete: (taskName: string) => void;
+    onAbandon: (taskName: string, category: string) => void;
 }) {
     const [taskName, setTaskName] = useState(task.name);
     const [priority, setPriority] = useState(task.meta?.priority ?? '');
@@ -313,7 +315,40 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
+                    <button
+                        style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,112,112,0.3)', background: 'rgba(192,112,112,0.08)', color: '#c07070', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}
+                        onClick={async () => {
+                            if (!confirm(`Delete "${task.name}"? This removes it permanently.`)) return;
+                            setSaving(true);
+                            const res = await fetch('/api/dashboard/tasks', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ task_name: task.name, action: 'delete' }),
+                            });
+                            if (res.ok) { onDelete(task.name); onClose(); }
+                            else { const e = await res.json(); alert(`Delete failed: ${e.error}`); }
+                            setSaving(false);
+                        }}
+                        disabled={saving}
+                    >🗑 Delete</button>
+                    <button
+                        style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.08)', color: '#c9a84c', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}
+                        onClick={async () => {
+                            if (!confirm(`Abandon "${task.name}"? It will move to completed as abandoned.`)) return;
+                            setSaving(true);
+                            const res = await fetch('/api/dashboard/tasks', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ task_name: task.name, category: task.category, action: 'abandon' }),
+                            });
+                            if (res.ok) { onAbandon(task.name, task.category); onClose(); }
+                            else { const e = await res.json(); alert(`Abandon failed: ${e.error}`); }
+                            setSaving(false);
+                        }}
+                        disabled={saving}
+                    >🚫 Abandon</button>
+                    <div style={{ flex: 1 }} />
                     <button className={styles.modalBtnSecondary} onClick={onClose}>Cancel</button>
                     <button className={styles.modalBtnPrimary} onClick={handleSave} disabled={saving}>
                         {saving ? 'Saving…' : 'Save'}
@@ -609,6 +644,28 @@ export default function TasksPage() {
                     allTaskNames={allTaskNames}
                     onClose={() => setEditingTask(null)}
                     onSave={handleMetaSave}
+                    onDelete={(taskName) => {
+                        // Remove from local state
+                        setTasks(prev => {
+                            if (!prev) return prev;
+                            const cats = { ...prev.categories };
+                            for (const [cat, data] of Object.entries(cats)) {
+                                const idx = data.tasks?.indexOf(taskName) ?? -1;
+                                if (idx >= 0) {
+                                    const newTasks = [...data.tasks];
+                                    newTasks.splice(idx, 1);
+                                    cats[cat] = { ...data, tasks: newTasks, open: Math.max(0, (data.open ?? 0) - 1) };
+                                }
+                            }
+                            return { ...prev, categories: cats, total_open: Math.max(0, prev.total_open - 1) };
+                        });
+                        setCompletions(prev => { const n = new Set(prev); n.delete(taskName); return n; });
+                        setMetaMap(prev => { const n = new Map(prev); n.delete(taskName); return n; });
+                    }}
+                    onAbandon={(taskName) => {
+                        // Move to completed
+                        setCompletions(prev => { const n = new Set(prev); n.add(taskName); return n; });
+                    }}
                 />
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

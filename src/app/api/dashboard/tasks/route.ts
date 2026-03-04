@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
  *   { task_name, action: 'uncomplete' }
  *   { task_name, action: 'update_metadata', priority?, due_date?, waiting_on?, notes?, context?, parent_task? }
  *   { task_name, action: 'rename', new_name: string }
+ *   { task_name, action: 'delete' }       — removes task from all tables + snapshots
+ *   { task_name, action: 'abandon' }      — soft-close (completed_by='abandoned')
  */
 export async function PATCH(req: NextRequest) {
     try {
@@ -16,7 +18,7 @@ export async function PATCH(req: NextRequest) {
         const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name } = body as {
             task_name: string;
             category?: string;
-            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename';
+            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon';
             priority?: string | null;
             due_date?: string | null;
             waiting_on?: string | null;
@@ -143,6 +145,68 @@ export async function PATCH(req: NextRequest) {
             }
 
             return NextResponse.json({ ok: true, task_name, new_name: trimmedName, action: 'rename' });
+
+        } else if (action === 'delete') {
+            // Remove from task_completions
+            await supabase.from('task_completions').delete().eq('task_name', task_name);
+            // Remove from task_metadata
+            await supabase.from('task_metadata').delete().eq('task_name', task_name);
+            // Orphan any subtasks (clear their parent_task)
+            await supabase
+                .from('task_metadata')
+                .update({ parent_task: null, updated_at: new Date().toISOString() })
+                .eq('parent_task', task_name);
+
+            // Remove from task_snapshots categories JSON + adjust counts
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+            const { data: snap } = await supabase
+                .from('task_snapshots')
+                .select('date, categories, open_count, done_count')
+                .eq('date', today)
+                .single();
+            if (snap?.categories) {
+                const cats = snap.categories as Record<string, { tasks?: string[]; open?: number; done?: number;[k: string]: unknown }>;
+                let found = false;
+                for (const [, catData] of Object.entries(cats)) {
+                    if (catData.tasks) {
+                        const idx = catData.tasks.indexOf(task_name);
+                        if (idx >= 0) {
+                            catData.tasks.splice(idx, 1);
+                            if (catData.open != null) catData.open = Math.max(0, catData.open - 1);
+                            found = true;
+                        }
+                    }
+                }
+                if (found) {
+                    await supabase
+                        .from('task_snapshots')
+                        .update({
+                            categories: cats,
+                            open_count: Math.max(0, (snap.open_count ?? 0) - 1),
+                        })
+                        .eq('date', today);
+                }
+            }
+
+            return NextResponse.json({ ok: true, task_name, action: 'delete' });
+
+        } else if (action === 'abandon') {
+            // Mark as completed with 'abandoned' tag — keeps it in the system but out of the pile
+            const { error } = await supabase
+                .from('task_completions')
+                .upsert({
+                    task_name,
+                    category: category ?? null,
+                    notes: notes ?? 'Abandoned',
+                    completed_at: new Date().toISOString(),
+                    completed_by: 'abandoned',
+                }, { onConflict: 'task_name' });
+
+            if (error) {
+                console.error('[tasks PATCH] abandon error:', error);
+                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+            }
+            return NextResponse.json({ ok: true, task_name, action: 'abandon' });
         }
 
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
