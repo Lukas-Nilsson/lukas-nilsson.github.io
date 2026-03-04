@@ -676,6 +676,65 @@ export default function TasksPage() {
                     </p>
                 </div>
 
+                {/* Add Task */}
+                <form
+                    style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const nameInput = form.elements.namedItem('newTaskName') as HTMLInputElement;
+                        const catSelect = form.elements.namedItem('newTaskCat') as HTMLSelectElement;
+                        const name = nameInput.value.trim();
+                        const cat = catSelect.value;
+                        if (!name || !cat) return;
+                        nameInput.disabled = true;
+                        try {
+                            const res = await fetch('/api/dashboard/tasks', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ task_name: name, category: cat, action: 'add' }),
+                            });
+                            if (!res.ok) {
+                                const err = await res.json();
+                                alert(`Add failed: ${err.error}`);
+                            } else {
+                                // Update local state
+                                setTasks(prev => {
+                                    if (!prev) return prev;
+                                    const cats = { ...prev.categories };
+                                    if (!cats[cat]) cats[cat] = { tasks: [], open: 0, done: 0, overdue: [] };
+                                    cats[cat] = { ...cats[cat], tasks: [...(cats[cat].tasks ?? []), name], open: (cats[cat].open ?? 0) + 1 };
+                                    return { ...prev, categories: cats, total_open: prev.total_open + 1 };
+                                });
+                                nameInput.value = '';
+                            }
+                        } catch (err) {
+                            alert(`Add failed: ${err}`);
+                        }
+                        nameInput.disabled = false;
+                        nameInput.focus();
+                    }}
+                >
+                    <input
+                        name="newTaskName"
+                        type="text"
+                        className={styles.modalInput}
+                        placeholder="New task name…"
+                        style={{ flex: 1, fontSize: 'var(--text-sm)', padding: '6px 10px' }}
+                        required
+                    />
+                    <select name="newTaskCat" className={styles.modalInput} style={{ width: 'auto', fontSize: 'var(--text-sm)', padding: '6px 8px' }} required>
+                        {Object.keys(catColors).map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                    <button
+                        type="submit"
+                        className={styles.modalBtnPrimary}
+                        style={{ padding: '6px 14px', fontSize: 'var(--text-sm)', whiteSpace: 'nowrap' }}
+                    >+ Add</button>
+                </form>
+
                 {/* Stats */}
                 <div className={styles.statsStrip}>
                     {[
