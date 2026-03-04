@@ -223,8 +223,8 @@ function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null
             </ul>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
-                <span>{doneCount}/{checkDefs.length} done · Day {data.day}</span>
-                <span>Confidence: <strong style={{ color: (data.finish_confidence ?? 0) >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence ?? '—'}%</strong></span>
+                <span>{doneCount}/{checkDefs.length} done · {data.day != null ? `Day ${data.day}` : 'Pre-challenge'}</span>
+                <span>Confidence: <strong style={{ color: (data.finish_confidence ?? 0) >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence != null ? `${data.finish_confidence}%` : '—'}</strong></span>
             </div>
         </div>
     );
@@ -379,7 +379,7 @@ export default function DashboardClient({ user }: Props) {
                                     {shortDate(data.hard75History[selectedIdx].date)}
                                 </div>
                                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
-                                    Day {data.hard75History[selectedIdx].day} · {data.hard75History[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
+                                    {data.hard75History[selectedIdx].day != null ? `Day ${data.hard75History[selectedIdx].day}` : 'Pre-challenge'} · {data.hard75History[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
                                 </div>
                             </div>
                             <button
