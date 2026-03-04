@@ -135,6 +135,17 @@ export async function PATCH(req: NextRequest) {
                 await supabase.from('task_completions').upsert({ ...existingComp, task_name: trimmedName }, { onConflict: 'task_name' });
             }
 
+            // Update tasks table (rename the PK)
+            const { data: existingTask } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('name', task_name)
+                .single();
+            if (existingTask) {
+                await supabase.from('tasks').delete().eq('name', task_name);
+                await supabase.from('tasks').upsert({ ...existingTask, name: trimmedName, updated_at: now }, { onConflict: 'name' });
+            }
+
             // Update any subtasks that reference this task as parent_task
             await supabase
                 .from('task_metadata')
