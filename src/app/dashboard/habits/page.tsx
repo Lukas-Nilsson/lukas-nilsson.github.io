@@ -86,7 +86,7 @@ export default function HabitsPage() {
                         ))}
                     </ul>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: 'none', marginTop: 'var(--space-1)' }}>
-                        Track manually for now — OpenClaw will sync these once the state schema is updated.
+                        Track manually for now — sync will update these automatically.
                     </p>
                 </div>
 
@@ -190,7 +190,7 @@ export default function HabitsPage() {
 
                 {!data && !loading && (
                     <div className={styles.widget}>
-                        <p className={styles.widgetNotice}>🔗 No habits data yet. Run OpenClaw sync to populate.</p>
+                        <p className={styles.widgetNotice}>🔗 No habits data yet. Data will appear after the next sync.</p>
                     </div>
                 )}
             </div>

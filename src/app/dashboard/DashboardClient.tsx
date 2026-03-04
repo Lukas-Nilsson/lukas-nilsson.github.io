@@ -107,7 +107,7 @@ function WhoopWidget({ data, todayAEST, selectedDate }: { data: DashboardData['w
             </div>
             {isToday && !dateMatch && (
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: 'none', marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-2)' }}>
-                    Run <code>regenerate.sh</code> once today’s recovery is processed by Whoop.
+                    Today&apos;s Whoop data hasn&apos;t synced yet.
                 </p>
             )}
         </div>
@@ -116,7 +116,7 @@ function WhoopWidget({ data, todayAEST, selectedDate }: { data: DashboardData['w
 
 // ─── Sleep Chart Widget ───────────────────────────────────────────────────────
 function SleepChartWidget({ data }: { data: DashboardData['sleep'] }) {
-    if (!data.length) return <EmptyWidget icon="◑" title="Sleep" message="Run OpenClaw sync to see sleep history." />;
+    if (!data.length) return <EmptyWidget icon="◑" title="Sleep" message="Sleep data will appear after the next sync." />;
     const chartData = data.map(s => ({
         date: shortDate(s.date),
         'Quality %': s.performance,
@@ -432,7 +432,7 @@ function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null
 // ─── Tasks Widget ──────────────────────────────────────────────────────────────
 function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
     const [expanded, setExpanded] = useState<string | null>(null);
-    if (!data) return <EmptyWidget icon="◇" title="The Pile" message="Run OpenClaw sync to see task data." />;
+    if (!data) return <EmptyWidget icon="◇" title="The Pile" message="Task data will appear after the next sync." />;
 
     const cats = Object.entries(data.categories ?? {}).sort((a, b) => b[1].open - a[1].open);
 
@@ -601,7 +601,7 @@ export default function DashboardClient({ user }: Props) {
                     </div>
                 ) : !data ? (
                     <div className={styles.widgetNotice}>
-                        🔗 Not yet synced — run <code>regenerate.sh</code> in OpenClaw to populate.
+                        🔗 Not yet synced — data will appear after the next sync.
                     </div>
                 ) : (
                     // selectedIdx may still be null if hard75History is empty

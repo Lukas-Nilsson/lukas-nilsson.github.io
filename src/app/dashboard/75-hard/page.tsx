@@ -67,7 +67,7 @@ export default function SeventyFiveHardPage() {
     if (!today) return (
         <DashboardShell>
             <div className={styles.widget}>
-                <p className={styles.widgetNotice}>🔗 No 75 Hard data yet. Run OpenClaw sync to populate.</p>
+                <p className={styles.widgetNotice}>🔗 No 75 Hard data yet. Data will appear after the next sync.</p>
             </div>
         </DashboardShell>
     );

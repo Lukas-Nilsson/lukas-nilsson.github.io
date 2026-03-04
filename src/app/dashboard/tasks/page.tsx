@@ -53,7 +53,7 @@ export default function TasksPage() {
 
     if (!tasks) return (
         <DashboardShell>
-            <div className={styles.widget}><p className={styles.widgetNotice}>🔗 No task data yet. Run OpenClaw sync to populate.</p></div>
+            <div className={styles.widget}><p className={styles.widgetNotice}>🔗 No task data yet. Data will appear after the next sync.</p></div>
         </DashboardShell>
     );
 

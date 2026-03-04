@@ -119,7 +119,7 @@ export default function HealthPage() {
 
                 {!latest && !loading && (
                     <div className={styles.widget}>
-                        <p className={styles.widgetNotice}>🔗 No Whoop data yet. Run OpenClaw sync to populate health data.</p>
+                        <p className={styles.widgetNotice}>🔗 No Whoop data yet. Data will appear after the next sync.</p>
                     </div>
                 )}
             </div>
