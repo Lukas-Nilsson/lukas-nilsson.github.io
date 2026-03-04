@@ -432,22 +432,28 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
     const pct = activeDefs.length > 0 ? Math.round((doneCount / activeDefs.length) * 100) : 0;
 
     // Calculate streak — skip today (not yet complete), count from yesterday back
+    // A habit counts as "done" if done===true OR it has a tracked value (time)
+    const habitDone = (check: { done?: boolean; time?: string | null } | undefined) =>
+        check?.done || (check?.time != null && check.time !== '');
     const streak = (() => {
         if (!history?.length || history.length < 2) return 0;
         let count = 0;
-        // Start from second-to-last entry (yesterday) going backwards
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
             const dayHabits = d.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const allDone = dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done);
+            const allDone = dayHabits.length > 0 && dayHabits.every(c => habitDone(d.checks?.[c.key]));
             if (allDone) count++;
             else break;
         }
         // If today is also fully done, add it too
         const todayData = history[history.length - 1];
-        if (todayData) {
+        if (todayData && count > 0) {
             const todayHabits = todayData.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => getCheck(c.key).done);
+            const chk = (key: string) => getCheck(key);
+            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => {
+                const v = chk(c.key);
+                return v.done || (v.time != null && v.time !== '');
+            });
             if (todayAllDone) count++;
         }
         return count;
