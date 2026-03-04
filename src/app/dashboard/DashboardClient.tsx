@@ -431,17 +431,15 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
     const doneCount = activeDefs.filter(c => getCheck(c.key).done).length;
     const pct = activeDefs.length > 0 ? Math.round((doneCount / activeDefs.length) * 100) : 0;
 
-    // Calculate streak — skip today (not yet complete), count from yesterday back
-    // A habit counts as "done" if done===true OR it has a tracked value (time)
-    const habitDone = (check: { done?: boolean; time?: string | null } | undefined) =>
-        check?.done || (check?.time != null && check.time !== '');
+    // Calculate overall streak — skip today (not yet complete), count from yesterday back
+    // Only use the `done` flag — having a value just means data was tracked, not the target was met
     const streak = (() => {
         if (!history?.length || history.length < 2) return 0;
         let count = 0;
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
             const dayHabits = d.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const allDone = dayHabits.length > 0 && dayHabits.every(c => habitDone(d.checks?.[c.key]));
+            const allDone = dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done);
             if (allDone) count++;
             else break;
         }
@@ -449,11 +447,7 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         const todayData = history[history.length - 1];
         if (todayData && count > 0) {
             const todayHabits = todayData.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const chk = (key: string) => getCheck(key);
-            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => {
-                const v = chk(c.key);
-                return v.done || (v.time != null && v.time !== '');
-            });
+            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => getCheck(c.key).done);
             if (todayAllDone) count++;
         }
         return count;
@@ -463,18 +457,15 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
     const perHabitStreak = (key: string): number => {
         if (!history?.length || history.length < 2) return 0;
         let count = 0;
-        // Count from yesterday backwards
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
             // Skip days where this habit wasn't applicable (75 Hard habits on non-challenge days)
             if (d.day == null && hard75Keys.has(key)) continue;
-            const check = d.checks?.[key];
-            if (check?.done || (check?.time != null && check.time !== '')) count++;
+            if (d.checks?.[key]?.done) count++;
             else break;
         }
         // If today is also done, add it
-        const todayCheck = getCheck(key);
-        if (count > 0 && (todayCheck.done || (todayCheck.time != null && todayCheck.time !== ''))) count++;
+        if (count > 0 && getCheck(key).done) count++;
         return count;
     };
 
@@ -487,7 +478,7 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
 
     const renderItem = (c: typeof checkDefs[0]) => {
         const item = getCheck(c.key);
-        const done = item.done || (item.time != null && item.time !== '');
+        const done = item.done;
         const habitStreak = perHabitStreak(c.key);
 
         // Snapchat-style urgency: if past 3pm and streak at risk
