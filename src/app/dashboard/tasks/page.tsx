@@ -462,7 +462,8 @@ export default function TasksPage() {
     const thisMonth = openTasks.filter(t => t.urgency === 'this_month');
     const ongoing = openTasks.filter(t => t.urgency === 'ongoing');
     const waiting = openTasks.filter(t => t.urgency === 'waiting');
-    const backlog = openTasks.filter(t => t.urgency === 'backlog' || t.urgency === 'someday');
+    const backlog = openTasks.filter(t => t.urgency === 'backlog');
+    const someday = openTasks.filter(t => t.urgency === 'someday');
 
     const history = tasks.history ?? [];
     const chartData = history.map(h => ({
@@ -663,6 +664,7 @@ export default function TasksPage() {
                     {renderSection(ongoing, 'Ongoing', '#5a9a5a', 'rgba(90,154,90,0.4)', '#5a9a5a')}
                     {renderSection(waiting, 'Waiting On', '#c9a84c', 'rgba(201,168,76,0.3)', '#c9a84c')}
                     {renderSection(backlog, 'Backlog', 'var(--color-border-strong)', 'var(--color-border)')}
+                    {renderSection(someday, 'Someday', 'var(--color-text-muted)', 'var(--color-border)', 'var(--color-text-muted)')}
 
                     {/* Completed */}
                     {completedTasks.length > 0 && (
