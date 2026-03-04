@@ -397,7 +397,7 @@ function WeeklyHeatmap({ history }: { history: DashboardData['hard75History'] })
     );
 }
 
-// ─── Habits Widget (Kanban) ──────────────────────────────────────────────────
+// ─── Habits Widget ──────────────────────────────────────────────────────────
 function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][0] | null; history?: DashboardData['hard75History'] }) {
     const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({});
     const [modal, setModal] = useState<ModalState | null>(null);
@@ -424,49 +424,38 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         setOverrides(o => ({ ...o, [key]: { done, time: value } }));
     };
 
-    // Categorise habits
-    const todoItems = checkDefs.filter(c => !getCheck(c.key).done && !getCheck(c.key).time);
-    const inProgressItems = checkDefs.filter(c => !getCheck(c.key).done && !!getCheck(c.key).time);
-    const doneItems = checkDefs.filter(c => getCheck(c.key).done);
-    const doneCount = doneItems.length;
+    const doneCount = checkDefs.filter(c => getCheck(c.key).done).length;
+    const pct = Math.round((doneCount / checkDefs.length) * 100);
 
-    // Calculate streak from history
+    // Calculate streak
     const streak = (() => {
         if (!history?.length) return 0;
         let count = 0;
         for (let i = history.length - 1; i >= 0; i--) {
-            const d = history[i];
-            const allDone = checkDefs.every(c => d.checks?.[c.key]?.done);
+            const allDone = checkDefs.every(c => history[i].checks?.[c.key]?.done);
             if (allDone) count++;
             else break;
         }
         return count;
     })();
 
-    // 75 Hard vs general split
     const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
+    const hard75Defs = checkDefs.filter(c => hard75Keys.has(c.key));
+    const generalDefs = checkDefs.filter(c => !hard75Keys.has(c.key));
 
-    const renderCard = (c: typeof checkDefs[0], done: boolean) => {
+    const renderItem = (c: typeof checkDefs[0]) => {
         const item = getCheck(c.key);
-        const isHard = hard75Keys.has(c.key);
+        const done = item.done;
         return (
-            <div
-                key={c.key}
-                className={`${styles.kanbanCard} ${done ? styles.kanbanCardDone : ''}`}
-                onClick={() => openModal(c.key, c.icon, c.label)}
-            >
-                <div className={styles.kanbanCardInner}>
-                    <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
-                        {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className={styles.kanbanLabel}>{c.icon} {c.label}</div>
-                        {item.time && <div className={styles.kanbanMeta}>{item.time}</div>}
-                    </div>
-                    {isHard && <span className={styles.kanbanTag}>75H</span>}
-                    <span className={styles.kanbanEdit}>✎</span>
+            <li key={c.key} className={styles.habitItem} onClick={() => openModal(c.key, c.icon, c.label)}
+                style={{ cursor: 'pointer' }} title="Click to update">
+                <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
+                    {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </div>
-            </div>
+                <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{c.icon} {c.label}</span>
+                {item.time && <span className={styles.streak}>{item.time}</span>}
+                <span className={styles.kanbanEdit}>✎</span>
+            </li>
         );
     };
 
@@ -476,7 +465,7 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
                 <HabitModal state={modal} date={data.date} onClose={() => setModal(null)} onSave={handleSave} />
             )}
             <div className={styles.widget}>
-                {/* Header with progress ring + streak */}
+                {/* Header: progress ring + title + streak */}
                 <div className={styles.kanbanHeader}>
                     <ProgressRing done={doneCount} total={checkDefs.length} />
                     <div style={{ flex: 1 }}>
@@ -494,46 +483,21 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
                     )}
                 </div>
 
-                {/* Kanban columns */}
-                <div className={styles.kanbanColumns}>
-                    {/* TO DO */}
-                    <div className={styles.kanbanCol}>
-                        <div className={`${styles.kanbanColHeader} ${styles.kanbanColTodo}`}>
-                            <span className={styles.kanbanColDot} style={{ background: '#c07070' }} />
-                            To Do
-                            <span className={styles.kanbanColCount}>{todoItems.length}</span>
-                        </div>
-                        <div className={styles.kanbanColBody}>
-                            {todoItems.map(c => renderCard(c, false))}
-                            {todoItems.length === 0 && <div className={styles.kanbanEmpty}>All started 💪</div>}
-                        </div>
-                    </div>
+                {/* Progress bar */}
+                <div className={styles.habitProgress}>
+                    <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : undefined }} />
+                </div>
 
-                    {/* IN PROGRESS */}
-                    <div className={styles.kanbanCol}>
-                        <div className={`${styles.kanbanColHeader} ${styles.kanbanColProgress}`}>
-                            <span className={styles.kanbanColDot} style={{ background: '#c9a84c' }} />
-                            In Progress
-                            <span className={styles.kanbanColCount}>{inProgressItems.length}</span>
-                        </div>
-                        <div className={styles.kanbanColBody}>
-                            {inProgressItems.map(c => renderCard(c, false))}
-                            {inProgressItems.length === 0 && <div className={styles.kanbanEmpty}>—</div>}
-                        </div>
-                    </div>
+                {/* 75 Hard section */}
+                <div>
+                    <div className={styles.sectionLabel}>75 Hard</div>
+                    <ul className={styles.habitList}>{hard75Defs.map(renderItem)}</ul>
+                </div>
 
-                    {/* DONE */}
-                    <div className={styles.kanbanCol}>
-                        <div className={`${styles.kanbanColHeader} ${styles.kanbanColDone}`}>
-                            <span className={styles.kanbanColDot} style={{ background: '#5a9a5a' }} />
-                            Done
-                            <span className={styles.kanbanColCount}>{doneItems.length}</span>
-                        </div>
-                        <div className={styles.kanbanColBody}>
-                            {doneItems.map(c => renderCard(c, true))}
-                            {doneItems.length === 0 && <div className={styles.kanbanEmpty}>Get started!</div>}
-                        </div>
-                    </div>
+                {/* General section */}
+                <div>
+                    <div className={styles.sectionLabel}>General</div>
+                    <ul className={styles.habitList}>{generalDefs.map(renderItem)}</ul>
                 </div>
 
                 {/* Weekly heatmap */}
