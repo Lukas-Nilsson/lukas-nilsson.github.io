@@ -98,19 +98,14 @@ export default function CalendarPage() {
         setMounted(true);
     }, []);
 
-    if (!mounted || !selectedDate) {
-        return <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div>;
-    }
-
-    const dateStr = toAESTDate(selectedDate);
-
     // Load events
     const fetchEvents = useCallback(async (sync = false) => {
+        if (!selectedDate) return;
         if (sync) setSyncing(true);
         try {
             const weekDays = getWeekDays(selectedDate);
             const start = new Date(weekDays[0]);
-            start.setDate(start.getDate() - 7); // Buffer
+            start.setDate(start.getDate() - 7);
             const end = new Date(weekDays[6]);
             end.setDate(end.getDate() + 7);
 
@@ -126,7 +121,7 @@ export default function CalendarPage() {
         setSyncing(false);
     }, [selectedDate]);
 
-    useEffect(() => { fetchEvents(true); }, [fetchEvents]);
+    useEffect(() => { if (selectedDate) fetchEvents(true); }, [fetchEvents, selectedDate]);
 
     // Navigate
     const navigate = (delta: number) => {
@@ -175,6 +170,12 @@ export default function CalendarPage() {
             console.error('Delete failed:', e);
         }
     };
+
+    if (!mounted || !selectedDate) {
+        return <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div>;
+    }
+
+    const dateStr = toAESTDate(selectedDate);
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
