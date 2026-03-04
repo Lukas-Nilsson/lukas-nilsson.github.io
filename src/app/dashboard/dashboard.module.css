@@ -1016,10 +1016,12 @@
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 100;
     padding: var(--space-4);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modalContent {
@@ -1033,6 +1035,9 @@
     flex-direction: column;
     gap: var(--space-4);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    margin: auto 0;
+    max-height: calc(100dvh - var(--space-8));
+    overflow-y: auto;
 }
 
 .modalHeader {

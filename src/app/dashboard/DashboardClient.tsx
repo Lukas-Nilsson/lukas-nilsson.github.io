@@ -236,15 +236,14 @@ function HabitModal({
     onSave: (key: string, done: boolean, value: string | null, notes: string | null) => void;
 }) {
     const [done, setDone] = useState(state.done);
-    const [time, setTime] = useState(state.time);
-    const [desc, setDesc] = useState(state.description);
+    const [time, setTime] = useState(state.time || state.description);
     const [notes, setNotes] = useState(state.notes);
     const [saving, setSaving] = useState(false);
     const fields = habitFields[state.key] ?? { showTime: false, showDescription: false, showNotes: true };
 
     const handleSave = async () => {
         setSaving(true);
-        const value = [desc, time].filter(Boolean).join(' @ ') || null;
+        const value = time || null;
         try {
             const res = await fetch('/api/dashboard/habits', {
                 method: 'PATCH',
@@ -276,7 +275,8 @@ function HabitModal({
     const overlay: React.CSSProperties = {
         position: 'fixed', inset: 0, zIndex: 100,
         background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        overflowY: 'auto' as const, padding: 'var(--space-4)',
     };
     const modal: React.CSSProperties = {
         background: 'var(--color-bg-secondary)',
@@ -285,6 +285,9 @@ function HabitModal({
         padding: 'var(--space-6)',
         width: '100%', maxWidth: 420,
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        margin: 'auto 0',
+        maxHeight: 'calc(100dvh - var(--space-8))',
+        overflowY: 'auto' as const,
     };
     const input: React.CSSProperties = {
         width: '100%', background: 'var(--color-bg)',
@@ -327,16 +330,10 @@ function HabitModal({
                             <input style={input} type="text" placeholder={fields.timePlaceholder ?? 'HH:MM'} value={time} onChange={e => setTime(e.target.value)} />
                         </div>
                     )}
-                    {fields.showDescription && (
-                        <div>
-                            <span style={label}>Activity / Description</span>
-                            <input style={input} type="text" placeholder="e.g. Morning run 5km, Soccer match…" value={desc} onChange={e => setDesc(e.target.value)} />
-                        </div>
-                    )}
                     {fields.showNotes && (
                         <div>
                             <span style={label}>Notes</span>
-                            <textarea style={{ ...input, resize: 'vertical', minHeight: 72, fontFamily: 'inherit' }} placeholder="Extra context, how it felt…" value={notes} onChange={e => setNotes(e.target.value)} />
+                            <textarea style={{ ...input, resize: 'vertical', minHeight: 48, fontFamily: 'inherit' }} placeholder="Optional context…" value={notes} onChange={e => setNotes(e.target.value)} />
                         </div>
                     )}
                 </div>

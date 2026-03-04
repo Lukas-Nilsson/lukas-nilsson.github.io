@@ -61,8 +61,7 @@ function HabitModal({ state, date, onClose, onSave }: {
     onSave: (key: string, done: boolean, value: string | null, notes: string | null) => void;
 }) {
     const [done, setDone] = useState(state.done);
-    const [description, setDescription] = useState(state.description);
-    const [time, setTime] = useState(state.time);
+    const [time, setTime] = useState(state.time || state.description);
     const [notes, setNotes] = useState(state.notes);
     const [saving, setSaving] = useState(false);
     const cfg = modalFields[state.key] ?? { descLabel: 'Notes' };
@@ -70,7 +69,7 @@ function HabitModal({ state, date, onClose, onSave }: {
 
     const handleSave = async () => {
         setSaving(true);
-        const value = [description, time].filter(Boolean).join(' @ ') || null;
+        const value = time || null;
         try {
             const res = await fetch('/api/dashboard/habits', {
                 method: 'PATCH',
@@ -97,10 +96,6 @@ function HabitModal({ state, date, onClose, onSave }: {
                         Done today
                     </label>
                 </div>
-                <div className={styles.modalField}>
-                    <label className={styles.modalLabel}>{cfg.descLabel}</label>
-                    <input style={input} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional…" />
-                </div>
                 {cfg.timeLabel && (
                     <div className={styles.modalField}>
                         <label className={styles.modalLabel}>{cfg.timeLabel}</label>
@@ -109,7 +104,7 @@ function HabitModal({ state, date, onClose, onSave }: {
                 )}
                 <div className={styles.modalField}>
                     <label className={styles.modalLabel}>Notes</label>
-                    <textarea style={{ ...input, resize: 'vertical', minHeight: 60, fontFamily: 'inherit' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="How it felt, extra context…" />
+                    <textarea style={{ ...input, resize: 'vertical', minHeight: 48, fontFamily: 'inherit' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional context…" />
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
                     <button className={styles.modalBtnSecondary} onClick={onClose}>Cancel</button>
