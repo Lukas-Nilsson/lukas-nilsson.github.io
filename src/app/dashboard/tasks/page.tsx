@@ -48,6 +48,7 @@ interface ScoredTask {
     score: number;
     completed: boolean;
     meta: TaskMeta | null;
+    completion: { completed_at: string; completed_by: string } | null;
     children: ScoredTask[];
 }
 
@@ -56,6 +57,7 @@ function buildPriorityStack(
     todayStr: string,
     completedSet: Set<string>,
     metaMap: Map<string, TaskMeta>,
+    completionMap: Map<string, { completed_at: string; completed_by: string }>,
 ): ScoredTask[] {
     const today = new Date(todayStr + 'T00:00:00');
     const overdueMap = new Map(tasks.overdue_tasks?.map(t => [t.name, t]) ?? []);
@@ -104,7 +106,7 @@ function buildPriorityStack(
                 score = 1000 + overdueDays;
             }
 
-            allTasks.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta, children: [] });
+            allTasks.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta, completion: completionMap.get(taskName) ?? null, children: [] });
         }
     }
 
@@ -150,7 +152,15 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
     const [notes, setNotes] = useState(task.meta?.notes ?? '');
     const [context, setContext] = useState(task.meta?.context ?? '');
     const [parentTask, setParentTask] = useState(task.meta?.parent_task ?? '');
+    const [completedAt, setCompletedAt] = useState(() => {
+        // Format completed_at date for the input (YYYY-MM-DD)
+        if (task.completion?.completed_at) {
+            return new Date(task.completion.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+        }
+        return '';
+    });
     const [saving, setSaving] = useState(false);
+    const isDone = task.completion != null;
 
     const handleSave = async () => {
         setSaving(true);
@@ -206,6 +216,20 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                 context: context || null,
                 parent_task: parentTask || null,
             });
+
+            // If completed_at was changed, update it separately
+            if (isDone && completedAt) {
+                await fetch('/api/dashboard/tasks', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_name: activeName,
+                        action: 'update_completed_at',
+                        completed_at: completedAt,
+                    }),
+                });
+            }
+
             onClose();
         } catch (e) {
             alert(`Save failed: ${e}`);
@@ -314,6 +338,20 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                     />
                 </div>
 
+                {/* Completed at (only for done tasks) */}
+                {isDone && (
+                    <div className={styles.modalField}>
+                        <label className={styles.modalLabel}>Completed On</label>
+                        <input
+                            type="date"
+                            className={styles.modalInput}
+                            value={completedAt}
+                            onChange={e => setCompletedAt(e.target.value)}
+                            style={{ color: '#5a9a5a' }}
+                        />
+                    </div>
+                )}
+
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
                     <button
@@ -363,6 +401,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
 export default function TasksPage() {
     const [tasks, setTasks] = useState<TasksData | null>(null);
     const [completions, setCompletions] = useState<Set<string>>(new Set());
+    const [completionMap, setCompletionMap] = useState<Map<string, { completed_at: string; completed_by: string }>>(new Map());
     const [metaMap, setMetaMap] = useState<Map<string, TaskMeta>>(new Map());
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState<string | null>(null);
@@ -377,6 +416,7 @@ export default function TasksPage() {
         ]).then(([dashData, taskData]) => {
             setTasks(dashData.tasks ?? null);
             setCompletions(new Set((taskData.completions ?? []).map((c: { task_name: string }) => c.task_name)));
+            setCompletionMap(new Map((taskData.completions ?? []).map((c: { task_name: string; completed_at: string; completed_by: string }) => [c.task_name, { completed_at: c.completed_at, completed_by: c.completed_by }])));
             const metaEntries = (taskData.metadata ?? []).map((m: TaskMeta & { task_name: string }) =>
                 [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task }] as [string, TaskMeta]
             );
@@ -485,7 +525,7 @@ export default function TasksPage() {
     );
 
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-    const stack = buildPriorityStack(tasks, todayStr, completions, metaMap);
+    const stack = buildPriorityStack(tasks, todayStr, completions, metaMap, completionMap);
 
     const openTasks = stack.filter(t => t.urgency !== 'completed');
     const completedTasks = stack.filter(t => t.urgency === 'completed');

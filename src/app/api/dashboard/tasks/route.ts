@@ -12,14 +12,15 @@ import { NextRequest, NextResponse } from 'next/server';
  *   { task_name, action: 'delete' }       — removes task from all tables + snapshots
  *   { task_name, action: 'abandon' }      — soft-close (completed_by='abandoned')
  *   { task_name, category, action: 'add' } — creates a new task in snapshots
+ *   { task_name, action: 'update_completed_at', completed_at: string } — change when a task was completed
  */
 export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
-        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name } = body as {
+        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name, completed_at } = body as {
             task_name: string;
             category?: string;
-            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon' | 'add';
+            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon' | 'add' | 'update_completed_at';
             priority?: string | null;
             due_date?: string | null;
             waiting_on?: string | null;
@@ -27,6 +28,7 @@ export async function PATCH(req: NextRequest) {
             context?: string | null;
             parent_task?: string | null;
             new_name?: string;
+            completed_at?: string;
         };
 
         if (!task_name || !action) {
@@ -322,6 +324,25 @@ export async function PATCH(req: NextRequest) {
             }
 
             return NextResponse.json({ ok: true, task_name, category, action: 'add' });
+
+        } else if (action === 'update_completed_at') {
+            if (!completed_at) {
+                return NextResponse.json({ error: 'completed_at is required' }, { status: 400 });
+            }
+            // Parse the date string (YYYY-MM-DD) and set to noon AEST to avoid timezone issues
+            const dateISO = new Date(completed_at + 'T12:00:00+11:00').toISOString();
+
+            // Update task_completions
+            await supabase.from('task_completions')
+                .update({ completed_at: dateISO })
+                .eq('task_name', task_name);
+
+            // Update tasks table
+            await supabase.from('tasks')
+                .update({ completed_at: dateISO, updated_at: now })
+                .eq('name', task_name);
+
+            return NextResponse.json({ ok: true, task_name, completed_at: dateISO, action: 'update_completed_at' });
         }
 
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
