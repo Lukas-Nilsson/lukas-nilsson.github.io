@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AreaChart } from '@/components/charts/Charts';
+import DashboardShell from '../DashboardShell';
 import styles from '../dashboard.module.css';
 
 interface TasksData {
@@ -42,14 +43,18 @@ export default function TasksPage() {
     }, []);
 
     if (loading) return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', padding: 'var(--space-8)' }}>
-            <span className="spinner" style={{ width: 16, height: 16 }} />
-            Loading tasks…
-        </div>
+        <DashboardShell>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+                <span className="spinner" style={{ width: 16, height: 16 }} />
+                Loading tasks…
+            </div>
+        </DashboardShell>
     );
 
     if (!tasks) return (
-        <div className={styles.widget}><p className={styles.widgetNotice}>🔗 No task data yet. Run OpenClaw sync to populate.</p></div>
+        <DashboardShell>
+            <div className={styles.widget}><p className={styles.widgetNotice}>🔗 No task data yet. Run OpenClaw sync to populate.</p></div>
+        </DashboardShell>
     );
 
     const allTasks = Object.values(tasks.categories ?? {}).flatMap(c => c.tasks ?? []);
@@ -62,127 +67,126 @@ export default function TasksPage() {
     }));
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            <div>
-                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>The Pile</h2>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
-                    Last synced: {shortDate(tasks.updated_at)}
-                </p>
-            </div>
+        <DashboardShell>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                <div>
+                    <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>The Pile</h2>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
+                        Last synced: {shortDate(tasks.updated_at)}
+                    </p>
+                </div>
 
-            {/* Stats */}
-            <div className={styles.statsStrip}>
-                {[
-                    { label: 'Open', value: tasks.total_open, color: '#c17f3a' },
-                    { label: 'Done', value: tasks.total_done, color: '#6db86d' },
-                    { label: 'Overdue', value: tasks.overdue_tasks?.length ?? 0, color: '#c07070' },
-                    { label: 'Categories', value: Object.keys(tasks.categories ?? {}).length, color: 'var(--color-text)' },
-                ].map(({ label, value, color }) => (
-                    <div key={label} className={styles.statCard}>
-                        <span className={styles.statValue} style={{ color }}>{value}</span>
-                        <span className={styles.statLabel}>{label}</span>
+                <div className={styles.statsStrip}>
+                    {[
+                        { label: 'Open', value: tasks.total_open, color: '#c17f3a' },
+                        { label: 'Done', value: tasks.total_done, color: '#6db86d' },
+                        { label: 'Overdue', value: tasks.overdue_tasks?.length ?? 0, color: '#c07070' },
+                        { label: 'Categories', value: Object.keys(tasks.categories ?? {}).length, color: 'var(--color-text)' },
+                    ].map(({ label, value, color }) => (
+                        <div key={label} className={styles.statCard}>
+                            <span className={styles.statValue} style={{ color }}>{value}</span>
+                            <span className={styles.statLabel}>{label}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Trajectory chart */}
+                {chartData.length >= 2 && (
+                    <div className={styles.widget}>
+                        <div className={styles.widgetHeader}>
+                            <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◉</span>Pile Trajectory</div>
+                        </div>
+                        <AreaChart
+                            data={chartData}
+                            xKey="date"
+                            height={200}
+                            areas={[
+                                { key: 'Pile Size', color: '#c17f3a', name: 'Open pile' },
+                                { key: 'Completed', color: '#5a9a5a', name: 'Completed' },
+                                { key: 'Added', color: '#c07070', name: 'Added' },
+                            ]}
+                        />
                     </div>
-                ))}
-            </div>
+                )}
 
-            {/* Trajectory chart */}
-            {chartData.length >= 2 && (
+                {tasks.overdue_tasks?.length > 0 && (
+                    <div className={styles.widget}>
+                        <div className={styles.widgetHeader}>
+                            <div className={styles.widgetTitle}><span className={styles.widgetIcon} style={{ color: '#c07070' }}>⚠</span>Overdue</div>
+                            <span className={styles.widgetBadge}>{tasks.overdue_tasks.length} items</span>
+                        </div>
+                        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                            {tasks.overdue_tasks.map(t => (
+                                <li key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border)' }}>
+                                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#c07070', flexShrink: 0 }} />
+                                    <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>{t.name}</span>
+                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{t.category} · due {t.due}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* By category */}
                 <div className={styles.widget}>
                     <div className={styles.widgetHeader}>
-                        <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◉</span>Pile Trajectory</div>
+                        <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>By Category</div>
                     </div>
-                    <AreaChart
-                        data={chartData}
-                        xKey="date"
-                        height={200}
-                        areas={[
-                            { key: 'Pile Size', color: '#c17f3a', name: 'Open pile' },
-                            { key: 'Completed', color: '#5a9a5a', name: 'Completed' },
-                            { key: 'Added', color: '#c07070', name: 'Added' },
-                        ]}
-                    />
-                </div>
-            )}
-
-            {/* Overdue */}
-            {tasks.overdue_tasks?.length > 0 && (
-                <div className={styles.widget}>
-                    <div className={styles.widgetHeader}>
-                        <div className={styles.widgetTitle}><span className={styles.widgetIcon} style={{ color: '#c07070' }}>⚠</span>Overdue</div>
-                        <span className={styles.widgetBadge}>{tasks.overdue_tasks.length} items</span>
-                    </div>
-                    <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                        {tasks.overdue_tasks.map(t => (
-                            <li key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
-                                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#c07070', flexShrink: 0 }} />
-                                <span style={{ flex: 1, fontSize: 'var(--text-sm)' }}>{t.name}</span>
-                                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{t.category} · due {t.due}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {/* By category */}
-            <div className={styles.widget}>
-                <div className={styles.widgetHeader}>
-                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>By Category</div>
-                </div>
-                {Object.entries(tasks.categories ?? {}).sort((a, b) => b[1].open - a[1].open).map(([cat, { open, tasks: subtasks, overdue }]) => (
-                    <div key={cat}>
-                        <button
-                            onClick={() => setExpandedCat(expandedCat === cat ? null : cat)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'none', border: 'none', padding: 'var(--space-3) 0', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}
-                        >
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: catColors[cat] ?? '#7a7a7a', flexShrink: 0 }} />
-                            <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{cat}</span>
-                            {overdue?.length > 0 && <span style={{ fontSize: 'var(--text-xs)', color: '#c07070', fontWeight: 600 }}>⚠ {overdue.length} overdue</span>}
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{open} open {expandedCat === cat ? '▴' : '▾'}</span>
-                        </button>
-                        {expandedCat === cat && (
-                            <ul style={{ listStyle: 'none', borderLeft: `2px solid ${catColors[cat] ?? '#7a7a7a'}44`, marginLeft: 'var(--space-2)', paddingLeft: 'var(--space-4)', paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-3)' }}>
-                                {subtasks?.map(t => {
-                                    const isOverdue = overdue?.some(o => o.name === t);
-                                    return (
-                                        <li key={t} style={{ fontSize: 'var(--text-xs)', color: isOverdue ? '#c07070' : 'var(--color-text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                            <span style={{ color: 'var(--color-text-muted)' }}>→</span> {t}
-                                            {isOverdue && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#c07070', fontWeight: 600 }}>OVERDUE</span>}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {/* Batch clusters */}
-            <div className={styles.widget}>
-                <div className={styles.widgetHeader}>
-                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◆</span>Batch It</div>
-                    <span className={styles.widgetBadge}>Group by context</span>
-                </div>
-                {Object.entries(clusters).map(([title, clusterTasks]) => {
-                    const matched = clusterTasks.filter(ct => allTasks.some(t => t.toLowerCase().includes(ct.toLowerCase().slice(0, 20))));
-                    if (!matched.length) return null;
-                    return (
-                        <div key={title}>
+                    {Object.entries(tasks.categories ?? {}).sort((a, b) => b[1].open - a[1].open).map(([cat, { open, tasks: subtasks, overdue }]) => (
+                        <div key={cat}>
                             <button
-                                onClick={() => setExpandedCluster(expandedCluster === title ? null : title)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', marginBottom: 'var(--space-2)' }}
+                                onClick={() => setExpandedCat(expandedCat === cat ? null : cat)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'none', border: 'none', padding: 'var(--space-3) 0', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}
                             >
-                                <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{title}</span>
-                                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{matched.length} tasks {expandedCluster === title ? '▴' : '▾'}</span>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: catColors[cat] ?? '#7a7a7a', flexShrink: 0 }} />
+                                <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{cat}</span>
+                                {overdue?.length > 0 && <span style={{ fontSize: 'var(--text-xs)', color: '#c07070', fontWeight: 600 }}>⚠ {overdue.length} overdue</span>}
+                                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{open} open {expandedCat === cat ? '▴' : '▾'}</span>
                             </button>
-                            {expandedCluster === title && (
-                                <ul style={{ listStyle: 'none', paddingLeft: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-                                    {matched.map(t => <li key={t} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', padding: '3px 0' }}>→ {t}</li>)}
+                            {expandedCat === cat && (
+                                <ul style={{ listStyle: 'none', borderLeft: `2px solid ${catColors[cat] ?? '#7a7a7a'}44`, marginLeft: 'var(--space-2)', paddingLeft: 'var(--space-4)', paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-3)' }}>
+                                    {subtasks?.map(t => {
+                                        const isOverdue = overdue?.some(o => o.name === t);
+                                        return (
+                                            <li key={t} style={{ fontSize: 'var(--text-xs)', color: isOverdue ? '#c07070' : 'var(--color-text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                <span style={{ color: 'var(--color-text-muted)' }}>→</span> {t}
+                                                {isOverdue && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#c07070', fontWeight: 600 }}>OVERDUE</span>}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             )}
                         </div>
-                    );
-                })}
+                    ))}
+                </div>
+
+                <div className={styles.widget}>
+                    <div className={styles.widgetHeader}>
+                        <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◆</span>Batch It</div>
+                        <span className={styles.widgetBadge}>Group by context</span>
+                    </div>
+                    {Object.entries(clusters).map(([title, clusterTasks]) => {
+                        const matched = clusterTasks.filter(ct => allTasks.some(t => t.toLowerCase().includes(ct.toLowerCase().slice(0, 20))));
+                        if (!matched.length) return null;
+                        return (
+                            <div key={title}>
+                                <button
+                                    onClick={() => setExpandedCluster(expandedCluster === title ? null : title)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', marginBottom: 'var(--space-2)' }}
+                                >
+                                    <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{title}</span>
+                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{matched.length} tasks {expandedCluster === title ? '▴' : '▾'}</span>
+                                </button>
+                                {expandedCluster === title && (
+                                    <ul style={{ listStyle: 'none', paddingLeft: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
+                                        {matched.map(t => <li key={t} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', padding: '3px 0' }}>→ {t}</li>)}
+                                    </ul>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
+        </DashboardShell>
     );
 }

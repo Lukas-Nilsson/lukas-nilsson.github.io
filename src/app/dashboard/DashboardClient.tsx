@@ -159,7 +159,7 @@ function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits — 75 Hard</div>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
                 <div className={styles.dayNav}>
                     <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0} aria-label="Previous day">‹</button>
                     <span className={styles.dayNavDate}>{shortDate(data.date)} · Day {data.day}</span>
