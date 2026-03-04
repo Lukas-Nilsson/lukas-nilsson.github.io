@@ -51,26 +51,50 @@ function shortDate(dateStr: string) {
 }
 
 // ─── Whoop Widget ─────────────────────────────────────────────────────────────
-function WhoopWidget({ data, todayAEST }: { data: DashboardData['whoop']; todayAEST: string }) {
-    if (!data) return <EmptyWidget icon="◎" title="Whoop" message="Run OpenClaw sync to see live Whoop data." />;
+function WhoopWidget({ data, todayAEST, selectedDate }: { data: DashboardData['whoopHistory'][0] | null; todayAEST: string; selectedDate: string }) {
+    if (!data) return <EmptyWidget icon="◎" title="Whoop" message={selectedDate === todayAEST ? "No Whoop data for today yet." : `No Whoop data found for ${selectedDate}.`} />;
 
-    const isToday = data.date === todayAEST;
-    const recoveryColor = data.recovery >= 67 ? '#6db86d' : data.recovery >= 34 ? '#c9a84c' : '#c07070';
+    const isToday = selectedDate === todayAEST;
+    // We only trust the data if it actually matches the selected date
+    const dateMatch = data.date === selectedDate;
 
-    // If data is from a previous day, show it clearly labelled as such rather than presenting it as today
+    // Whoop recovery color logic
+    const recoveryColor = (data.recovery ?? 0) >= 67 ? '#6db86d' : (data.recovery ?? 0) >= 34 ? '#c9a84c' : '#c07070';
+
     const stats = [
-        { label: 'Recovery', value: isToday ? `${data.recovery}%` : '—', color: isToday ? recoveryColor : 'var(--color-text-muted)', sub: isToday ? (data.recovery >= 67 ? 'Good' : data.recovery >= 34 ? 'Moderate' : 'Low') : 'No data yet' },
-        { label: 'Strain', value: isToday && data.strain ? data.strain.toFixed(1) : '—', color: 'var(--accent-400)', sub: isToday ? 'Today' : 'No data yet' },
-        { label: 'Sleep', value: isToday && data.sleep_hours ? `${data.sleep_hours}h` : '—', color: 'var(--accent-300)', sub: isToday && data.sleep_performance ? `${data.sleep_performance}% perf` : '—' },
-        { label: 'HRV', value: isToday && data.hrv ? `${data.hrv} ms` : '—', color: '#7aaac9', sub: isToday ? `RHR ${data.rhr ?? '—'}` : '—' },
+        {
+            label: 'Recovery',
+            value: dateMatch && data.recovery ? `${data.recovery}%` : '—',
+            color: dateMatch ? recoveryColor : 'var(--color-text-muted)',
+            sub: dateMatch && data.recovery ? (data.recovery >= 67 ? 'Good' : data.recovery >= 34 ? 'Moderate' : 'Low') : 'No data'
+        },
+        {
+            label: 'Strain',
+            value: dateMatch && data.strain ? data.strain.toFixed(1) : '—',
+            color: 'var(--accent-400)',
+            sub: isToday ? 'Today' : 'Total'
+        },
+        {
+            label: 'Sleep',
+            value: dateMatch && data.sleep_hours ? `${data.sleep_hours}h` : '—',
+            color: 'var(--accent-300)',
+            sub: dateMatch && data.sleep_performance ? `${data.sleep_performance}% perf` : '—'
+        },
+        {
+            label: 'HRV',
+            value: dateMatch && data.hrv ? `${data.hrv} ms` : '—',
+            color: '#7aaac9',
+            sub: isToday || dateMatch ? 'Heart Rate Var.' : '—'
+        },
     ];
+
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◎</span>Whoop</div>
                 <span className={styles.widgetBadge}>
-                    {isToday ? 'Today' : `Last data: ${fmt(data.date)}`}
-                    {!isToday && <span style={{ marginLeft: 4, color: '#c07070' }}> (not today)</span>}
+                    {isToday ? 'Current Status' : `Data for ${fmt(selectedDate)}`}
+                    {!dateMatch && isToday && <span style={{ marginLeft: 4, color: '#c07070' }}> (not synced)</span>}
                 </span>
             </div>
             <div className={styles.whoopGrid}>
@@ -82,9 +106,9 @@ function WhoopWidget({ data, todayAEST }: { data: DashboardData['whoop']; todayA
                     </div>
                 ))}
             </div>
-            {!isToday && (
+            {isToday && !dateMatch && (
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: 'none', marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-2)' }}>
-                    Run <code>regenerate.sh</code> after Whoop syncs today’s data (usually available by 8am).
+                    Run <code>regenerate.sh</code> once today’s recovery is processed by Whoop.
                 </p>
             )}
         </div>
@@ -135,13 +159,14 @@ function SleepChartWidget({ data }: { data: DashboardData['sleep'] }) {
 }
 
 // ─── Pile Trajectory Widget ───────────────────────────────────────────────────
-function PileTrajectoryWidget({ data }: { data: DashboardData['tasks'] }) {
+function PileTrajectoryWidget({ data, selectedDate }: { data: DashboardData['tasks']; selectedDate: string }) {
     if (!data?.history?.length) return null;
     const chartData = data.history.map(h => ({
         date: shortDate(h.date),
         'Open pile': h.open,
         'Completed': h.completed ?? 0,
         'Added': h.added ?? 0,
+        isHighlight: h.date === selectedDate,
     }));
     return (
         <div className={styles.widget}>
@@ -163,12 +188,9 @@ function PileTrajectoryWidget({ data }: { data: DashboardData['tasks'] }) {
     );
 }
 
-// ─── Habits Widget (with day navigator) ──────────────────────────────────────
-function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) {
-    const [idx, setIdx] = useState(history.length - 1);
-    const data = history[idx];
-
-    if (!data) return <EmptyWidget icon="◈" title="Habits" message="Run OpenClaw sync to see habit data." />;
+// ─── Habits Widget ───────────────────────────────────────────────────────────
+function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null }) {
+    if (!data) return <EmptyWidget icon="◈" title="Habits" message="No habit data found for this day." />;
 
     const doneCount = checkDefs.filter(c => data.checks?.[c.key]?.done).length;
     const pct = Math.round((doneCount / checkDefs.length) * 100);
@@ -177,24 +199,21 @@ function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) 
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
-                <div className={styles.dayNav}>
-                    <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0} aria-label="Previous day">‹</button>
-                    <span className={styles.dayNavDate}>{shortDate(data.date)} · Day {data.day}</span>
-                    <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.min(history.length - 1, i + 1))} disabled={idx === history.length - 1} aria-label="Next day">›</button>
-                </div>
+                <span className={styles.widgetBadge}>{data.today_complete ? '✓ Success' : '× Incomplete'}</span>
             </div>
 
-            {/* General habits */}
+            {/* General habits (e.g. Brush Teeth) */}
             <ul className={styles.habitList} style={{ marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
                 {generalHabits.map(({ icon, label }) => (
                     <li key={label} className={styles.habitItem}>
+                        {/* Currently stateless in Supabase, but UI exists for consistency */}
                         <div className={styles.habitCheck} />
                         <span className={styles.habitName}>{icon} {label}</span>
                     </li>
                 ))}
             </ul>
 
-            {/* 75 Hard tasks */}
+            {/* 75 Hard progress bar */}
             <div className={styles.habitProgress}>
                 <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : 'linear-gradient(90deg, var(--accent-500), var(--accent-300))' }} />
             </div>
@@ -218,8 +237,8 @@ function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) 
             </ul>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
-                <span>{doneCount}/{checkDefs.length} done · 75 Hard</span>
-                <span>Confidence: <strong style={{ color: data.finish_confidence >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence ?? '—'}%</strong></span>
+                <span>{doneCount}/{checkDefs.length} done · Day {data.day}</span>
+                <span>Confidence: <strong style={{ color: (data.finish_confidence ?? 0) >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence ?? '—'}%</strong></span>
             </div>
         </div>
     );
@@ -295,11 +314,20 @@ export default function DashboardClient({ user }: Props) {
     const supabase = createClient();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    // null = not yet loaded; number = index into hard75History
+    const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
     useEffect(() => {
         fetch('/api/dashboard')
             .then(r => r.json())
-            .then(d => { setData(d); setLoading(false); })
+            .then(d => {
+                setData(d);
+                setLoading(false);
+                // Default to most recent day
+                if (d.hard75History?.length) {
+                    setSelectedIdx(d.hard75History.length - 1);
+                }
+            })
             .catch(() => setLoading(false));
     }, []);
 
@@ -346,12 +374,36 @@ export default function DashboardClient({ user }: Props) {
             {/* Main */}
             <main className={styles.main}>
                 <header className={styles.header}>
-                    <div>
+                    <div style={{ flex: 1 }}>
                         <h1 className={styles.greeting}>{greeting}, Lukas.</h1>
                         <p className={styles.date}>
                             {today.toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                     </div>
+
+                    {!loading && data && (data.hard75History?.length ?? 0) > 0 && selectedIdx !== null && (
+                        <div className={styles.dayNav} style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', margin: '0 var(--space-4)' }}>
+                            <button
+                                className={styles.dayNavBtn}
+                                onClick={() => setSelectedIdx(i => Math.max(0, (i ?? 0) - 1))}
+                                disabled={selectedIdx === 0}
+                            >‹</button>
+                            <div style={{ textAlign: 'center', minWidth: 140 }}>
+                                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                                    {shortDate(data.hard75History[selectedIdx].date)}
+                                </div>
+                                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
+                                    Day {data.hard75History[selectedIdx].day} · {data.hard75History[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
+                                </div>
+                            </div>
+                            <button
+                                className={styles.dayNavBtn}
+                                onClick={() => setSelectedIdx(i => Math.min(data.hard75History.length - 1, (i ?? 0) + 1))}
+                                disabled={selectedIdx === data.hard75History.length - 1}
+                            >›</button>
+                        </div>
+                    )}
+
                     <div className={styles.headerMeta}>
                         <span className={styles.userBadge} title={lastSyncedLabel}>{lastSyncedLabel}</span>
                     </div>
@@ -362,22 +414,40 @@ export default function DashboardClient({ user }: Props) {
                         <span className="spinner" style={{ width: 16, height: 16 }} />
                         Loading your data…
                     </div>
+                ) : !data ? (
+                    <div className={styles.widgetNotice}>
+                        🔗 Not yet synced — run <code>regenerate.sh</code> in OpenClaw to populate.
+                    </div>
                 ) : (
+                    // selectedIdx may still be null if hard75History is empty
                     <div className={styles.grid}>
+                        {/* Whoop Status for selected day */}
                         <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
-                            <WhoopWidget data={data?.whoop ?? null} todayAEST={data?.todayAEST ?? ''} />
+                            <WhoopWidget
+                                data={selectedIdx !== null ? (data.whoopHistory.find(h => h.date === data.hard75History[selectedIdx].date) || null) : (data.whoopHistory[data.whoopHistory.length - 1] || null)}
+                                todayAEST={data.todayAEST}
+                                selectedDate={selectedIdx !== null ? data.hard75History[selectedIdx].date : data.todayAEST}
+                            />
                         </div>
+
+                        {/* Habits for selected day */}
                         <div className={styles.gridItem}>
-                            <HabitsWidget history={data?.hard75History ?? []} />
+                            <HabitsWidget data={selectedIdx !== null ? data.hard75History[selectedIdx] : null} />
                         </div>
+
+                        {/* Recent Tasks Snapshot */}
                         <div className={styles.gridItem}>
-                            <TasksWidget data={data?.tasks ?? null} />
+                            <TasksWidget data={data.tasks} />
                         </div>
+
+                        {/* Sleep Stage Chart */}
                         <div className={styles.gridItem}>
-                            <SleepChartWidget data={data?.sleep ?? []} />
+                            <SleepChartWidget data={data.sleep} />
                         </div>
+
+                        {/* Tasks Over Time */}
                         <div className={styles.gridItem}>
-                            <PileTrajectoryWidget data={data?.tasks ?? null} />
+                            <PileTrajectoryWidget data={data.tasks} selectedDate={selectedIdx !== null ? data.hard75History[selectedIdx].date : data.todayAEST} />
                         </div>
                     </div>
                 )}
