@@ -459,12 +459,45 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         return count;
     })();
 
+    // ── Per-habit streak calculation ──
+    const perHabitStreak = (key: string): number => {
+        if (!history?.length || history.length < 2) return 0;
+        let count = 0;
+        // Count from yesterday backwards
+        for (let i = history.length - 2; i >= 0; i--) {
+            const d = history[i];
+            // Skip days where this habit wasn't applicable (75 Hard habits on non-challenge days)
+            if (d.day == null && hard75Keys.has(key)) continue;
+            const check = d.checks?.[key];
+            if (check?.done || (check?.time != null && check.time !== '')) count++;
+            else break;
+        }
+        // If today is also done, add it
+        const todayCheck = getCheck(key);
+        if (count > 0 && (todayCheck.done || (todayCheck.time != null && todayCheck.time !== ''))) count++;
+        return count;
+    };
+
     const hard75Defs = checkDefs.filter(c => hard75Keys.has(c.key));
     const generalDefs = checkDefs.filter(c => !hard75Keys.has(c.key));
 
+    // Current hour in AEST for urgency emojis
+    const melbourneHour = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false });
+    const currentHour = parseInt(melbourneHour, 10);
+
     const renderItem = (c: typeof checkDefs[0]) => {
         const item = getCheck(c.key);
-        const done = item.done;
+        const done = item.done || (item.time != null && item.time !== '');
+        const habitStreak = perHabitStreak(c.key);
+
+        // Snapchat-style urgency: if past 3pm and streak at risk
+        let urgencyEmoji = '';
+        if (habitStreak > 0 && !done && currentHour >= 15) {
+            if (currentHour >= 21) urgencyEmoji = '💀';
+            else if (currentHour >= 18) urgencyEmoji = '⌛';
+            else urgencyEmoji = '⏳';
+        }
+
         return (
             <li key={c.key} className={styles.habitItem} onClick={() => openModal(c.key, c.icon, c.label)}
                 style={{ cursor: 'pointer' }} title="Click to update">
@@ -473,6 +506,14 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
                 </div>
                 <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{c.icon} {c.label}</span>
                 {item.time && <span className={styles.streak}>{item.time}</span>}
+                {habitStreak > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: urgencyEmoji ? '#c07070' : '#e8973a', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                        {urgencyEmoji || '🔥'} {habitStreak}
+                    </span>
+                )}
+                {urgencyEmoji && !done && (
+                    <span style={{ fontSize: 9, color: '#c07070', fontWeight: 600 }}>streak at risk!</span>
+                )}
                 <span className={styles.kanbanEdit}>✎</span>
             </li>
         );
