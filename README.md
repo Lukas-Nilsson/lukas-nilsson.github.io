@@ -1,247 +1,36 @@
-# Lukas Nilsson - Personal Portfolio
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-> Tech creative, founder, and truth seeker building at the intersection of philosophy, technology, and human potential.
+## Getting Started
 
-🌐 **Live Site:** [lukas-nilsson.github.io](https://lukas-nilsson.github.io)
-
----
-
-## 🏗️ Tech Stack
-
-- **Framework:** [Astro](https://astro.build) v5
-- **Styling:** Custom CSS with CSS Variables
-- **Content:** Markdown from [public-mindpalace](https://github.com/Lukas-Nilsson/public-mindpalace) (git submodule)
-- **Deployment:** GitHub Actions → GitHub Pages
-- **Typography:** System fonts (optimized for performance)
-
----
-
-## 📁 Project Structure
-
-```
-lukas-nilsson.github.io/
-├── src/
-│   ├── pages/
-│   │   ├── index.astro           # Custom homepage
-│   │   ├── about.astro
-│   │   ├── writing.astro
-│   │   ├── contact.astro
-│   │   ├── 404.astro
-│   │   └── projects/
-│   │       ├── index.astro       # Projects list
-│   │       └── [slug].astro      # Individual project pages
-│   ├── layouts/
-│   │   ├── BaseLayout.astro      # Base HTML structure
-│   │   └── ContentPage.astro     # Markdown content layout
-│   ├── components/
-│   │   └── Navigation.astro      # Responsive nav
-│   ├── styles/
-│   │   └── global.css            # Design system
-│   └── content/
-│       ├── config.ts             # Content collections config
-│       └── public/               # Submodule → public-mindpalace
-├── public/
-│   ├── favicon.svg
-│   └── robots.txt
-├── old/                          # Archived versions
-│   ├── index.html
-│   └── v2/                       # Previous site (2024-2025)
-└── .github/
-    └── workflows/
-        └── deploy.yml            # Deployment automation
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- npm 10+
-
-### Installation
+First, run the development server:
 
 ```bash
-# Clone the repository
-git clone https://github.com/Lukas-Nilsson/lukas-nilsson.github.io.git
-cd lukas-nilsson.github.io
-
-# Initialize submodules (content)
-git submodule update --init --recursive
-
-# Install dependencies
-npm install
-
-# Start development server
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-### Development Commands
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server at `localhost:4321` |
-| `npm run build` | Build for production to `./dist/` |
-| `npm run preview` | Preview production build locally |
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
----
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## 📝 Content Management
+## Learn More
 
-Content is sourced from the [public-mindpalace](https://github.com/Lukas-Nilsson/public-mindpalace) repository, which auto-syncs from a private Obsidian vault.
+To learn more about Next.js, take a look at the following resources:
 
-### Content Structure
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-```
-src/content/public/
-├── About/index.md
-├── Projects/
-│   └── the-human-archives.md
-├── Writing/index.md
-└── Contact/index.md
-```
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Frontmatter Schema
+## Deploy on Vercel
 
-All content pages use this YAML frontmatter:
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-```yaml
----
-title: "Page Title"
-summary: "Brief description"
-publish: true
-tags: [tag1, tag2]
-updated: 2025-11-03
----
-```
-
-### ⚠️ Link Case Sensitivity (Automatic Fix)
-
-**The site automatically normalizes internal links:**
-- Capitalized paths (e.g., `/Contact/`) → lowercase (`/contact/`)
-- Markdown file links (e.g., `Projects/file.md`) → routes (`/projects/file/`)
-
-This happens client-side via JavaScript in `ContentPage.astro`, ensuring compatibility between the capitalized folder names in `public-mindpalace` and lowercase Astro routes.
-
-### Updating Content
-
-Content updates automatically when the submodule is updated:
-
-```bash
-# Update content from public-mindpalace
-git submodule update --remote src/content/public
-
-# Commit the submodule reference
-git add src/content/public
-git commit -m "Update content"
-git push
-```
-
-GitHub Actions will automatically rebuild and deploy the site.
-
----
-
-## 🎨 Design Philosophy
-
-**Principles:**
-- Minimal, clean aesthetics
-- Generous whitespace
-- System fonts (performance-first)
-- Mobile-first responsive design
-- Semantic HTML
-- Accessible (WCAG 2.1)
-
-**Color Palette:**
-- Neutral grays (black/white)
-- Single accent: Blue (`#3b82f6`)
-- High contrast for readability
-
-**Typography:**
-- System font stack
-- Fluid typography (clamp-based)
-- Line height: 1.7 for body, 1.2 for headings
-
----
-
-## 🚢 Deployment
-
-Deployment is fully automated via GitHub Actions.
-
-### Workflow
-
-1. Push to `main` branch
-2. GitHub Actions builds the site
-3. Output deploys to GitHub Pages
-4. Live in ~2-3 minutes
-
-### Manual Deployment
-
-```bash
-# Build locally
-npm run build
-
-# Deploy (handled by GitHub Actions automatically)
-```
-
-### GitHub Pages Configuration
-
-- **Source:** GitHub Actions
-- **Branch:** `main`
-- **Directory:** `dist/` (built by Astro)
-- **Custom domain:** Not configured (using default)
-
----
-
-## 🧪 Testing
-
-```bash
-# Build production version
-npm run build
-
-# Preview locally
-npm run preview
-
-# Check for accessibility issues
-# (Use browser DevTools Lighthouse)
-```
-
----
-
-## 📦 Dependencies
-
-**Production:**
-- `astro` - Static site framework
-- `@astrojs/sitemap` - SEO sitemap generation
-
-**Dev:**
-- TypeScript (strict mode)
-- Astro content collections
-
----
-
-## 📜 Version History
-
-- **v3.0** (2025) - Astro rebuild, content from public-mindpalace
-- **v2.0** (2024-2025) - Vanilla JS with command palette ([archived](old/v2/))
-- **v1.0** (2024) - Original portfolio ([archived](obsolete/))
-
----
-
-## 📧 Contact
-
-**Lukas Nilsson**
-- Email: [lukasnilssonbusiness@gmail.com](mailto:lukasnilssonbusiness@gmail.com)
-- GitHub: [@Lukas-Nilsson](https://github.com/Lukas-Nilsson)
-- LinkedIn: [lukaspnilsson](https://www.linkedin.com/in/lukaspnilsson/)
-- Website: [lukas-nilsson.github.io](https://lukas-nilsson.github.io)
-
----
-
-## 📄 License
-
-Content and code © 2025 Lukas Nilsson. All rights reserved.
-
----
-
-*Built with [Astro](https://astro.build) 🚀*
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
