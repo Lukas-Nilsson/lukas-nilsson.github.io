@@ -142,33 +142,41 @@ function ProgressRing({ done, total, size = 72 }: { done: number; total: number;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function HabitsPage() {
     const [history, setHistory] = useState<HabitDay[]>([]);
+    const [idx, setIdx] = useState(0);
     const [loading, setLoading] = useState(true);
     const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({});
     const [modal, setModal] = useState<ModalState | null>(null);
+    const [lastSynced, setLastSynced] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/dashboard')
             .then(r => r.json())
             .then(d => {
-                setHistory(d.hard75History ?? []);
+                const hist = d.hard75History ?? [];
+                setHistory(hist);
+                setIdx(hist.length - 1);
+                setLastSynced(d.lastSynced ?? null);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
     }, []);
 
     const today = history[history.length - 1];
-    const isChallenge = today?.day != null;
+    const data = history[idx];
+    const isViewingToday = idx === history.length - 1;
+    const isChallenge = data?.day != null;
     const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
 
     // On non-challenge days, filter out 75-hard-specific habits
     const activeDefs = isChallenge ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
 
     const getCheck = (key: string) => {
-        if (overrides[key] !== undefined) return overrides[key];
-        return today?.checks?.[key] ?? { done: false, time: null };
+        if (isViewingToday && overrides[key] !== undefined) return overrides[key];
+        return data?.checks?.[key] ?? { done: false, time: null };
     };
 
     const openModal = (key: string, icon: string, label: string) => {
+        if (!isViewingToday) return; // Only edit today
         const check = getCheck(key);
         const [desc, ...rest] = (check.time ?? '').split(' @ ');
         setModal({
@@ -214,13 +222,15 @@ export default function HabitsPage() {
     };
 
     // ── Discipline score breakdown ──
-    const todayDoneCount = activeDefs.filter(c => getCheck(c.key).done).length;
-    const todayScore = useMemo(() => {
+    const viewDoneCount = activeDefs.filter(c => getCheck(c.key).done).length;
+    const viewScore = useMemo(() => {
         const activeWeight = activeDefs.reduce((s, h) => s + h.weight, 0);
         const doneWeight = activeDefs.filter(h => getCheck(h.key).done).reduce((s, h) => s + h.weight, 0);
         return activeWeight > 0 ? Math.round((doneWeight / activeWeight) * 100) : 0;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeDefs, overrides, today]);
+    }, [activeDefs, overrides, data]);
+    // For overall streak, use today's count
+    const todayDoneCount = isViewingToday ? viewDoneCount : (today ? allHabits.filter(c => today.checks?.[c.key]?.done).length : 0);
 
     // ── Chart ──
     const chartData = useMemo(() => history.map(d => ({
@@ -241,10 +251,11 @@ export default function HabitsPage() {
             if (dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done)) count++;
             else break;
         }
-        if (count > 0 && todayDoneCount === activeDefs.length) count++;
+        const todayActiveDefs = today?.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
+        if (count > 0 && todayDoneCount === todayActiveDefs.length) count++;
         return count;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [history, overrides]);
+    }, [history, overrides, todayDoneCount]);
 
     // ── Groups for rendering ──
     const groups = useMemo(() => {
@@ -273,29 +284,50 @@ export default function HabitsPage() {
 
     return (
         <DashboardShell>
-            {modal && <HabitModal state={modal} date={today.date} onClose={() => setModal(null)} onSave={handleSave} />}
+            {modal && <HabitModal state={modal} date={data.date} onClose={() => setModal(null)} onSave={handleSave} />}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-                {/* Header */}
-                <div>
-                    <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>Habits</h2>
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
-                        Build consistency, one day at a time. {overallStreak > 0 && `🔥 ${overallStreak} day${overallStreak > 1 ? 's' : ''} all habits done.`}
-                    </p>
+                {/* Header with day nav + synced */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+                    <div>
+                        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>Habits</h2>
+                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
+                            Build consistency, one day at a time. {overallStreak > 0 && `🔥 ${overallStreak} day${overallStreak > 1 ? 's' : ''} all habits done.`}
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                        <div className={styles.dayNav}>
+                            <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>‹</button>
+                            <div style={{ textAlign: 'center', minWidth: 100 }}>
+                                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                                    {shortDate(data.date)}
+                                </div>
+                                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
+                                    {isChallenge ? `Day ${data.day}` : ''}{isViewingToday ? (isChallenge ? ' · Today' : 'Today') : ''}
+                                </div>
+                            </div>
+                            <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.min(history.length - 1, i + 1))} disabled={idx === history.length - 1}>›</button>
+                        </div>
+                        {lastSynced && (
+                            <span className={styles.userBadge} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                                Synced {new Date(lastSynced).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} {new Date(lastSynced).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                {/* Today's habits */}
+                {/* Daily habits */}
                 <div className={styles.widget}>
                     <div className={styles.kanbanHeader}>
-                        <ProgressRing done={todayDoneCount} total={activeDefs.length} />
+                        <ProgressRing done={viewDoneCount} total={activeDefs.length} />
                         <div style={{ flex: 1 }}>
-                            <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Today</div>
+                            <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>{isViewingToday ? 'Today' : shortDate(data.date)}</div>
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                {shortDate(today.date)}
-                                {isChallenge ? ` · Day ${today.day} of 75 Hard` : ''}
+                                {isChallenge ? `Day ${data.day} of 75 Hard` : ''}
+                                {!isViewingToday ? ' · View only' : ''}
                             </div>
                         </div>
-                        {overallStreak > 0 && (
+                        {overallStreak > 0 && isViewingToday && (
                             <div className={styles.streakBadge}>
                                 <span className={styles.streakFire}>🔥</span>
                                 <span className={styles.streakCount}>{overallStreak}</span>
@@ -325,7 +357,8 @@ export default function HabitsPage() {
                                     return (
                                         <li key={c.key} className={styles.habitItem}
                                             onClick={() => openModal(c.key, c.icon, c.label)}
-                                            style={{ cursor: 'pointer' }} title="Click to update"
+                                            style={{ cursor: isViewingToday ? 'pointer' : 'default' }}
+                                            title={isViewingToday ? 'Click to update' : ''}
                                         >
                                             <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
                                                 {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -346,23 +379,28 @@ export default function HabitsPage() {
                                             {urgencyEmoji && !done && (
                                                 <span style={{ fontSize: 9, color: '#c07070', fontWeight: 600 }}>streak at risk!</span>
                                             )}
-                                            <span className={styles.kanbanEdit}>✎</span>
+                                            {isViewingToday && <span className={styles.kanbanEdit}>✎</span>}
                                         </li>
                                     );
                                 })}
                             </ul>
                         </div>
                     ))}
+                    {!isViewingToday && (
+                        <div style={{ fontSize: 'var(--text-xs)', fontStyle: 'italic', color: 'var(--color-text-muted)', paddingTop: 'var(--space-2)' }}>
+                            Viewing past day — edit disabled
+                        </div>
+                    )}
                 </div>
 
                 {/* Discipline Score Breakdown */}
                 <div className={styles.widget}>
                     <div className={styles.widgetHeader}>
                         <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◉</span>Discipline Score</div>
-                        <span className={styles.widgetBadge} style={{ fontSize: 18, fontWeight: 800, color: todayScore >= 80 ? '#6db86d' : todayScore >= 50 ? '#c9a84c' : '#c07070' }}>{todayScore}%</span>
+                        <span className={styles.widgetBadge} style={{ fontSize: 18, fontWeight: 800, color: viewScore >= 80 ? '#6db86d' : viewScore >= 50 ? '#c9a84c' : '#c07070' }}>{viewScore}%</span>
                     </div>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: '0 0 var(--space-3)', maxWidth: 'none' }}>
-                        Each habit contributes a weighted portion to your daily score. Complete more = higher score.
+                        Each habit has a weighted contribution. Completing habits earlier in the day boosts your score further. Don&apos;t leave them to the last minute.
                     </p>
 
                     {/* Per-habit contribution bars */}
@@ -409,7 +447,7 @@ export default function HabitsPage() {
                             {activeDefs.filter(h => getCheck(h.key).done).length} of {activeDefs.length} habits done
                         </span>
                         <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>
-                            = {todayScore}% discipline
+                            = {viewScore}% discipline
                         </span>
                     </div>
                 </div>
@@ -476,9 +514,9 @@ export default function HabitsPage() {
                     </div>
                 )}
 
-                {/* Monthly contribution heatmap */}
+                {/* Monthly contribution heatmap — GitHub-style */}
                 {history.length > 1 && (() => {
-                    // Build a map of date → completion fraction
+                    // Build date → completion fraction map
                     const dateMap = new Map<string, number>();
                     history.forEach(d => {
                         const dayHabits = d.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
@@ -486,46 +524,55 @@ export default function HabitsPage() {
                         dateMap.set(d.date, dayHabits.length > 0 ? dayDone / dayHabits.length : 0);
                     });
 
-                    // Generate last 35 days (5 weeks)
-                    const days: { date: string; pct: number }[] = [];
-                    const now = new Date();
-                    for (let i = 34; i >= 0; i--) {
-                        const d = new Date(now);
+                    // Generate all days for the last 5 full weeks (always 35 days, ending on today's weekday)
+                    const todayDate = new Date();
+                    const todayDow = todayDate.getDay(); // 0=Sun
+                    // Go back enough to fill 5 full weeks ending today
+                    const totalDays = 5 * 7;
+                    const startOffset = totalDays - 1;
+                    const cells: { date: string; dow: number; pct: number; dayNum: number; monthStr: string }[] = [];
+
+                    for (let i = startOffset; i >= 0; i--) {
+                        const d = new Date(todayDate);
                         d.setDate(d.getDate() - i);
-                        const key = d.toLocaleDateString('en-CA');
-                        days.push({ date: key, pct: dateMap.get(key) ?? -1 });
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        cells.push({
+                            date: key,
+                            dow: d.getDay(),
+                            pct: dateMap.get(key) ?? -1,
+                            dayNum: d.getDate(),
+                            monthStr: d.toLocaleDateString('en-AU', { month: 'short' }),
+                        });
                     }
 
-                    // Group by week (Sun-Sat rows)
-                    const weeks: (typeof days)[] = [];
-                    let currentWeek: typeof days = [];
-                    days.forEach(d => {
-                        const dow = new Date(d.date + 'T00:00:00').getDay();
-                        if (dow === 0 && currentWeek.length > 0) {
-                            weeks.push(currentWeek);
-                            currentWeek = [];
-                        }
-                        currentWeek.push(d);
+                    // Group into weeks (each 7 cells, already aligned)
+                    const weeks: typeof cells[] = [];
+                    for (let i = 0; i < cells.length; i += 7) {
+                        weeks.push(cells.slice(i, i + 7));
+                    }
+
+                    // Month labels: for each week, show the month of the first day if it differs from previous
+                    const monthLabels: (string | null)[] = [];
+                    let lastMonth = '';
+                    weeks.forEach(week => {
+                        const m = week[0].monthStr;
+                        if (m !== lastMonth) { monthLabels.push(m); lastMonth = m; }
+                        else monthLabels.push(null);
                     });
-                    if (currentWeek.length) weeks.push(currentWeek);
 
                     const getColor = (pct: number) => {
-                        if (pct < 0) return 'var(--color-bg-secondary)'; // no data
+                        if (pct < 0) return 'var(--color-bg-secondary)';
                         if (pct === 0) return 'rgba(192,112,112,0.2)';
-                        if (pct < 0.5) return 'rgba(90,154,90,0.15)';
-                        if (pct < 0.75) return 'rgba(90,154,90,0.3)';
-                        if (pct < 1) return 'rgba(90,154,90,0.55)';
-                        return 'rgba(90,154,90,0.85)';
+                        if (pct < 0.4) return 'rgba(90,154,90,0.15)';
+                        if (pct < 0.6) return 'rgba(90,154,90,0.3)';
+                        if (pct < 0.8) return 'rgba(90,154,90,0.5)';
+                        if (pct < 1) return 'rgba(90,154,90,0.7)';
+                        return 'rgba(90,154,90,0.9)';
                     };
 
-                    const getBorder = (pct: number) => {
-                        if (pct < 0) return '1px solid var(--color-border)';
-                        if (pct === 0) return '1px solid rgba(192,112,112,0.3)';
-                        if (pct < 1) return '1px solid rgba(90,154,90,0.3)';
-                        return '1px solid #5a9a5a';
-                    };
-
-                    const dowLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                    const sz = 16;
+                    const gap = 3;
+                    const dowLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
                     return (
                         <div className={styles.widget}>
@@ -533,46 +580,47 @@ export default function HabitsPage() {
                                 <div className={styles.widgetTitle}><span className={styles.widgetIcon}>🟩</span>Monthly Heatmap</div>
                                 <span className={styles.widgetBadge}>Last 5 weeks</span>
                             </div>
-                            <div style={{ display: 'flex', gap: 3 }}>
+
+                            {/* Month labels row */}
+                            <div style={{ display: 'flex', paddingLeft: 32, gap, marginBottom: 2 }}>
+                                {monthLabels.map((label, i) => (
+                                    <div key={i} style={{ width: sz, fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'left' }}>
+                                        {label ?? ''}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Grid: 7 rows × N columns */}
+                            <div style={{ display: 'flex', gap }}>
                                 {/* Day-of-week labels */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 0 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap, width: 28, flexShrink: 0 }}>
                                     {dowLabels.map((label, i) => (
-                                        <div key={i} style={{ height: 18, width: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                                            {i % 2 === 1 ? label : ''}
+                                        <div key={i} style={{ height: sz, display: 'flex', alignItems: 'center', fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                                            {label}
                                         </div>
                                     ))}
                                 </div>
                                 {/* Week columns */}
-                                {weeks.map((week, wi) => {
-                                    // Pad first week
-                                    const firstDow = new Date(week[0].date + 'T00:00:00').getDay();
-                                    const padded = [...Array(firstDow).fill(null), ...week];
-                                    return (
-                                        <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                            {Array.from({ length: 7 }, (_, di) => {
-                                                const entry = padded[di];
-                                                if (!entry) return <div key={di} style={{ width: 18, height: 18 }} />;
-                                                const pctVal = entry.pct;
-                                                return (
-                                                    <div key={di}
-                                                        title={`${shortDate(entry.date)}: ${pctVal < 0 ? 'No data' : `${Math.round(pctVal * 100)}%`}`}
-                                                        style={{
-                                                            width: 18, height: 18, borderRadius: 3,
-                                                            background: getColor(pctVal),
-                                                            border: getBorder(pctVal),
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })}
+                                {weeks.map((week, wi) => (
+                                    <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap }}>
+                                        {week.map((cell, ci) => (
+                                            <div key={ci}
+                                                title={`${cell.monthStr} ${cell.dayNum}: ${cell.pct < 0 ? 'No data' : `${Math.round(cell.pct * 100)}% complete`}`}
+                                                style={{
+                                                    width: sz, height: sz, borderRadius: 3,
+                                                    background: getColor(cell.pct),
+                                                    border: cell.pct >= 1 ? '1px solid #5a9a5a' : cell.pct === 0 ? '1px solid rgba(192,112,112,0.3)' : '1px solid rgba(120,120,120,0.15)',
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                ))}
                             </div>
                             {/* Legend */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', paddingTop: 'var(--space-3)' }}>
                                 <span>Less</span>
                                 {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-                                    <div key={i} style={{ width: 12, height: 12, borderRadius: 2, background: getColor(p), border: getBorder(p) }} />
+                                    <div key={i} style={{ width: 12, height: 12, borderRadius: 2, background: getColor(p), border: '1px solid rgba(120,120,120,0.15)' }} />
                                 ))}
                                 <span>More</span>
                             </div>
