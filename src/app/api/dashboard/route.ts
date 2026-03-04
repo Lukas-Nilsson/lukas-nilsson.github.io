@@ -157,11 +157,10 @@ export async function GET() {
         }
 
         // Override snapshot deltas with accurate task-level data
+        // Always override: if no tasks were added/completed on a date, the value is 0
         for (const point of taskHistory) {
-            const addedCount = addedByDate.get(point.date);
-            const completedCount = completedByDate.get(point.date);
-            if (addedCount !== undefined) point.added = addedCount;
-            if (completedCount !== undefined) point.completed = completedCount;
+            point.added = addedByDate.get(point.date) ?? 0;
+            point.completed = completedByDate.get(point.date) ?? 0;
         }
     }
 
