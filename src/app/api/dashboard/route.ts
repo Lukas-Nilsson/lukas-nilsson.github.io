@@ -131,38 +131,9 @@ export async function GET() {
         added: t.added_delta ?? 0,
     }));
 
-    // Enhance trajectory with per-task created_at/completed_at data if available
-    let individualTasks: { name: string; status: string; category: string; created_at: string; completed_at: string | null }[] = [];
-    try {
-        const tasksRes = await supabase
-            .from('tasks')
-            .select('name,status,category,created_at,completed_at');
-        individualTasks = tasksRes.data ?? [];
-    } catch { /* tasks table may not exist yet */ }
-
-    if (individualTasks.length > 0) {
-        // Compute per-day added/completed from task timestamps
-        const addedByDate = new Map<string, number>();
-        const completedByDate = new Map<string, number>();
-
-        for (const task of individualTasks) {
-            if (task.created_at) {
-                const createdDate = new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                addedByDate.set(createdDate, (addedByDate.get(createdDate) ?? 0) + 1);
-            }
-            if (task.completed_at) {
-                const completedDate = new Date(task.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                completedByDate.set(completedDate, (completedByDate.get(completedDate) ?? 0) + 1);
-            }
-        }
-
-        // Override snapshot deltas with accurate task-level data
-        // Always override: if no tasks were added/completed on a date, the value is 0
-        for (const point of taskHistory) {
-            point.added = addedByDate.get(point.date) ?? 0;
-            point.completed = completedByDate.get(point.date) ?? 0;
-        }
-    }
+    // Note: individual tasks from 'tasks' table are used for the task list,
+    // but trajectory data comes from task_snapshots (daily source of truth).
+    // parse-tasks.js computes accurate per-day deltas using completed_at dates.
 
     const tasks = latestTask ? {
         updated_at: latestTask.updated_at,

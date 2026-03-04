@@ -503,30 +503,10 @@ export default function TasksPage() {
     const history = tasks.history ?? [];
     const chartData = history.map(h => ({
         date: shortDate(h.date),
-        'Pile Size': h.open,
+        'Open pile': h.open,
         Completed: h.completed ?? 0,
         Added: h.added ?? 0,
     }));
-
-    // Compute live "today" from real data
-    const todayLabel = shortDate(todayStr);
-    const totalTasksNow = Object.values(tasks.categories ?? {}).reduce((s, c) => s + (c.tasks?.length ?? 0), 0);
-    const liveOpen = totalTasksNow - completedTasks.length;
-    const liveCompleted = completedTasks.length;
-
-    // "Added" = total tasks now - previous day's total tasks
-    const prevSnapshot = history[history.length - 1];
-    const prevTotal = prevSnapshot ? (prevSnapshot.open + (prevSnapshot.completed ?? 0)) : totalTasksNow;
-    const liveAdded = Math.max(0, totalTasksNow - prevTotal);
-
-    // Replace or append today's entry
-    const existingTodayIdx = chartData.findIndex(d => d.date === todayLabel);
-    const todayPoint = { date: todayLabel, 'Pile Size': liveOpen, Completed: liveCompleted, Added: liveAdded };
-    if (existingTodayIdx >= 0) {
-        chartData[existingTodayIdx] = todayPoint;
-    } else {
-        chartData.push(todayPoint);
-    }
 
     // ── Render a single task row ──
     const renderTaskRow = (t: ScoredTask, indent: number = 0) => {
@@ -758,7 +738,7 @@ export default function TasksPage() {
                         </div>
                         <AreaChart data={chartData} xKey="date" height={180}
                             areas={[
-                                { key: 'Pile Size', color: '#c17f3a', name: 'Open pile' },
+                                { key: 'Open pile', color: '#c17f3a', name: 'Open pile' },
                                 { key: 'Completed', color: '#5a9a5a', name: 'Completed' },
                                 { key: 'Added', color: '#c07070', name: 'Added' },
                             ]}
