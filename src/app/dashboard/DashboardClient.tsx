@@ -524,51 +524,136 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
 
 // ─── Tasks Widget ──────────────────────────────────────────────────────────────
 function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
-    const [expanded, setExpanded] = useState<string | null>(null);
+    const [completions, setCompletions] = useState<Set<string>>(new Set());
+    const [metaMap, setMetaMap] = useState<Map<string, { priority: string | null; due_date: string | null; waiting_on: string | null; context: string | null; parent_task: string | null }>>(new Map());
+    const [saving, setSaving] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetch('/api/dashboard/tasks').then(r => r.json()).then(d => {
+            setCompletions(new Set((d.completions ?? []).map((c: { task_name: string }) => c.task_name)));
+            const entries = (d.metadata ?? []).map((m: { task_name: string; priority: string | null; due_date: string | null; waiting_on: string | null; context: string | null; parent_task: string | null }) =>
+                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, context: m.context, parent_task: m.parent_task }] as const
+            );
+            setMetaMap(new Map(entries));
+        }).catch(() => { });
+    }, []);
+
+    const toggleTask = async (name: string, cat: string, done: boolean) => {
+        setSaving(name);
+        const action = done ? 'uncomplete' : 'complete';
+        setCompletions(prev => { const n = new Set(prev); done ? n.delete(name) : n.add(name); return n; });
+        try {
+            const r = await fetch('/api/dashboard/tasks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_name: name, category: cat, action }) });
+            if (!r.ok) setCompletions(prev => { const n = new Set(prev); done ? n.add(name) : n.delete(name); return n; });
+        } catch { setCompletions(prev => { const n = new Set(prev); done ? n.add(name) : n.delete(name); return n; }); }
+        setSaving(null);
+    };
+
     if (!data) return <EmptyWidget icon="◇" title="The Pile" message="Task data will appear after the next sync." />;
 
-    const cats = Object.entries(data.categories ?? {}).sort((a, b) => b[1].open - a[1].open);
+    const priCfg: Record<string, { color: string; score: number }> = {
+        urgent: { color: '#c07070', score: 900 }, this_week: { color: '#c9a84c', score: 700 },
+        this_month: { color: '#5a7a8a', score: 400 }, ongoing: { color: '#5a9a5a', score: 300 },
+        someday: { color: 'var(--color-text-muted)', score: 50 },
+    };
+
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+    const today = new Date(todayStr + 'T00:00:00');
+    const overdueMap = new Map(data.overdue_tasks?.map(t => [t.name, t]) ?? []);
+
+    type Task = { name: string; cat: string; urgency: string; score: number; done: boolean; overdueDays: number; meta: typeof metaMap extends Map<string, infer V> ? V | null : never };
+    const allTasks: Task[] = [];
+
+    for (const [cat, d] of Object.entries(data.categories ?? {})) {
+        for (const name of d.tasks ?? []) {
+            const isDone = completions.has(name);
+            const meta = metaMap.get(name) ?? null;
+            const ov = overdueMap.get(name);
+            const dueStr = meta?.due_date ?? ov?.due ?? null;
+            const dueDate = dueStr ? new Date(dueStr + 'T00:00:00') : null;
+            const overdueDays = dueDate && dueDate < today ? Math.ceil((today.getTime() - dueDate.getTime()) / 86400000) : 0;
+
+            // Skip subtasks (they'll appear on full page)
+            if (meta?.parent_task) continue;
+
+            let urgency = 'backlog', score = 100;
+            if (isDone) { urgency = 'done'; score = -1; }
+            else if (meta?.waiting_on) { urgency = 'waiting'; score = 10; }
+            else if (overdueDays > 0) { urgency = 'overdue'; score = 1000 + overdueDays; }
+            else if (meta?.priority && priCfg[meta.priority]) { urgency = meta.priority; score = priCfg[meta.priority].score; }
+            else if (overdueMap.has(name)) { urgency = 'overdue'; score = 1000; }
+
+            allTasks.push({ name, cat, urgency, score, done: isDone, overdueDays, meta });
+        }
+    }
+    allTasks.sort((a, b) => b.score - a.score);
+
+    const open = allTasks.filter(t => !t.done);
+    const doneCount = allTasks.filter(t => t.done).length;
+
+    // Show max 12 items on overview
+    const visible = open.slice(0, 12);
+    const remaining = open.length - visible.length;
+
+    const sectionLabel = (urgency: string) => {
+        const labels: Record<string, { label: string; color: string }> = {
+            overdue: { label: 'OVERDUE', color: '#c07070' }, urgent: { label: 'URGENT', color: '#c07070' },
+            this_week: { label: 'THIS WEEK', color: '#c9a84c' }, this_month: { label: 'THIS MONTH', color: '#5a7a8a' },
+            ongoing: { label: 'ONGOING', color: '#5a9a5a' }, waiting: { label: 'WAITING ON', color: '#c9a84c' },
+            backlog: { label: 'BACKLOG', color: 'var(--color-text-muted)' },
+        };
+        return labels[urgency] ?? { label: urgency.toUpperCase(), color: 'var(--color-text-muted)' };
+    };
+
+    // Group visible tasks for section headers
+    let lastUrgency = '';
 
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>The Pile</div>
-                <span className={styles.widgetBadge}>{data.total_open} open</span>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>⚡</span>The Pile</div>
+                <span className={styles.widgetBadge}>{open.length} open{doneCount > 0 ? ` · ${doneCount} ✓` : ''}</span>
             </div>
 
-            {data.overdue_tasks?.length > 0 && (
-                <div style={{ background: 'rgba(192,112,112,0.1)', border: '1px solid rgba(192,112,112,0.2)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-3)' }}>
-                    <p style={{ fontSize: 'var(--text-xs)', color: '#c07070', fontWeight: 700, marginBottom: 'var(--space-1)', maxWidth: 'none' }}>⚠ {data.overdue_tasks.length} overdue</p>
-                    {data.overdue_tasks.map(t => (
-                        <p key={t.name} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', maxWidth: 'none', margin: '2px 0' }}>
-                            {t.name} <span style={{ color: 'var(--color-text-muted)' }}>· {t.category} · due {t.due}</span>
-                        </p>
-                    ))}
-                </div>
+            <ul className={styles.priorityList}>
+                {visible.map(t => {
+                    const showHeader = t.urgency !== lastUrgency;
+                    lastUrgency = t.urgency;
+                    const sec = sectionLabel(t.urgency);
+                    return (
+                        <div key={t.name}>
+                            {showHeader && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-2) 2px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: sec.color, borderBottom: `1px solid ${sec.color}33`, marginTop: 'var(--space-2)' }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: sec.color, flexShrink: 0 }} />
+                                    {sec.label}
+                                </div>
+                            )}
+                            <li className={styles.priorityItem}>
+                                <button
+                                    className={`${styles.taskCheck} ${t.done ? styles.taskCheckDone : ''}`}
+                                    onClick={() => toggleTask(t.name, t.cat, t.done)}
+                                    disabled={saving === t.name}
+                                    style={{ width: 16, height: 16 }}
+                                >
+                                    {t.done && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                                </button>
+                                <span className={styles.priorityName} style={{ fontSize: 'var(--text-xs)' }}>{t.name}</span>
+                                <span className={styles.priorityCat} style={{ color: catColors[t.cat] ?? 'var(--color-text-muted)' }}>{t.cat}</span>
+                                {t.urgency === 'overdue' && <span style={{ fontSize: 9, fontWeight: 700, color: '#c07070' }}>{t.overdueDays}d</span>}
+                                {t.meta?.waiting_on && <span style={{ fontSize: 9, color: '#c9a84c' }}>⏳</span>}
+                            </li>
+                        </div>
+                    );
+                })}
+            </ul>
+
+            {remaining > 0 && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 'var(--space-3)', maxWidth: 'none' }}>+{remaining} more</p>
             )}
 
-            <ul className={styles.taskList}>
-                {cats.map(([cat, { open, tasks }]) => (
-                    <li key={cat} style={{ listStyle: 'none' }}>
-                        <button
-                            className={styles.taskCatBtn}
-                            onClick={() => setExpanded(expanded === cat ? null : cat)}
-                            style={{ '--cat-color': catColors[cat] ?? '#7a7a7a' } as React.CSSProperties}
-                        >
-                            <div className={styles.priorityDot} style={{ background: catColors[cat] ?? '#7a7a7a' }} />
-                            <span className={styles.taskTitle}>{cat}</span>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{open} ›</span>
-                        </button>
-                        {expanded === cat && tasks?.length > 0 && (
-                            <ul style={{ listStyle: 'none', borderLeft: `2px solid ${catColors[cat] ?? '#7a7a7a'}33`, marginLeft: 'var(--space-4)', paddingLeft: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
-                                {tasks.map(t => (
-                                    <li key={t} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', padding: '3px 0', borderBottom: '1px solid var(--color-border)' }}>→ {t}</li>
-                                ))}
-                            </ul>
-                        )}
-                    </li>
-                ))}
-            </ul>
+            <a href="/dashboard/tasks" className={styles.widgetLink} style={{ display: 'block', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-3)', textDecoration: 'none' }}>
+                View all →
+            </a>
         </div>
     );
 }
