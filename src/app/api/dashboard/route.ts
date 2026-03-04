@@ -77,11 +77,11 @@ export async function GET() {
     preChallengeDates.forEach(date => {
         const checks = habitsByDate[date] ?? {};
         const checksMapped: Record<string, { done: boolean; time: string | null }> = {
-            workout1: { done: false, time: null },
-            workout2: { done: false, time: null },
-            water: { done: false, time: null },
-            diet: { done: false, time: null },
-            reading: { done: false, time: null },
+            workout1: { done: checks['workout_outdoor']?.done ?? false, time: checks['workout_outdoor']?.value ?? null },
+            workout2: { done: checks['workout_2']?.done ?? false, time: checks['workout_2']?.value ?? null },
+            water: { done: checks['water']?.done ?? false, time: checks['water']?.value ?? null },
+            diet: { done: checks['diet']?.done ?? false, time: checks['diet']?.value ?? null },
+            reading: { done: checks['reading']?.done ?? false, time: checks['reading']?.value ?? null },
             teeth: { done: checks['teeth']?.done ?? false, time: checks['teeth']?.value ?? null },
             bedtime: { done: checks['bedtime']?.done ?? false, time: checks['bedtime']?.value ?? null },
             wake: { done: checks['wake']?.done ?? false, time: checks['wake']?.value ?? null },
