@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { AreaChart } from '@/components/charts/Charts';
 import DashboardShell from '../DashboardShell';
 import styles from '../dashboard.module.css';
@@ -17,6 +17,8 @@ interface TaskMeta {
     due_date: string | null;
     waiting_on: string | null;
     notes: string | null;
+    context: string | null;
+    parent_task: string | null;
 }
 
 const catColors: Record<string, string> = {
@@ -24,11 +26,12 @@ const catColors: Record<string, string> = {
     Fitness: '#5a8a5a', Finance: '#5a7a8a', Personal: '#7a5a8a', Dev: '#8a5a5a',
 };
 
-const priorityConfig: Record<string, { label: string; color: string; score: number }> = {
-    urgent: { label: '🔴 Urgent', color: '#c07070', score: 900 },
-    this_week: { label: '🟡 This Week', color: '#c9a84c', score: 700 },
-    this_month: { label: '🔵 This Month', color: '#5a7a8a', score: 400 },
-    someday: { label: '⚪ Someday', color: 'var(--color-text-muted)', score: 50 },
+const priorityConfig: Record<string, { label: string; icon: string; color: string; score: number }> = {
+    urgent: { label: 'Urgent', icon: '🔴', color: '#c07070', score: 900 },
+    this_week: { label: 'This Week', icon: '🟡', color: '#c9a84c', score: 700 },
+    this_month: { label: 'This Month', icon: '🔵', color: '#5a7a8a', score: 400 },
+    ongoing: { label: 'Ongoing', icon: '🟢', color: '#5a9a5a', score: 300 },
+    someday: { label: 'Someday', icon: '⚪', color: 'var(--color-text-muted)', score: 50 },
 };
 
 function shortDate(d: string) {
@@ -41,10 +44,11 @@ interface ScoredTask {
     category: string;
     due: string | null;
     overdueDays: number;
-    urgency: string; // overdue | urgent | this_week | this_month | waiting | backlog
+    urgency: string;
     score: number;
     completed: boolean;
     meta: TaskMeta | null;
+    children: ScoredTask[];
 }
 
 function buildPriorityStack(
@@ -56,7 +60,8 @@ function buildPriorityStack(
     const today = new Date(todayStr + 'T00:00:00');
     const overdueMap = new Map(tasks.overdue_tasks?.map(t => [t.name, t]) ?? []);
 
-    const scored: ScoredTask[] = [];
+    // Build flat list first
+    const allTasks: ScoredTask[] = [];
 
     for (const [cat, data] of Object.entries(tasks.categories ?? {})) {
         for (const taskName of data.tasks ?? []) {
@@ -81,37 +86,58 @@ function buildPriorityStack(
                 score = -1;
             } else if (meta?.waiting_on) {
                 urgency = 'waiting';
-                score = 10; // Blocked tasks sink below backlog
-            } else if (overdueDays > 0) {
+                score = 10;
+            } else if (overdueDays > 0 && !meta?.priority) {
                 urgency = 'overdue';
                 score = 1000 + overdueDays;
             } else if (meta?.priority && priorityConfig[meta.priority]) {
                 urgency = meta.priority;
                 score = priorityConfig[meta.priority].score;
-                // Boost by due date proximity if set
-                if (dueDate) {
+                if (overdueDays > 0) score += 1000; // Overdue trumps
+                if (overdueDays > 0) urgency = 'overdue';
+                if (dueDate && overdueDays <= 0) {
                     const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                     score += Math.max(0, 30 - daysUntil);
                 }
             } else if (isOverdue) {
                 urgency = 'overdue';
                 score = 1000 + overdueDays;
-            } else {
-                urgency = 'backlog';
-                score = 100;
             }
 
-            scored.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta });
+            allTasks.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta, children: [] });
         }
     }
 
-    scored.sort((a, b) => b.score - a.score);
-    return scored;
+    // Build parent-child relationships
+    const taskByName = new Map(allTasks.map(t => [t.name, t]));
+    const childNames = new Set<string>();
+
+    for (const task of allTasks) {
+        if (task.meta?.parent_task) {
+            const parent = taskByName.get(task.meta.parent_task);
+            if (parent) {
+                parent.children.push(task);
+                childNames.add(task.name);
+            }
+        }
+    }
+
+    // Filter out children from top-level (they'll be nested under parents)
+    const topLevel = allTasks.filter(t => !childNames.has(t.name));
+    topLevel.sort((a, b) => b.score - a.score);
+
+    // Sort children within each parent by score
+    for (const task of topLevel) {
+        task.children.sort((a, b) => b.score - a.score);
+    }
+
+    return topLevel;
 }
 
 // ─── Task Edit Modal ─────────────────────────────────────────────────────────
-function TaskEditModal({ task, onClose, onSave }: {
+function TaskEditModal({ task, allTaskNames, onClose, onSave }: {
     task: ScoredTask;
+    allTaskNames: string[];
     onClose: () => void;
     onSave: (taskName: string, meta: TaskMeta) => void;
 }) {
@@ -119,6 +145,8 @@ function TaskEditModal({ task, onClose, onSave }: {
     const [dueDate, setDueDate] = useState(task.meta?.due_date ?? '');
     const [waitingOn, setWaitingOn] = useState(task.meta?.waiting_on ?? '');
     const [notes, setNotes] = useState(task.meta?.notes ?? '');
+    const [context, setContext] = useState(task.meta?.context ?? '');
+    const [parentTask, setParentTask] = useState(task.meta?.parent_task ?? '');
     const [saving, setSaving] = useState(false);
 
     const handleSave = async () => {
@@ -134,6 +162,8 @@ function TaskEditModal({ task, onClose, onSave }: {
                     due_date: dueDate || null,
                     waiting_on: waitingOn || null,
                     notes: notes || null,
+                    context: context || null,
+                    parent_task: parentTask || null,
                 }),
             });
             if (!res.ok) {
@@ -147,6 +177,8 @@ function TaskEditModal({ task, onClose, onSave }: {
                 due_date: dueDate || null,
                 waiting_on: waitingOn || null,
                 notes: notes || null,
+                context: context || null,
+                parent_task: parentTask || null,
             });
             onClose();
         } catch (e) {
@@ -171,7 +203,7 @@ function TaskEditModal({ task, onClose, onSave }: {
                 <div className={styles.modalField}>
                     <label className={styles.modalLabel}>Priority</label>
                     <div className={styles.priorityPicker}>
-                        {Object.entries(priorityConfig).map(([key, { label, color }]) => (
+                        {Object.entries(priorityConfig).map(([key, { label, icon, color }]) => (
                             <button
                                 key={key}
                                 className={`${styles.priorityChip} ${priority === key ? styles.priorityChipActive : ''}`}
@@ -181,7 +213,7 @@ function TaskEditModal({ task, onClose, onSave }: {
                                 }}
                                 onClick={() => setPriority(priority === key ? '' : key)}
                             >
-                                {label}
+                                {icon} {label}
                             </button>
                         ))}
                     </div>
@@ -204,26 +236,49 @@ function TaskEditModal({ task, onClose, onSave }: {
                     <input
                         type="text"
                         className={styles.modalInput}
-                        placeholder="e.g. Waiting on Yari, Need quote from builder..."
+                        placeholder="e.g. Waiting on Yari, Need quote first..."
                         value={waitingOn}
                         onChange={e => setWaitingOn(e.target.value)}
                     />
                 </div>
 
-                {/* Notes */}
+                {/* Parent task / Plan */}
                 <div className={styles.modalField}>
-                    <label className={styles.modalLabel}>Notes</label>
+                    <label className={styles.modalLabel}>Part of (Parent Task / Plan)</label>
+                    <select className={styles.modalInput} value={parentTask} onChange={e => setParentTask(e.target.value)}>
+                        <option value="">— None (top-level task) —</option>
+                        {allTaskNames.filter(n => n !== task.name).map(n => (
+                            <option key={n} value={n}>{n}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Context / Notes area */}
+                <div className={styles.modalField}>
+                    <label className={styles.modalLabel}>Context &amp; Details</label>
                     <textarea
                         className={styles.modalInput}
-                        rows={2}
-                        placeholder="Any extra context..."
+                        rows={4}
+                        placeholder="Add background context, links, planning notes..."
+                        value={context}
+                        onChange={e => setContext(e.target.value)}
+                    />
+                </div>
+
+                {/* Quick notes */}
+                <div className={styles.modalField}>
+                    <label className={styles.modalLabel}>Quick Notes</label>
+                    <input
+                        type="text"
+                        className={styles.modalInput}
+                        placeholder="Short note..."
                         value={notes}
                         onChange={e => setNotes(e.target.value)}
                     />
                 </div>
 
-                {/* Save */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end', paddingTop: 'var(--space-3)' }}>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
                     <button className={styles.modalBtnSecondary} onClick={onClose}>Cancel</button>
                     <button className={styles.modalBtnPrimary} onClick={handleSave} disabled={saving}>
                         {saving ? 'Saving…' : 'Save'}
@@ -243,6 +298,7 @@ export default function TasksPage() {
     const [saving, setSaving] = useState<string | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
     const [editingTask, setEditingTask] = useState<ScoredTask | null>(null);
+    const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         Promise.all([
@@ -252,7 +308,7 @@ export default function TasksPage() {
             setTasks(dashData.tasks ?? null);
             setCompletions(new Set((taskData.completions ?? []).map((c: { task_name: string }) => c.task_name)));
             const metaEntries = (taskData.metadata ?? []).map((m: TaskMeta & { task_name: string }) =>
-                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes }] as [string, TaskMeta]
+                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task }] as [string, TaskMeta]
             );
             setMetaMap(new Map(metaEntries));
             setLoading(false);
@@ -262,14 +318,12 @@ export default function TasksPage() {
     const toggleTask = useCallback(async (taskName: string, category: string, currentlyDone: boolean) => {
         setSaving(taskName);
         const action = currentlyDone ? 'uncomplete' : 'complete';
-
         setCompletions(prev => {
             const next = new Set(prev);
             if (currentlyDone) next.delete(taskName);
             else next.add(taskName);
             return next;
         });
-
         try {
             const res = await fetch('/api/dashboard/tasks', {
                 method: 'PATCH',
@@ -296,12 +350,22 @@ export default function TasksPage() {
     }, []);
 
     const handleMetaSave = useCallback((taskName: string, meta: TaskMeta) => {
-        setMetaMap(prev => {
-            const next = new Map(prev);
-            next.set(taskName, meta);
+        setMetaMap(prev => { const next = new Map(prev); next.set(taskName, meta); return next; });
+    }, []);
+
+    const toggleParent = useCallback((name: string) => {
+        setExpandedParents(prev => {
+            const next = new Set(prev);
+            if (next.has(name)) next.delete(name); else next.add(name);
             return next;
         });
     }, []);
+
+    // Build all task names for the parent selector
+    const allTaskNames = useMemo(() => {
+        if (!tasks) return [];
+        return Object.values(tasks.categories ?? {}).flatMap(c => c.tasks ?? []);
+    }, [tasks]);
 
     if (loading) return (
         <DashboardShell>
@@ -321,14 +385,15 @@ export default function TasksPage() {
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
     const stack = buildPriorityStack(tasks, todayStr, completions, metaMap);
 
-    const openTasks = stack.filter(t => !t.completed);
-    const completedTasks = stack.filter(t => t.completed);
+    const openTasks = stack.filter(t => t.urgency !== 'completed');
+    const completedTasks = stack.filter(t => t.urgency === 'completed');
 
-    // Group open tasks by urgency
+    // Group by urgency
     const overdue = openTasks.filter(t => t.urgency === 'overdue');
     const urgent = openTasks.filter(t => t.urgency === 'urgent');
     const thisWeek = openTasks.filter(t => t.urgency === 'this_week');
     const thisMonth = openTasks.filter(t => t.urgency === 'this_month');
+    const ongoing = openTasks.filter(t => t.urgency === 'ongoing');
     const waiting = openTasks.filter(t => t.urgency === 'waiting');
     const backlog = openTasks.filter(t => t.urgency === 'backlog' || t.urgency === 'someday');
 
@@ -339,42 +404,94 @@ export default function TasksPage() {
         Added: h.added ?? 0,
     }));
 
-    const renderTask = (t: ScoredTask) => {
+    // ── Render a single task row ──
+    const renderTaskRow = (t: ScoredTask, indent: number = 0) => {
         const meta = t.meta;
+        const hasChildren = t.children.length > 0;
+        const isExpanded = expandedParents.has(t.name);
+        const priCfg = meta?.priority ? priorityConfig[meta.priority] : null;
+
         return (
-            <li key={t.name} className={`${styles.priorityItem} ${t.completed ? styles.priorityItemDone : ''}`}>
-                <button
-                    className={`${styles.taskCheck} ${t.completed ? styles.taskCheckDone : ''}`}
-                    onClick={(e) => { e.stopPropagation(); toggleTask(t.name, t.category, t.completed); }}
-                    disabled={saving === t.name}
-                    title={t.completed ? 'Mark as incomplete' : 'Mark as complete'}
+            <div key={t.name}>
+                <li
+                    className={`${styles.priorityItem} ${t.completed ? styles.priorityItemDone : ''}`}
+                    style={{ paddingLeft: `calc(var(--space-2) + ${indent * 24}px)` }}
                 >
-                    {t.completed && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                </button>
-                <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setEditingTask(t)}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                        <span className={`${styles.priorityName} ${t.completed ? styles.priorityNameDone : ''}`}>{t.name}</span>
-                    </div>
-                    {/* Metadata indicators */}
-                    {meta && (meta.waiting_on || meta.due_date || meta.notes) && (
-                        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2, flexWrap: 'wrap' }}>
-                            {meta.waiting_on && (
-                                <span className={styles.taskTag} style={{ color: '#c9a84c', borderColor: 'rgba(201,168,76,0.3)' }}>
-                                    ⏳ {meta.waiting_on}
-                                </span>
-                            )}
-                            {meta.due_date && (
-                                <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)' }}>
-                                    📅 {shortDate(meta.due_date)}
+                    {/* Expand toggle for parents */}
+                    {hasChildren ? (
+                        <button
+                            className={styles.subtaskToggle}
+                            onClick={() => toggleParent(t.name)}
+                            title={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
+                        >
+                            {isExpanded ? '▾' : '▸'}
+                        </button>
+                    ) : indent > 0 ? (
+                        <span className={styles.subtaskLine}>└</span>
+                    ) : null}
+
+                    {/* Checkbox */}
+                    <button
+                        className={`${styles.taskCheck} ${t.completed ? styles.taskCheckDone : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleTask(t.name, t.category, t.completed); }}
+                        disabled={saving === t.name}
+                        title={t.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                    >
+                        {t.completed && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </button>
+
+                    {/* Name + metadata */}
+                    <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setEditingTask(t)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                            <span className={`${styles.priorityName} ${t.completed ? styles.priorityNameDone : ''}`}>
+                                {t.name}
+                            </span>
+                            {hasChildren && (
+                                <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)', fontSize: 9 }}>
+                                    {t.children.length} sub
                                 </span>
                             )}
                         </div>
-                    )}
-                </div>
-                <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
-                {t.urgency === 'overdue' && !t.completed && <span className={styles.priorityDue} style={{ color: '#c07070' }}>{t.overdueDays}d late</span>}
-                <span className={styles.kanbanEdit} onClick={() => setEditingTask(t)} style={{ cursor: 'pointer' }}>✎</span>
-            </li>
+                        {/* Tags row */}
+                        {(meta?.waiting_on || meta?.due_date || meta?.parent_task || meta?.context || priCfg) && (
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {meta?.waiting_on && (
+                                    <span className={styles.taskTag} style={{ color: '#c9a84c', borderColor: 'rgba(201,168,76,0.3)' }}>
+                                        ⏳ {meta.waiting_on}
+                                    </span>
+                                )}
+                                {meta?.due_date && (
+                                    <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)' }}>
+                                        📅 {shortDate(meta.due_date)}
+                                    </span>
+                                )}
+                                {indent === 0 && meta?.parent_task && (
+                                    <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                                        ↳ {meta.parent_task}
+                                    </span>
+                                )}
+                                {meta?.context && (
+                                    <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)' }} title={meta.context}>
+                                        📋
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Category label */}
+                    <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+
+                    {/* Urgency indicator */}
+                    {t.urgency === 'overdue' && !t.completed && <span className={styles.priorityDue} style={{ color: '#c07070' }}>{t.overdueDays}d late</span>}
+
+                    {/* Edit button */}
+                    <span className={styles.kanbanEdit} onClick={() => setEditingTask(t)} style={{ cursor: 'pointer' }}>✎</span>
+                </li>
+
+                {/* Render children if expanded */}
+                {hasChildren && isExpanded && t.children.map(child => renderTaskRow(child, indent + 1))}
+            </div>
         );
     };
 
@@ -391,7 +508,7 @@ export default function TasksPage() {
                 <span style={{ color: labelColor ?? 'var(--color-text-muted)' }}>{label}</span>
                 <span className={styles.prioritySectionCount}>{items.length}</span>
             </div>
-            <ul className={styles.priorityList}>{items.map(renderTask)}</ul>
+            <ul className={styles.priorityList}>{items.map(t => renderTaskRow(t))}</ul>
         </div>
     ) : null;
 
@@ -400,6 +517,7 @@ export default function TasksPage() {
             {editingTask && (
                 <TaskEditModal
                     task={editingTask}
+                    allTaskNames={allTaskNames}
                     onClose={() => setEditingTask(null)}
                     onSave={handleMetaSave}
                 />
@@ -454,10 +572,11 @@ export default function TasksPage() {
                     {renderSection(urgent, 'Urgent', '#c07070', 'rgba(192,112,112,0.3)', '#c07070')}
                     {renderSection(thisWeek, 'This Week', '#c9a84c', 'rgba(201,168,76,0.4)', '#c9a84c')}
                     {renderSection(thisMonth, 'This Month', '#5a7a8a', 'rgba(90,122,138,0.4)', '#5a7a8a')}
+                    {renderSection(ongoing, 'Ongoing', '#5a9a5a', 'rgba(90,154,90,0.4)', '#5a9a5a')}
                     {renderSection(waiting, 'Waiting On', '#c9a84c', 'rgba(201,168,76,0.3)', '#c9a84c')}
                     {renderSection(backlog, 'Backlog', 'var(--color-border-strong)', 'var(--color-border)')}
 
-                    {/* Completed (collapsible) */}
+                    {/* Completed */}
                     {completedTasks.length > 0 && (
                         <div>
                             <button
@@ -470,7 +589,7 @@ export default function TasksPage() {
                                 <span className={styles.prioritySectionCount}>{completedTasks.length}</span>
                                 <span style={{ marginLeft: 'var(--space-2)', fontSize: 10, color: 'var(--color-text-muted)' }}>{showCompleted ? '▴' : '▾'}</span>
                             </button>
-                            {showCompleted && <ul className={styles.priorityList}>{completedTasks.map(renderTask)}</ul>}
+                            {showCompleted && <ul className={styles.priorityList}>{completedTasks.map(t => renderTaskRow(t))}</ul>}
                         </div>
                     )}
                 </div>

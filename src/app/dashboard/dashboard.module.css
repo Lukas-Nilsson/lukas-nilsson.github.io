@@ -1073,3 +1073,31 @@
     border-color: var(--color-border-strong);
     color: var(--color-text);
 }
+
+/* Subtask hierarchy */
+.subtaskToggle {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    width: 16px;
+    flex-shrink: 0;
+    text-align: center;
+    line-height: 1;
+}
+
+.subtaskToggle:hover {
+    color: var(--color-text);
+}
+
+.subtaskLine {
+    color: var(--color-border-strong);
+    font-size: 12px;
+    width: 16px;
+    flex-shrink: 0;
+    text-align: center;
+    line-height: 1;
+    opacity: 0.5;
+}

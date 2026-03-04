@@ -3,17 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * PATCH /api/dashboard/tasks
- * 
+ *
  * Actions:
- *   { task_name, category, action: 'complete' }         → Mark task complete
- *   { task_name, action: 'uncomplete' }                 → Mark task incomplete
- *   { task_name, action: 'update_metadata', priority?, due_date?, waiting_on?, notes? }
- *                                                       → Update task metadata
+ *   { task_name, category, action: 'complete' }
+ *   { task_name, action: 'uncomplete' }
+ *   { task_name, action: 'update_metadata', priority?, due_date?, waiting_on?, notes?, context?, parent_task? }
  */
 export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
-        const { task_name, category, action, priority, due_date, waiting_on, notes } = body as {
+        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task } = body as {
             task_name: string;
             category?: string;
             action: 'complete' | 'uncomplete' | 'update_metadata';
@@ -21,6 +20,8 @@ export async function PATCH(req: NextRequest) {
             due_date?: string | null;
             waiting_on?: string | null;
             notes?: string | null;
+            context?: string | null;
+            parent_task?: string | null;
         };
 
         if (!task_name || !action) {
@@ -67,6 +68,8 @@ export async function PATCH(req: NextRequest) {
                     due_date: due_date ?? null,
                     waiting_on: waiting_on ?? null,
                     notes: notes ?? null,
+                    context: context ?? null,
+                    parent_task: parent_task ?? null,
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'task_name' });
 
@@ -94,15 +97,11 @@ export async function GET() {
 
         const [compRes, metaRes] = await Promise.all([
             supabase.from('task_completions').select('task_name,category,completed_at,completed_by,notes'),
-            supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,updated_at'),
+            supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,context,parent_task,updated_at'),
         ]);
 
-        if (compRes.error) {
-            console.error('[tasks GET] completions error:', compRes.error);
-        }
-        if (metaRes.error) {
-            console.error('[tasks GET] metadata error:', metaRes.error);
-        }
+        if (compRes.error) console.error('[tasks GET] completions error:', compRes.error);
+        if (metaRes.error) console.error('[tasks GET] metadata error:', metaRes.error);
 
         return NextResponse.json({
             completions: compRes.data ?? [],
