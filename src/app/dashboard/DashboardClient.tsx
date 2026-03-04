@@ -32,6 +32,7 @@ const checkDefs = [
     { key: 'diet', icon: '🥗', label: 'Whole Foods Diet' },
     { key: 'reading', icon: '📖', label: '10 Pages' },
     { key: 'teeth', icon: '🦷', label: 'Brush Teeth' },
+    { key: 'bedtime', icon: '🛌', label: 'In Bed by 11pm' },
 ];
 
 const catColors: Record<string, string> = {
