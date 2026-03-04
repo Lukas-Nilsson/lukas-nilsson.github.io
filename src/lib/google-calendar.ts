@@ -227,9 +227,10 @@ export async function deleteEvent(
 
 // ─── OAuth URL Generator ────────────────────────────────────────────────────
 
-const REDIRECT_URI = process.env.NEXT_PUBLIC_SITE_URL
-    ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/google/callback`
-    : 'http://localhost:3000/api/auth/google/callback';
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI
+    ?? (process.env.NEXT_PUBLIC_SITE_URL
+        ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/google/callback`
+        : 'http://localhost:3000/api/auth/google/callback');
 
 export function getOAuthUrl(account: 'personal' | 'business', loginHint?: string): string {
     const params = new URLSearchParams({

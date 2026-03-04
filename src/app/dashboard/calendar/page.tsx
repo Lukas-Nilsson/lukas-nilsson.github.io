@@ -87,9 +87,20 @@ export default function CalendarPage() {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [view, setView] = useState<ViewMode>('day');
-    const [selectedDate, setSelectedDate] = useState(() => new Date());
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [createSlot, setCreateSlot] = useState<{ start: string; end: string } | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    // Avoid hydration mismatch: set date only on client
+    useEffect(() => {
+        setSelectedDate(new Date());
+        setMounted(true);
+    }, []);
+
+    if (!mounted || !selectedDate) {
+        return <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div>;
+    }
 
     const dateStr = toAESTDate(selectedDate);
 
@@ -120,7 +131,7 @@ export default function CalendarPage() {
     // Navigate
     const navigate = (delta: number) => {
         setSelectedDate(prev => {
-            const d = new Date(prev);
+            const d = new Date(prev!);
             if (view === 'day') d.setDate(d.getDate() + delta);
             else if (view === 'week') d.setDate(d.getDate() + 7 * delta);
             else d.setMonth(d.getMonth() + delta);
