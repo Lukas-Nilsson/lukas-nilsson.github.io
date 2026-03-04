@@ -244,7 +244,7 @@ function HabitModal({
         setSaving(true);
         const value = [desc, time].filter(Boolean).join(' @ ') || null;
         try {
-            await fetch('/api/dashboard/habits', {
+            const res = await fetch('/api/dashboard/habits', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -255,7 +255,16 @@ function HabitModal({
                     notes: notes || null,
                 }),
             });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: res.statusText }));
+                console.error('[Habit save failed]', err);
+                alert(`Save failed: ${err.error || res.statusText}`);
+                return;
+            }
             onSave(state.key, done, value, notes || null);
+        } catch (e) {
+            console.error('[Habit save error]', e);
+            alert('Network error — habit not saved.');
         } finally {
             setSaving(false);
             onClose();
@@ -387,7 +396,7 @@ function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null
             )}
             <div className={styles.widget}>
                 <div className={styles.widgetHeader}>
-                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits 🔥</div>
                     <span className={styles.widgetBadge}>{data.today_complete ? '✓ Success' : '× Incomplete'}</span>
                 </div>
 
@@ -499,10 +508,12 @@ export default function DashboardClient({ user }: Props) {
     const supabase = createClient();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
     // null = not yet loaded; number = index into hard75History
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
     useEffect(() => {
+        setMounted(true);
         fetch('/api/dashboard')
             .then(r => r.json())
             .then(d => {
@@ -522,10 +533,13 @@ export default function DashboardClient({ user }: Props) {
         router.refresh();
     };
 
-    const today = new Date();
-    const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+    // Defer Date rendering to client-only to prevent hydration mismatch (server=UTC, client=AEST)
+    const today = mounted ? new Date() : null;
+    const greeting = today
+        ? (today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening')
+        : 'Welcome';
 
-    const lastSyncedLabel = data?.lastSynced
+    const lastSyncedLabel = data?.lastSynced && mounted
         ? `Synced ${new Date(data.lastSynced).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} at ${new Date(data.lastSynced).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}`
         : 'Not yet synced';
 
@@ -562,7 +576,7 @@ export default function DashboardClient({ user }: Props) {
                     <div style={{ flex: 1 }}>
                         <h1 className={styles.greeting}>{greeting}, Lukas.</h1>
                         <p className={styles.date}>
-                            {today.toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            {today ? today.toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
                         </p>
                     </div>
 
