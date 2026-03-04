@@ -26,7 +26,8 @@ export async function GET() {
         hard75History: hard75HistRes.data ?? [],
         tasks: tasksRes.data ?? null,
         sleep: sleepRes.data ?? [],
-        // Last sync timestamp comes from the tasks generatedAt OR whoop fetchedAt
         lastSynced: tasksRes.data?.updated_at ?? whoopRes.data?.fetched_at ?? null,
+        // Current date in AEST so the client can detect stale Whoop data
+        todayAEST: new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' }),
     });
 }

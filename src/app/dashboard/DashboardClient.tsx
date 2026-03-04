@@ -22,14 +22,19 @@ interface DashboardData {
     } | null;
     sleep: { date: string; performance: number; hours_in_bed: number; deep: number; rem: number; light: number }[];
     lastSynced: string | null;
+    todayAEST: string;  // YYYY-MM-DD in Australia/Melbourne — used to detect stale Whoop data
 }
 
 const checkDefs = [
     { key: 'workout1', icon: '🏃', label: 'Outdoor Workout' },
     { key: 'workout2', icon: '💪', label: '2nd Workout' },
     { key: 'water', icon: '💧', label: 'Gallon Water' },
-    { key: 'diet', icon: '🥗', label: 'Whole Foods' },
+    { key: 'diet', icon: '🥗', label: 'Whole Foods Diet' },
     { key: 'reading', icon: '📖', label: '10 Pages' },
+];
+
+const generalHabits = [
+    { icon: '🦷', label: 'Brush teeth (AM + PM)' },
 ];
 
 const catColors: Record<string, string> = {
@@ -46,20 +51,27 @@ function shortDate(dateStr: string) {
 }
 
 // ─── Whoop Widget ─────────────────────────────────────────────────────────────
-function WhoopWidget({ data }: { data: DashboardData['whoop'] }) {
+function WhoopWidget({ data, todayAEST }: { data: DashboardData['whoop']; todayAEST: string }) {
     if (!data) return <EmptyWidget icon="◎" title="Whoop" message="Run OpenClaw sync to see live Whoop data." />;
+
+    const isToday = data.date === todayAEST;
     const recoveryColor = data.recovery >= 67 ? '#6db86d' : data.recovery >= 34 ? '#c9a84c' : '#c07070';
+
+    // If data is from a previous day, show it clearly labelled as such rather than presenting it as today
     const stats = [
-        { label: 'Recovery', value: `${data.recovery}%`, color: recoveryColor, sub: data.recovery >= 67 ? 'Good' : data.recovery >= 34 ? 'Moderate' : 'Low' },
-        { label: 'Strain', value: data.strain ? data.strain.toFixed(1) : '—', color: 'var(--accent-400)', sub: 'Today' },
-        { label: 'Sleep', value: data.sleep_hours ? `${data.sleep_hours}h` : '—', color: 'var(--accent-300)', sub: `${data.sleep_performance ?? '—'}% perf` },
-        { label: 'HRV', value: data.hrv ? `${data.hrv} ms` : '—', color: '#7aaac9', sub: `RHR ${data.rhr ?? '—'}` },
+        { label: 'Recovery', value: isToday ? `${data.recovery}%` : '—', color: isToday ? recoveryColor : 'var(--color-text-muted)', sub: isToday ? (data.recovery >= 67 ? 'Good' : data.recovery >= 34 ? 'Moderate' : 'Low') : 'No data yet' },
+        { label: 'Strain', value: isToday && data.strain ? data.strain.toFixed(1) : '—', color: 'var(--accent-400)', sub: isToday ? 'Today' : 'No data yet' },
+        { label: 'Sleep', value: isToday && data.sleep_hours ? `${data.sleep_hours}h` : '—', color: 'var(--accent-300)', sub: isToday && data.sleep_performance ? `${data.sleep_performance}% perf` : '—' },
+        { label: 'HRV', value: isToday && data.hrv ? `${data.hrv} ms` : '—', color: '#7aaac9', sub: isToday ? `RHR ${data.rhr ?? '—'}` : '—' },
     ];
     return (
         <div className={styles.widget}>
             <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◎</span>Whoop</div>
-                <span className={styles.widgetBadge}>{fmt(data.date)}</span>
+                <span className={styles.widgetBadge}>
+                    {isToday ? 'Today' : `Last data: ${fmt(data.date)}`}
+                    {!isToday && <span style={{ marginLeft: 4, color: '#c07070' }}> (not today)</span>}
+                </span>
             </div>
             <div className={styles.whoopGrid}>
                 {stats.map(({ label, value, color, sub }) => (
@@ -70,6 +82,11 @@ function WhoopWidget({ data }: { data: DashboardData['whoop'] }) {
                     </div>
                 ))}
             </div>
+            {!isToday && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: 'none', marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-2)' }}>
+                    Run <code>regenerate.sh</code> after Whoop syncs today’s data (usually available by 8am).
+                </p>
+            )}
         </div>
     );
 }
@@ -167,6 +184,17 @@ function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) 
                 </div>
             </div>
 
+            {/* General habits */}
+            <ul className={styles.habitList} style={{ marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
+                {generalHabits.map(({ icon, label }) => (
+                    <li key={label} className={styles.habitItem}>
+                        <div className={styles.habitCheck} />
+                        <span className={styles.habitName}>{icon} {label}</span>
+                    </li>
+                ))}
+            </ul>
+
+            {/* 75 Hard tasks */}
             <div className={styles.habitProgress}>
                 <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : 'linear-gradient(90deg, var(--accent-500), var(--accent-300))' }} />
             </div>
@@ -190,7 +218,7 @@ function HabitsWidget({ history }: { history: DashboardData['hard75History'] }) 
             </ul>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
-                <span>{doneCount}/{checkDefs.length} complete</span>
+                <span>{doneCount}/{checkDefs.length} done · 75 Hard</span>
                 <span>Confidence: <strong style={{ color: data.finish_confidence >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence ?? '—'}%</strong></span>
             </div>
         </div>
@@ -337,7 +365,7 @@ export default function DashboardClient({ user }: Props) {
                 ) : (
                     <div className={styles.grid}>
                         <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
-                            <WhoopWidget data={data?.whoop ?? null} />
+                            <WhoopWidget data={data?.whoop ?? null} todayAEST={data?.todayAEST ?? ''} />
                         </div>
                         <div className={styles.gridItem}>
                             <HabitsWidget history={data?.hard75History ?? []} />
