@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import styles from '../dashboard.module.css';
+import DashboardShell from '../DashboardShell';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,22 @@ interface CalendarEvent {
 interface ConnectedAccount {
     account: string;
     email: string;
+}
+
+interface TaskInfo {
+    task_name: string;
+    status: string;
+    priority: number | null;
+    category: string | null;
+    estimated_duration: number | null;
+    time_spent: number | null;
+    scheduling_status: string | null;
+}
+
+interface HabitInfo {
+    key: string;
+    label: string;
+    done_today: boolean;
 }
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -64,6 +81,13 @@ function isSameDay(a: Date, b: Date): boolean {
     return toAESTDate(a) === toAESTDate(b);
 }
 
+function formatDuration(mins: number): string {
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 const accountColors: Record<string, { bg: string; border: string; text: string }> = {
     personal: { bg: 'rgba(90,130,200,0.18)', border: '#5a82c8', text: '#7aa0e0' },
     business: { bg: 'rgba(90,170,120,0.18)', border: '#5aaa78', text: '#7ac89a' },
@@ -79,20 +103,28 @@ function eventColor(ev: CalendarEvent) {
 const shortDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const shortMonth = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const sourceLabels: Record<string, string> = {
+    google: '📅 Google Calendar',
+    task: '📋 Scheduled Task',
+    habit: '🔁 Habit Block',
+};
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+    const [tasks, setTasks] = useState<TaskInfo[]>([]);
+    const [habits, setHabits] = useState<HabitInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [view, setView] = useState<ViewMode>('day');
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [createSlot, setCreateSlot] = useState<{ start: string; end: string } | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
 
-    // Avoid hydration mismatch: set date only on client
     useEffect(() => {
         setSelectedDate(new Date());
         setMounted(true);
@@ -114,6 +146,8 @@ export default function CalendarPage() {
             const data = await res.json();
             setEvents(data.events ?? []);
             setAccounts(data.connectedAccounts ?? []);
+            if (data.tasks) setTasks(data.tasks);
+            if (data.habits) setHabits(data.habits);
         } catch (e) {
             console.error('Failed to fetch calendar:', e);
         }
@@ -123,7 +157,55 @@ export default function CalendarPage() {
 
     useEffect(() => { if (selectedDate) fetchEvents(true); }, [fetchEvents, selectedDate]);
 
-    // Navigate
+    // Fetch tasks and habits for association
+    useEffect(() => {
+        async function loadTasksAndHabits() {
+            try {
+                const [tasksRes, habitsRes] = await Promise.all([
+                    fetch('/api/dashboard/tasks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'list' }),
+                    }),
+                    fetch('/api/dashboard/habits'),
+                ]);
+                if (tasksRes.ok) {
+                    const td = await tasksRes.json();
+                    const allTasks: TaskInfo[] = [];
+                    if (td.categories) {
+                        for (const cat of td.categories) {
+                            for (const t of cat.tasks ?? []) {
+                                allTasks.push({
+                                    task_name: t.task_name ?? t.name,
+                                    status: t.status ?? 'open',
+                                    priority: t.priority ?? null,
+                                    category: cat.name,
+                                    estimated_duration: t.estimated_duration ?? null,
+                                    time_spent: t.time_spent ?? null,
+                                    scheduling_status: t.scheduling_status ?? null,
+                                });
+                            }
+                        }
+                    }
+                    setTasks(allTasks);
+                }
+                if (habitsRes.ok) {
+                    const hd = await habitsRes.json();
+                    if (hd.habits) {
+                        setHabits(hd.habits.map((h: { key: string; label: string; completions?: { date: string }[] }) => ({
+                            key: h.key,
+                            label: h.label,
+                            done_today: (h.completions ?? []).some((c: { date: string }) => c.date === toAESTDate(new Date())),
+                        })));
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load tasks/habits:', e);
+            }
+        }
+        if (mounted) loadTasksAndHabits();
+    }, [mounted]);
+
     const navigate = (delta: number) => {
         setSelectedDate(prev => {
             const d = new Date(prev!);
@@ -136,8 +218,7 @@ export default function CalendarPage() {
 
     const goToday = () => setSelectedDate(new Date());
 
-    // Create event
-    const handleCreateEvent = async (title: string, start: string, end: string, account: string) => {
+    const handleCreateEvent = async (title: string, start: string, end: string, account: string, source?: string, sourceId?: string) => {
         try {
             const res = await fetch('/api/dashboard/calendar', {
                 method: 'POST',
@@ -147,7 +228,8 @@ export default function CalendarPage() {
                     start_time: start,
                     end_time: end,
                     account: account || null,
-                    source: account ? 'google' : 'task',
+                    source: source ?? (account ? 'google' : 'task'),
+                    source_id: sourceId ?? null,
                 }),
             });
             if (res.ok) {
@@ -160,11 +242,11 @@ export default function CalendarPage() {
         }
     };
 
-    // Delete event
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this event?')) return;
         try {
             await fetch(`/api/dashboard/calendar?id=${id}`, { method: 'DELETE' });
+            setSelectedEvent(null);
             fetchEvents();
         } catch (e) {
             console.error('Delete failed:', e);
@@ -172,127 +254,169 @@ export default function CalendarPage() {
     };
 
     if (!mounted || !selectedDate) {
-        return <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div>;
+        return <DashboardShell><div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div></DashboardShell>;
     }
 
     const dateStr = toAESTDate(selectedDate);
 
-    // ─── Render ──────────────────────────────────────────────────────────────
+    // Find associated task/habit for selected event
+    const selectedTask = selectedEvent?.source === 'task' && selectedEvent.source_id
+        ? tasks.find(t => t.task_name === selectedEvent.source_id)
+        : null;
+    const selectedHabit = selectedEvent?.source === 'habit' && selectedEvent.source_id
+        ? habits.find(h => h.key === selectedEvent.source_id)
+        : null;
+
+    // Get unscheduled tasks (for the side panel)
+    const unscheduledTasks = tasks.filter(t =>
+        t.status === 'open' && (t.scheduling_status === 'unscheduled' || !t.scheduling_status)
+    );
 
     return (
-        <div style={{ padding: 'var(--space-4)', maxWidth: 1200, margin: '0 auto' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>
-                    📅 Calendar
-                </h1>
+        <DashboardShell>
+            <div style={{ display: 'flex', gap: 'var(--space-3)', height: '100%' }}>
+                {/* Main calendar area */}
+                <div style={{ flex: 1, minWidth: 0, padding: 'var(--space-4)' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+                        <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>
+                            📅 Calendar
+                        </h1>
 
-                <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
-                    {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+                        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
+                            {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+                                <button
+                                    key={v}
+                                    onClick={() => setView(v)}
+                                    style={{
+                                        padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: 'none',
+                                        background: view === v ? 'var(--color-accent)' : 'transparent',
+                                        color: view === v ? 'white' : 'var(--color-text-muted)',
+                                        fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
+                                        textTransform: 'capitalize',
+                                    }}
+                                >
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                            <button onClick={() => navigate(-1)} style={navBtnStyle}>←</button>
+                            <button onClick={goToday} style={{ ...navBtnStyle, padding: '4px 10px', fontSize: 'var(--text-xs)' }}>Today</button>
+                            <button onClick={() => navigate(1)} style={navBtnStyle}>→</button>
+                        </div>
+
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
+                            {view === 'day' && `${shortDay[selectedDate.getDay()]}, ${shortMonth[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
+                            {view === 'week' && (() => {
+                                const days = getWeekDays(selectedDate);
+                                return `${shortMonth[days[0].getMonth()]} ${days[0].getDate()} – ${shortMonth[days[6].getMonth()]} ${days[6].getDate()}`;
+                            })()}
+                            {view === 'month' && `${shortMonth[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`}
+                        </span>
+
+                        <div style={{ flex: 1 }} />
+
+                        {syncing && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Syncing…</span>}
+
+                        <button onClick={() => fetchEvents(true)} style={{ ...navBtnStyle, fontSize: 'var(--text-xs)', padding: '4px 10px' }}>
+                            🔄 Sync
+                        </button>
+
                         <button
-                            key={v}
-                            onClick={() => setView(v)}
+                            onClick={() => { setCreateSlot(null); setShowCreate(true); }}
                             style={{
-                                padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: 'none',
-                                background: view === v ? 'var(--color-accent)' : 'transparent',
-                                color: view === v ? 'white' : 'var(--color-text-muted)',
+                                padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--color-accent)',
+                                background: 'var(--color-accent)', color: 'white',
                                 fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
-                                textTransform: 'capitalize',
                             }}
                         >
-                            {v}
+                            + New Event
                         </button>
-                    ))}
+
+                        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                            {['personal', 'business'].map(acc => {
+                                const connected = accounts.some(a => a.account === acc);
+                                return (
+                                    <span key={acc} style={{
+                                        fontSize: 9, fontWeight: 600, padding: '2px 6px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: connected ? 'rgba(90,154,90,0.15)' : 'rgba(192,112,112,0.15)',
+                                        color: connected ? '#5a9a5a' : '#c07070',
+                                    }}>
+                                        {connected ? '●' : '○'} {acc}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Connect prompts */}
+                    {!loading && accounts.length < 2 && (
+                        <div style={{
+                            padding: 'var(--space-3)', marginBottom: 'var(--space-3)',
+                            background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)',
+                            borderRadius: 'var(--radius-md)', fontSize: 'var(--text-xs)',
+                        }}>
+                            <strong style={{ color: '#c9a84c' }}>Connect Google Calendar</strong>
+                            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                                {!accounts.some(a => a.account === 'personal') && (
+                                    <a href="/api/auth/google/connect?account=personal" style={{ color: accountColors.personal.text, textDecoration: 'underline' }}>
+                                        Connect Personal
+                                    </a>
+                                )}
+                                {!accounts.some(a => a.account === 'business') && (
+                                    <a href="/api/auth/google/connect?account=business" style={{ color: accountColors.business.text, textDecoration: 'underline' }}>
+                                        Connect Business
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Calendar views */}
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading calendar…</div>
+                    ) : view === 'day' ? (
+                        <DayView events={events} date={selectedDate} onSlotClick={(start, end) => { setCreateSlot({ start, end }); setShowCreate(true); }} onEventClick={setSelectedEvent} />
+                    ) : view === 'week' ? (
+                        <WeekView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
+                    ) : (
+                        <MonthView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
+                    )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <button onClick={() => navigate(-1)} style={navBtnStyle}>←</button>
-                    <button onClick={goToday} style={{ ...navBtnStyle, padding: '4px 10px', fontSize: 'var(--text-xs)' }}>Today</button>
-                    <button onClick={() => navigate(1)} style={navBtnStyle}>→</button>
-                </div>
-
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {view === 'day' && `${shortDay[selectedDate.getDay()]}, ${shortMonth[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
-                    {view === 'week' && (() => {
-                        const days = getWeekDays(selectedDate);
-                        return `${shortMonth[days[0].getMonth()]} ${days[0].getDate()} – ${shortMonth[days[6].getMonth()]} ${days[6].getDate()}`;
-                    })()}
-                    {view === 'month' && `${shortMonth[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`}
-                </span>
-
-                <div style={{ flex: 1 }} />
-
-                {syncing && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Syncing…</span>}
-
-                <button onClick={() => fetchEvents(true)} style={{ ...navBtnStyle, fontSize: 'var(--text-xs)', padding: '4px 10px' }}>
-                    🔄 Sync
-                </button>
-
-                <button
-                    onClick={() => { setCreateSlot(null); setShowCreate(true); }}
-                    style={{
-                        padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--color-accent)',
-                        background: 'var(--color-accent)', color: 'white',
-                        fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
-                    }}
-                >
-                    + New Event
-                </button>
-
-                {/* Account status */}
-                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                    {['personal', 'business'].map(acc => {
-                        const connected = accounts.some(a => a.account === acc);
-                        return (
-                            <span key={acc} style={{
-                                fontSize: 9, fontWeight: 600, padding: '2px 6px',
-                                borderRadius: 'var(--radius-sm)',
-                                background: connected ? 'rgba(90,154,90,0.15)' : 'rgba(192,112,112,0.15)',
-                                color: connected ? '#5a9a5a' : '#c07070',
-                            }}>
-                                {connected ? '●' : '○'} {acc}
-                            </span>
-                        );
-                    })}
+                {/* Right sidebar — Event detail or Task list */}
+                <div style={{
+                    width: 280, flexShrink: 0, borderLeft: '1px solid var(--color-border)',
+                    padding: 'var(--space-3)', overflowY: 'auto',
+                    display: 'flex', flexDirection: 'column', gap: 'var(--space-3)',
+                }}>
+                    {selectedEvent ? (
+                        <EventDetailPanel
+                            event={selectedEvent}
+                            task={selectedTask ?? undefined}
+                            habit={selectedHabit ?? undefined}
+                            onClose={() => setSelectedEvent(null)}
+                            onDelete={() => handleDelete(selectedEvent.id)}
+                        />
+                    ) : (
+                        <TaskSidePanel
+                            tasks={unscheduledTasks}
+                            habits={habits}
+                            onScheduleTask={(taskName, duration) => {
+                                const now = new Date();
+                                now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+                                const end = new Date(now.getTime() + (duration ?? 30) * 60000);
+                                handleCreateEvent(taskName, now.toISOString(), end.toISOString(), '', 'task', taskName);
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 
-            {/* Connect prompts */}
-            {!loading && accounts.length < 2 && (
-                <div style={{
-                    padding: 'var(--space-3)', marginBottom: 'var(--space-3)',
-                    background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)',
-                    borderRadius: 'var(--radius-md)', fontSize: 'var(--text-xs)',
-                }}>
-                    <strong style={{ color: '#c9a84c' }}>Connect Google Calendar</strong>
-                    <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-                        {!accounts.some(a => a.account === 'personal') && (
-                            <a href="/api/auth/google/connect?account=personal" style={{ color: accountColors.personal.text, textDecoration: 'underline' }}>
-                                Connect Personal (lukaspnilsson@gmail.com)
-                            </a>
-                        )}
-                        {!accounts.some(a => a.account === 'business') && (
-                            <a href="/api/auth/google/connect?account=business" style={{ color: accountColors.business.text, textDecoration: 'underline' }}>
-                                Connect Business (lukasnilssonbusiness@gmail.com)
-                            </a>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Calendar views */}
-            {loading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading calendar…</div>
-            ) : view === 'day' ? (
-                <DayView events={events} date={selectedDate} onSlotClick={(start, end) => { setCreateSlot({ start, end }); setShowCreate(true); }} onDelete={handleDelete} />
-            ) : view === 'week' ? (
-                <WeekView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
-            ) : (
-                <MonthView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
-            )}
-
-            {/* Create modal */}
             {showCreate && (
                 <CreateEventModal
                     accounts={accounts}
@@ -302,17 +426,260 @@ export default function CalendarPage() {
                     onCreate={handleCreateEvent}
                 />
             )}
+        </DashboardShell>
+    );
+}
+
+// ─── Event Detail Panel ──────────────────────────────────────────────────────
+
+function EventDetailPanel({ event, task, habit, onClose, onDelete }: {
+    event: CalendarEvent;
+    task?: TaskInfo;
+    habit?: HabitInfo;
+    onClose: () => void;
+    onDelete: () => void;
+}) {
+    const c = eventColor(event);
+    const start = new Date(event.start_time);
+    const end = new Date(event.end_time);
+    const durationMins = Math.round((end.getTime() - start.getTime()) / 60000);
+
+    return (
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Event Details
+                </span>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+
+            {/* Event header */}
+            <div style={{
+                padding: 'var(--space-3)', borderRadius: 'var(--radius-md)',
+                background: c.bg, borderLeft: `4px solid ${c.border}`,
+                marginBottom: 'var(--space-3)',
+            }}>
+                <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: c.text, marginBottom: 4 }}>
+                    {event.title}
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    {event.all_day ? 'All day' : `${toAESTTime(start)} – ${toAESTTime(end)}`}
+                    <span style={{ opacity: 0.6 }}> · {formatDuration(durationMins)}</span>
+                </div>
+                {event.location && (
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        📍 {event.location}
+                    </div>
+                )}
+            </div>
+
+            {/* Source badge */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-surface)', marginBottom: 'var(--space-2)',
+                fontSize: 'var(--text-xs)',
+            }}>
+                <span style={{ fontWeight: 600, color: c.text }}>
+                    {sourceLabels[event.source] ?? '📅 Event'}
+                </span>
+                {event.account && (
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>
+                        · {event.account}
+                    </span>
+                )}
+                {event.is_flexible && (
+                    <span style={{ color: '#c9a84c', fontSize: 10, fontWeight: 600 }}>~ flexible</span>
+                )}
+            </div>
+
+            {/* Description */}
+            {event.description && (
+                <div style={{
+                    padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--color-surface)', marginBottom: 'var(--space-2)',
+                    fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)',
+                    lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                }}>
+                    {event.description}
+                </div>
+            )}
+
+            {/* Associated Task */}
+            {task && (
+                <div style={{
+                    padding: 'var(--space-2)', borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(193,127,58,0.2)',
+                    background: 'rgba(193,127,58,0.05)',
+                    marginBottom: 'var(--space-2)',
+                }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.task.text, textTransform: 'uppercase', marginBottom: 4 }}>
+                        📋 Linked Task
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', marginBottom: 2 }}>
+                        {task.task_name}
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        {task.category && (
+                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 'var(--radius-sm)', background: 'rgba(90,130,200,0.1)', color: '#5a82c8' }}>
+                                {task.category}
+                            </span>
+                        )}
+                        <span style={{
+                            fontSize: 9, padding: '1px 5px', borderRadius: 'var(--radius-sm)',
+                            background: task.status === 'done' ? 'rgba(90,154,90,0.1)' : 'rgba(193,127,58,0.1)',
+                            color: task.status === 'done' ? '#5a9a5a' : '#c17f3a',
+                        }}>
+                            {task.status}
+                        </span>
+                    </div>
+                    {(task.estimated_duration || task.time_spent) && (
+                        <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            {task.time_spent ? `${formatDuration(task.time_spent)} spent` : ''}
+                            {task.time_spent && task.estimated_duration ? ' / ' : ''}
+                            {task.estimated_duration ? `${formatDuration(task.estimated_duration)} estimated` : ''}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Associated Habit */}
+            {habit && (
+                <div style={{
+                    padding: 'var(--space-2)', borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(154,90,170,0.2)',
+                    background: 'rgba(154,90,170,0.05)',
+                    marginBottom: 'var(--space-2)',
+                }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.habit.text, textTransform: 'uppercase', marginBottom: 4 }}>
+                        🔁 Linked Habit
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', marginBottom: 2 }}>
+                        {habit.label}
+                    </div>
+                    <span style={{
+                        fontSize: 9, padding: '1px 5px', borderRadius: 'var(--radius-sm)',
+                        background: habit.done_today ? 'rgba(90,154,90,0.1)' : 'rgba(192,112,112,0.1)',
+                        color: habit.done_today ? '#5a9a5a' : '#c07070',
+                    }}>
+                        {habit.done_today ? '✓ Done today' : '○ Not done'}
+                    </span>
+                </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                <button onClick={onDelete} style={{
+                    padding: '5px 10px', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(192,112,112,0.3)', background: 'rgba(192,112,112,0.08)',
+                    color: '#c07070', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
+                    flex: 1,
+                }}>
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ─── Task Side Panel ─────────────────────────────────────────────────────────
+
+function TaskSidePanel({ tasks, habits, onScheduleTask }: {
+    tasks: TaskInfo[];
+    habits: HabitInfo[];
+    onScheduleTask: (taskName: string, duration: number | null) => void;
+}) {
+    return (
+        <div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
+                Unscheduled Tasks
+            </div>
+
+            {tasks.length === 0 ? (
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', padding: 'var(--space-2)' }}>
+                    All tasks scheduled ✓
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {tasks.slice(0, 15).map(task => (
+                        <div
+                            key={task.task_name}
+                            style={{
+                                padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+                                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                                fontSize: 'var(--text-xs)', cursor: 'pointer',
+                                transition: 'border-color 0.15s',
+                            }}
+                            title={`Click to schedule: ${task.task_name}`}
+                        >
+                            <div style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {task.task_name}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>
+                                    {task.estimated_duration ? formatDuration(task.estimated_duration) : 'No estimate'}
+                                    {task.category && ` · ${task.category}`}
+                                </span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onScheduleTask(task.task_name, task.estimated_duration); }}
+                                    style={{
+                                        padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                                        border: '1px solid rgba(193,127,58,0.3)', background: 'rgba(193,127,58,0.1)',
+                                        color: accountColors.task.text, fontSize: 9, fontWeight: 600, cursor: 'pointer',
+                                    }}
+                                >
+                                    + Schedule
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {tasks.length > 15 && (
+                        <div style={{ fontSize: 9, color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                            +{tasks.length - 15} more
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Habits section */}
+            {habits.length > 0 && (
+                <>
+                    <div style={{
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                        marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)',
+                    }}>
+                        Today&apos;s Habits
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {habits.map(h => (
+                            <div key={h.key} style={{
+                                padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+                                background: h.done_today ? 'rgba(90,154,90,0.06)' : 'var(--color-surface)',
+                                border: `1px solid ${h.done_today ? 'rgba(90,154,90,0.15)' : 'var(--color-border)'}`,
+                                fontSize: 'var(--text-xs)',
+                                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                            }}>
+                                <span style={{ color: h.done_today ? '#5a9a5a' : '#c07070', fontWeight: 700 }}>
+                                    {h.done_today ? '✓' : '○'}
+                                </span>
+                                <span style={{ color: 'var(--color-text)', fontWeight: 500 }}>{h.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
 
 // ─── Day View ────────────────────────────────────────────────────────────────
 
-function DayView({ events, date, onSlotClick, onDelete }: {
+function DayView({ events, date, onSlotClick, onEventClick }: {
     events: CalendarEvent[];
     date: Date;
     onSlotClick: (start: string, end: string) => void;
-    onDelete: (id: string) => void;
+    onEventClick: (ev: CalendarEvent) => void;
 }) {
     const dateStr = toAESTDate(date);
     const HOUR_HEIGHT = 52;
@@ -320,7 +687,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
     const END_HOUR = 23;
     const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
-    // Filter events for this day
     const dayEvents = useMemo(() =>
         events.filter(ev => {
             const evStart = new Date(ev.start_time);
@@ -336,7 +702,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
         [events, dateStr]
     );
 
-    // Current time indicator
     const now = new Date();
     const isToday = isSameDay(now, date);
     const nowMinutes = isToday ? parseInt(toAESTTime(now).split(':')[0]) * 60 + parseInt(toAESTTime(now).split(':')[1]) : -1;
@@ -344,16 +709,15 @@ function DayView({ events, date, onSlotClick, onDelete }: {
 
     return (
         <div>
-            {/* All-day events */}
             {allDayEvents.length > 0 && (
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
                     {allDayEvents.map(ev => {
                         const c = eventColor(ev);
                         return (
-                            <div key={ev.id} style={{
+                            <div key={ev.id} onClick={() => onEventClick(ev)} style={{
                                 padding: '3px 8px', borderRadius: 'var(--radius-sm)',
                                 background: c.bg, borderLeft: `3px solid ${c.border}`,
-                                fontSize: 'var(--text-xs)', color: c.text, fontWeight: 600,
+                                fontSize: 'var(--text-xs)', color: c.text, fontWeight: 600, cursor: 'pointer',
                             }}>
                                 {ev.title}
                             </div>
@@ -362,7 +726,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                 </div>
             )}
 
-            {/* Time grid */}
             <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                 {hours.map(h => (
                     <div
@@ -389,7 +752,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                     </div>
                 ))}
 
-                {/* Current time line */}
                 {isToday && nowTop > 0 && nowTop < hours.length * HOUR_HEIGHT && (
                     <div style={{
                         position: 'absolute', left: 54, right: 0, top: nowTop,
@@ -403,7 +765,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                     </div>
                 )}
 
-                {/* Events */}
                 {dayEvents.map(ev => {
                     const evStart = new Date(ev.start_time);
                     const evEnd = new Date(ev.end_time);
@@ -416,6 +777,7 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                     return (
                         <div
                             key={ev.id}
+                            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
                             style={{
                                 position: 'absolute',
                                 left: 60, right: 8,
@@ -435,6 +797,7 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                             title={`${ev.title}\n${toAESTTime(evStart)} – ${toAESTTime(evEnd)}${ev.location ? '\n📍 ' + ev.location : ''}`}
                         >
                             <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {ev.source !== 'google' && <span style={{ opacity: 0.6 }}>{ev.source === 'task' ? '📋 ' : '🔁 '}</span>}
                                 {ev.title}
                             </div>
                             {height > 30 && (
@@ -442,12 +805,6 @@ function DayView({ events, date, onSlotClick, onDelete }: {
                                     {toAESTTime(evStart)} – {toAESTTime(evEnd)}
                                     {ev.location && <span> · 📍 {ev.location}</span>}
                                 </div>
-                            )}
-                            {ev.source === 'task' && (
-                                <span style={{ fontSize: 9, color: accountColors.task.text, fontWeight: 600 }}>📋 Task</span>
-                            )}
-                            {ev.is_flexible && (
-                                <span style={{ fontSize: 9, color: 'var(--color-text-muted)', marginLeft: 4 }}>~ flexible</span>
                             )}
                         </div>
                     );
@@ -520,6 +877,7 @@ function WeekView({ events, selectedDate, onDayClick }: {
                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                     }}>
                                         {!ev.all_day && <span style={{ opacity: 0.7 }}>{toAESTTime(new Date(ev.start_time))} </span>}
+                                        {ev.source !== 'google' && <span>{ev.source === 'task' ? '📋' : '🔁'} </span>}
                                         {ev.title}
                                     </div>
                                 );
@@ -548,7 +906,7 @@ function MonthView({ events, selectedDate, onDayClick }: {
     const month = selectedDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startOffset = (firstDay.getDay() + 6) % 7; // Monday start
+    const startOffset = (firstDay.getDay() + 6) % 7;
     const today = toAESTDate(new Date());
 
     const cells: (Date | null)[] = [];
@@ -570,10 +928,7 @@ function MonthView({ events, selectedDate, onDayClick }: {
                     if (!day) return <div key={`empty-${i}`} style={{ background: 'var(--color-bg)', minHeight: 70, borderRadius: 2 }} />;
                     const ds = toAESTDate(day);
                     const isToday = ds === today;
-                    const count = events.filter(ev => {
-                        const s = toAESTDate(new Date(ev.start_time));
-                        return s === ds;
-                    }).length;
+                    const count = events.filter(ev => toAESTDate(new Date(ev.start_time)) === ds).length;
 
                     return (
                         <div
