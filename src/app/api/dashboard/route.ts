@@ -107,8 +107,27 @@ export async function GET() {
         sleep_performance: s.sleep_performance,
     }));
 
+    // ── Sleep chart data — map daily_sleep column names → widget-expected names ──
+    // SleepChartWidget uses: .performance, .deep, .rem, .light, .date
+    const sleepChartData = sleepRows.map(s => ({
+        date: s.date,
+        performance: s.sleep_performance ?? null,
+        deep: s.deep_hours ?? null,
+        rem: s.rem_hours ?? null,
+        light: s.light_hours ?? null,
+        hours: s.sleep_hours ?? null,
+    }));
+
     // ── Most recent task snapshot ──
     const latestTask = taskRows[0] ?? null;
+    // Sort task history oldest→newest for the chart
+    const taskHistory = [...taskRows].reverse().map(t => ({
+        date: t.date,
+        open: t.open_count,
+        done: t.done_count,
+        completed: t.completed_delta ?? 0,
+        added: t.added_delta ?? 0,
+    }));
     const tasks = latestTask ? {
         updated_at: latestTask.updated_at,
         total_open: latestTask.open_count,
@@ -116,18 +135,16 @@ export async function GET() {
         overdue_count: latestTask.overdue_count,
         categories: latestTask.categories ?? {},
         overdue_tasks: latestTask.overdue_tasks ?? [],
-        history: taskRows.map(t => ({
-            date: t.date, open: t.open_count, done: t.done_count,
-            completed: t.completed_delta, added: t.added_delta,
-        })).reverse(),
+        history: taskHistory,
     } : null;
 
     // ── Today in AEST ──
     const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
 
     return NextResponse.json({
-        // Sleep + recovery data
-        sleep: sleepRows,
+        // Sleep chart (widget-compatible shape)
+        sleep: sleepChartData,
+        // Whoop history for recovery/strain charts
         whoopHistory,
         // Today's whoop snapshot (most recent day)
         whoop: sleepRows.length ? sleepRows[sleepRows.length - 1] : null,
