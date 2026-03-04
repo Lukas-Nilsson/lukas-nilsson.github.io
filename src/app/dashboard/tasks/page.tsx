@@ -397,12 +397,31 @@ export default function TasksPage() {
     const waiting = openTasks.filter(t => t.urgency === 'waiting');
     const backlog = openTasks.filter(t => t.urgency === 'backlog' || t.urgency === 'someday');
 
-    const chartData = (tasks.history ?? []).map(h => ({
+    const history = tasks.history ?? [];
+    const chartData = history.map(h => ({
         date: shortDate(h.date),
         'Pile Size': h.open,
         Completed: h.completed ?? 0,
         Added: h.added ?? 0,
     }));
+
+    // Inject live "today" point reflecting UI completions
+    const todayLabel = shortDate(todayStr);
+    const uiCompletedCount = completedTasks.length;
+    const lastEntry = chartData[chartData.length - 1];
+    if (lastEntry && lastEntry.date === todayLabel) {
+        // Update today's entry with live data
+        lastEntry['Pile Size'] = openTasks.length;
+        lastEntry.Completed = Math.max(lastEntry.Completed, uiCompletedCount);
+    } else if (lastEntry) {
+        // Append today with adjusted numbers
+        chartData.push({
+            date: todayLabel,
+            'Pile Size': openTasks.length,
+            Completed: uiCompletedCount,
+            Added: 0,
+        });
+    }
 
     // ── Render a single task row ──
     const renderTaskRow = (t: ScoredTask, indent: number = 0) => {
