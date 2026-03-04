@@ -17,23 +17,80 @@ const catColors: Record<string, string> = {
     Fitness: '#5a8a5a', Finance: '#5a7a8a', Personal: '#7a5a8a', Dev: '#8a5a5a',
 };
 
-// Batch clusters from OpenClaw
-const clusters: Record<string, string[]> = {
-    '🚗 Out & About': ['Renew passport', 'Return AirPods', 'MacBook screen repair', 'Pick up iPad', "Return Shelly's shoes", "Get learner's licence", 'MMA intro PT session', "Paint Grandma Penny's fence", 'Surprise Yari with a pedicure date'],
-    '💻 Online': ['Book flights', 'Wedding soundtrack', 'Build content pipeline', 'Check if Yari can get a credit card', 'Monitor Bitcoin', 'Email Grandma Penny', 'Apple Photos', 'Apple Pencil', 'Keep developing Clukas', 'Send THA newsletter'],
-    '🏠 At Home': ['Get apartment sorted', 'Finish building the cabinet', 'Set up outdoor space', 'Buy self-cleaning cat litter', 'Develop museum/simbox'],
-    '⚡ Quick Wins': ['Pay bills/tickets', 'Send tax info to accountant', 'Email Grandma Penny', 'Follow up with Brett', 'Double date'],
-};
-
 function shortDate(d: string) {
     return new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+}
+
+// Build a flat task list with urgency scoring
+interface ScoredTask {
+    name: string;
+    category: string;
+    due: string | null;
+    overdueDays: number; // > 0 means overdue
+    urgency: 'overdue' | 'this-week' | 'backlog';
+    score: number; // higher = more urgent
+}
+
+function buildPriorityStack(tasks: TasksData, todayStr: string): ScoredTask[] {
+    const today = new Date(todayStr + 'T00:00:00');
+    const weekFromNow = new Date(today);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+    const overdueSet = new Set(tasks.overdue_tasks?.map(t => t.name) ?? []);
+    const overdueMap = new Map(tasks.overdue_tasks?.map(t => [t.name, t]) ?? []);
+
+    const scored: ScoredTask[] = [];
+
+    for (const [cat, data] of Object.entries(tasks.categories ?? {})) {
+        for (const taskName of data.tasks ?? []) {
+            const overdueEntry = overdueMap.get(taskName);
+            const isOverdue = overdueSet.has(taskName);
+
+            // Find due date from overdue entry
+            let dueDate: Date | null = null;
+            let dueStr: string | null = null;
+            if (overdueEntry?.due) {
+                dueStr = overdueEntry.due;
+                dueDate = new Date(overdueEntry.due + 'T00:00:00');
+            }
+
+            let overdueDays = 0;
+            if (isOverdue && dueDate) {
+                overdueDays = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+            }
+
+            let urgency: ScoredTask['urgency'] = 'backlog';
+            let score = 0;
+
+            if (isOverdue) {
+                urgency = 'overdue';
+                score = 1000 + overdueDays; // More overdue = higher score
+            } else if (dueDate && dueDate <= weekFromNow) {
+                urgency = 'this-week';
+                const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                score = 500 + (7 - daysUntil); // Closer deadline = higher score
+            } else {
+                urgency = 'backlog';
+                score = 100;
+            }
+
+            scored.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score });
+        }
+    }
+
+    // Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
+}
+
+function UrgencyDot({ urgency }: { urgency: ScoredTask['urgency'] }) {
+    const colors = { overdue: '#c07070', 'this-week': '#c9a84c', backlog: 'var(--color-border-strong)' };
+    return <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[urgency], flexShrink: 0 }} />;
 }
 
 export default function TasksPage() {
     const [tasks, setTasks] = useState<TasksData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [expandedCat, setExpandedCat] = useState<string | null>(null);
-    const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/dashboard')
@@ -57,7 +114,13 @@ export default function TasksPage() {
         </DashboardShell>
     );
 
-    const allTasks = Object.values(tasks.categories ?? {}).flatMap(c => c.tasks ?? []);
+    // Get today in AEST
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+    const stack = buildPriorityStack(tasks, todayStr);
+
+    const overdue = stack.filter(t => t.urgency === 'overdue');
+    const thisWeek = stack.filter(t => t.urgency === 'this-week');
+    const backlog = stack.filter(t => t.urgency === 'backlog');
 
     const chartData = (tasks.history ?? []).map(h => ({
         date: shortDate(h.date),
@@ -72,16 +135,17 @@ export default function TasksPage() {
                 <div>
                     <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>The Pile</h2>
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
-                        Last synced: {shortDate(tasks.updated_at)}
+                        {tasks.total_open} open · {tasks.total_done} done · Last synced {shortDate(tasks.updated_at)}
                     </p>
                 </div>
 
+                {/* Stats strip */}
                 <div className={styles.statsStrip}>
                     {[
                         { label: 'Open', value: tasks.total_open, color: '#c17f3a' },
                         { label: 'Done', value: tasks.total_done, color: '#6db86d' },
-                        { label: 'Overdue', value: tasks.overdue_tasks?.length ?? 0, color: '#c07070' },
-                        { label: 'Categories', value: Object.keys(tasks.categories ?? {}).length, color: 'var(--color-text)' },
+                        { label: 'Overdue', value: overdue.length, color: '#c07070' },
+                        { label: 'This Week', value: thisWeek.length, color: '#c9a84c' },
                     ].map(({ label, value, color }) => (
                         <div key={label} className={styles.statCard}>
                             <span className={styles.statValue} style={{ color }}>{value}</span>
@@ -99,7 +163,7 @@ export default function TasksPage() {
                         <AreaChart
                             data={chartData}
                             xKey="date"
-                            height={200}
+                            height={180}
                             areas={[
                                 { key: 'Pile Size', color: '#c17f3a', name: 'Open pile' },
                                 { key: 'Completed', color: '#5a9a5a', name: 'Completed' },
@@ -109,82 +173,74 @@ export default function TasksPage() {
                     </div>
                 )}
 
-                {tasks.overdue_tasks?.length > 0 && (
-                    <div className={styles.widget}>
-                        <div className={styles.widgetHeader}>
-                            <div className={styles.widgetTitle}><span className={styles.widgetIcon} style={{ color: '#c07070' }}>⚠</span>Overdue</div>
-                            <span className={styles.widgetBadge}>{tasks.overdue_tasks.length} items</span>
-                        </div>
-                        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-                            {tasks.overdue_tasks.map(t => (
-                                <li key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border)' }}>
-                                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#c07070', flexShrink: 0 }} />
-                                    <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>{t.name}</span>
-                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{t.category} · due {t.due}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* By category */}
+                {/* Priority Stack */}
                 <div className={styles.widget}>
                     <div className={styles.widgetHeader}>
-                        <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◇</span>By Category</div>
+                        <div className={styles.widgetTitle}><span className={styles.widgetIcon} style={{ color: '#c07070' }}>⚡</span>Priority Stack</div>
+                        <span className={styles.widgetBadge}>{stack.length} tasks</span>
                     </div>
-                    {Object.entries(tasks.categories ?? {}).sort((a, b) => b[1].open - a[1].open).map(([cat, { open, tasks: subtasks, overdue }]) => (
-                        <div key={cat}>
-                            <button
-                                onClick={() => setExpandedCat(expandedCat === cat ? null : cat)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'none', border: 'none', padding: 'var(--space-3) 0', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}
-                            >
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: catColors[cat] ?? '#7a7a7a', flexShrink: 0 }} />
-                                <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{cat}</span>
-                                {overdue?.length > 0 && <span style={{ fontSize: 'var(--text-xs)', color: '#c07070', fontWeight: 600 }}>⚠ {overdue.length} overdue</span>}
-                                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{open} open {expandedCat === cat ? '▴' : '▾'}</span>
-                            </button>
-                            {expandedCat === cat && (
-                                <ul style={{ listStyle: 'none', borderLeft: `2px solid ${catColors[cat] ?? '#7a7a7a'}44`, marginLeft: 'var(--space-2)', paddingLeft: 'var(--space-4)', paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-3)' }}>
-                                    {subtasks?.map(t => {
-                                        const isOverdue = overdue?.some(o => o.name === t);
-                                        return (
-                                            <li key={t} style={{ fontSize: 'var(--text-xs)', color: isOverdue ? '#c07070' : 'var(--color-text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                                <span style={{ color: 'var(--color-text-muted)' }}>→</span> {t}
-                                                {isOverdue && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#c07070', fontWeight: 600 }}>OVERDUE</span>}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-                    ))}
-                </div>
 
-                <div className={styles.widget}>
-                    <div className={styles.widgetHeader}>
-                        <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◆</span>Batch It</div>
-                        <span className={styles.widgetBadge}>Group by context</span>
-                    </div>
-                    {Object.entries(clusters).map(([title, clusterTasks]) => {
-                        const matched = clusterTasks.filter(ct => allTasks.some(t => t.toLowerCase().includes(ct.toLowerCase().slice(0, 20))));
-                        if (!matched.length) return null;
-                        return (
-                            <div key={title}>
-                                <button
-                                    onClick={() => setExpandedCluster(expandedCluster === title ? null : title)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%', background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left', marginBottom: 'var(--space-2)' }}
-                                >
-                                    <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{title}</span>
-                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{matched.length} tasks {expandedCluster === title ? '▴' : '▾'}</span>
-                                </button>
-                                {expandedCluster === title && (
-                                    <ul style={{ listStyle: 'none', paddingLeft: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-                                        {matched.map(t => <li key={t} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', padding: '3px 0' }}>→ {t}</li>)}
-                                    </ul>
-                                )}
+                    {/* OVERDUE section */}
+                    {overdue.length > 0 && (
+                        <div>
+                            <div className={styles.prioritySectionHeader} style={{ borderColor: 'rgba(192,112,112,0.4)' }}>
+                                <span className={styles.prioritySectionDot} style={{ background: '#c07070' }} />
+                                <span style={{ color: '#c07070' }}>Overdue</span>
+                                <span className={styles.prioritySectionCount}>{overdue.length}</span>
                             </div>
-                        );
-                    })}
+                            <ul className={styles.priorityList}>
+                                {overdue.map(t => (
+                                    <li key={t.name} className={styles.priorityItem}>
+                                        <UrgencyDot urgency={t.urgency} />
+                                        <span className={styles.priorityName}>{t.name}</span>
+                                        <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+                                        <span className={styles.priorityDue}>{t.overdueDays}d late</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* THIS WEEK section */}
+                    {thisWeek.length > 0 && (
+                        <div>
+                            <div className={styles.prioritySectionHeader} style={{ borderColor: 'rgba(201,168,76,0.4)' }}>
+                                <span className={styles.prioritySectionDot} style={{ background: '#c9a84c' }} />
+                                <span style={{ color: '#c9a84c' }}>This Week</span>
+                                <span className={styles.prioritySectionCount}>{thisWeek.length}</span>
+                            </div>
+                            <ul className={styles.priorityList}>
+                                {thisWeek.map(t => (
+                                    <li key={t.name} className={styles.priorityItem}>
+                                        <UrgencyDot urgency={t.urgency} />
+                                        <span className={styles.priorityName}>{t.name}</span>
+                                        <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+                                        {t.due && <span className={styles.priorityDue}>due {shortDate(t.due)}</span>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* BACKLOG section */}
+                    {backlog.length > 0 && (
+                        <div>
+                            <div className={styles.prioritySectionHeader} style={{ borderColor: 'var(--color-border)' }}>
+                                <span className={styles.prioritySectionDot} style={{ background: 'var(--color-border-strong)' }} />
+                                <span>Backlog</span>
+                                <span className={styles.prioritySectionCount}>{backlog.length}</span>
+                            </div>
+                            <ul className={styles.priorityList}>
+                                {backlog.map(t => (
+                                    <li key={t.name} className={styles.priorityItem}>
+                                        <UrgencyDot urgency={t.urgency} />
+                                        <span className={styles.priorityName}>{t.name}</span>
+                                        <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             </div>
         </DashboardShell>

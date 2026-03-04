@@ -767,3 +767,88 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
+
+/* ─── Priority Stack ────────────────────────────────────────────────────── */
+.prioritySectionHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--space-1);
+}
+
+.prioritySectionDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.prioritySectionCount {
+    margin-left: auto;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-full);
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.priorityList {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.priorityItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    transition: background var(--duration-fast) var(--ease);
+    border-radius: var(--radius-sm);
+    margin: 0;
+}
+
+.priorityItem:hover {
+    background: var(--color-bg-tertiary);
+}
+
+.priorityItem:last-child {
+    border-bottom: none;
+}
+
+.priorityName {
+    flex: 1;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.priorityCat {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.priorityDue {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
