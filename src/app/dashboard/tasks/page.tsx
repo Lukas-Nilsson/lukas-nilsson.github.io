@@ -110,6 +110,27 @@ function buildPriorityStack(
         }
     }
 
+    // Include completed tasks that aren't in snapshot categories
+    // (e.g. Done section tasks, pre-March completions)
+    const taskNames = new Set(allTasks.map(t => t.name));
+    for (const [name, comp] of completionMap.entries()) {
+        if (!taskNames.has(name)) {
+            const meta = metaMap.get(name) ?? null;
+            allTasks.push({
+                name,
+                category: comp.completed_by === 'abandoned' ? 'Abandoned' : 'Completed',
+                due: null,
+                overdueDays: 0,
+                urgency: 'completed',
+                score: -1,
+                completed: true,
+                meta,
+                completion: comp,
+                children: [],
+            });
+        }
+    }
+
     // Build parent-child relationships
     const taskByName = new Map(allTasks.map(t => [t.name, t]));
     const childNames = new Set<string>();
