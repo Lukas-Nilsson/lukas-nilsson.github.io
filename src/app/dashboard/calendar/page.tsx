@@ -124,6 +124,26 @@ export default function CalendarPage() {
     const [createSlot, setCreateSlot] = useState<{ start: string; end: string } | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google']));
+
+    const toggleSource = (source: string) => {
+        setVisibleSources(prev => {
+            const next = new Set(prev);
+            if (next.has(source)) next.delete(source);
+            else next.add(source);
+            return next;
+        });
+    };
+
+    // Filter events by visible calendars
+    const filteredEvents = useMemo(() => {
+        return events.filter(ev => {
+            if (ev.source === 'google' || ev.source === 'calendar') {
+                return visibleSources.has(ev.account ?? 'personal');
+            }
+            return visibleSources.has(ev.source);
+        });
+    }, [events, visibleSources]);
 
     useEffect(() => {
         setSelectedDate(new Date());
@@ -157,53 +177,34 @@ export default function CalendarPage() {
 
     useEffect(() => { if (selectedDate) fetchEvents(true); }, [fetchEvents, selectedDate]);
 
-    // Fetch tasks and habits for association
+    // Fetch tasks for side panel
     useEffect(() => {
-        async function loadTasksAndHabits() {
+        async function loadTasks() {
             try {
-                const [tasksRes, habitsRes] = await Promise.all([
-                    fetch('/api/dashboard/tasks', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'list' }),
-                    }),
-                    fetch('/api/dashboard/habits'),
-                ]);
-                if (tasksRes.ok) {
-                    const td = await tasksRes.json();
-                    const allTasks: TaskInfo[] = [];
-                    if (td.categories) {
-                        for (const cat of td.categories) {
-                            for (const t of cat.tasks ?? []) {
-                                allTasks.push({
-                                    task_name: t.task_name ?? t.name,
-                                    status: t.status ?? 'open',
-                                    priority: t.priority ?? null,
-                                    category: cat.name,
-                                    estimated_duration: t.estimated_duration ?? null,
-                                    time_spent: t.time_spent ?? null,
-                                    scheduling_status: t.scheduling_status ?? null,
-                                });
-                            }
-                        }
-                    }
+                const res = await fetch('/api/dashboard/tasks');
+                if (res.ok) {
+                    const td = await res.json();
+                    const completions = td.completions ?? [];
+                    const metadata = td.metadata ?? [];
+                    // Build a map of done tasks
+                    const doneSet = new Set(completions.map((c: { task_name: string }) => c.task_name));
+                    // Build task list from metadata
+                    const allTasks: TaskInfo[] = metadata.map((m: { task_name: string; priority?: number; context?: string; estimated_duration?: number }) => ({
+                        task_name: m.task_name,
+                        status: doneSet.has(m.task_name) ? 'done' : 'open',
+                        priority: m.priority ?? null,
+                        category: m.context ?? null,
+                        estimated_duration: (m as Record<string, unknown>).estimated_duration as number | null ?? null,
+                        time_spent: null,
+                        scheduling_status: null,
+                    }));
                     setTasks(allTasks);
                 }
-                if (habitsRes.ok) {
-                    const hd = await habitsRes.json();
-                    if (hd.habits) {
-                        setHabits(hd.habits.map((h: { key: string; label: string; completions?: { date: string }[] }) => ({
-                            key: h.key,
-                            label: h.label,
-                            done_today: (h.completions ?? []).some((c: { date: string }) => c.date === toAESTDate(new Date())),
-                        })));
-                    }
-                }
             } catch (e) {
-                console.error('Failed to load tasks/habits:', e);
+                console.error('Failed to load tasks:', e);
             }
         }
-        if (mounted) loadTasksAndHabits();
+        if (mounted) loadTasks();
     }, [mounted]);
 
     const navigate = (delta: number) => {
@@ -336,18 +337,30 @@ export default function CalendarPage() {
                             + New Event
                         </button>
 
-                        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                            {['personal', 'business'].map(acc => {
-                                const connected = accounts.some(a => a.account === acc);
+                        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {[
+                                { key: 'personal', label: 'Personal', color: accountColors.personal },
+                                { key: 'business', label: 'Business', color: accountColors.business },
+                                { key: 'task', label: 'Tasks', color: accountColors.task },
+                                { key: 'habit', label: 'Habits', color: accountColors.habit },
+                            ].map(({ key, label, color }) => {
+                                const active = visibleSources.has(key);
                                 return (
-                                    <span key={acc} style={{
-                                        fontSize: 9, fontWeight: 600, padding: '2px 6px',
-                                        borderRadius: 'var(--radius-sm)',
-                                        background: connected ? 'rgba(90,154,90,0.15)' : 'rgba(192,112,112,0.15)',
-                                        color: connected ? '#5a9a5a' : '#c07070',
-                                    }}>
-                                        {connected ? '●' : '○'} {acc}
-                                    </span>
+                                    <button
+                                        key={key}
+                                        onClick={() => toggleSource(key)}
+                                        style={{
+                                            fontSize: 9, fontWeight: 600, padding: '2px 8px',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: `1px solid ${active ? color.border : 'var(--color-border)'}`,
+                                            background: active ? color.bg : 'transparent',
+                                            color: active ? color.text : 'var(--color-text-muted)',
+                                            cursor: 'pointer', transition: 'all 0.15s',
+                                            opacity: active ? 1 : 0.5,
+                                        }}
+                                    >
+                                        {active ? '●' : '○'} {label}
+                                    </button>
                                 );
                             })}
                         </div>
@@ -380,11 +393,11 @@ export default function CalendarPage() {
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading calendar…</div>
                     ) : view === 'day' ? (
-                        <DayView events={events} date={selectedDate} onSlotClick={(start, end) => { setCreateSlot({ start, end }); setShowCreate(true); }} onEventClick={setSelectedEvent} />
+                        <DayView events={filteredEvents} date={selectedDate} onSlotClick={(start, end) => { setCreateSlot({ start, end }); setShowCreate(true); }} onEventClick={setSelectedEvent} />
                     ) : view === 'week' ? (
-                        <WeekView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
+                        <WeekView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                     ) : (
-                        <MonthView events={events} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
+                        <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                     )}
                 </div>
 
