@@ -187,47 +187,245 @@ function PileTrajectoryWidget({ data, selectedDate }: { data: DashboardData['tas
     );
 }
 
-// ─── Habits Widget ───────────────────────────────────────────────────────────
-function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null }) {
-    if (!data) return <EmptyWidget icon="◈" title="Habits" message="No habit data found for this day." />;
+// ─── Per-habit modal field config ────────────────────────────────────────────
+const habitFields: Record<string, { showTime: boolean; showDescription: boolean; showNotes: boolean; timePlaceholder?: string }> = {
+    workout1: { showTime: true, showDescription: true, showNotes: true, timePlaceholder: 'e.g. 15:00' },
+    workout2: { showTime: true, showDescription: true, showNotes: true, timePlaceholder: 'e.g. 18:30' },
+    water: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'Time finished' },
+    diet: { showTime: false, showDescription: false, showNotes: true },
+    reading: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'Time finished' },
+    teeth: { showTime: false, showDescription: false, showNotes: false },
+    bedtime: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 22:45' },
+    wake: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 06:30' },
+};
 
-    const doneCount = checkDefs.filter(c => data.checks?.[c.key]?.done).length;
-    const pct = Math.round((doneCount / checkDefs.length) * 100);
+// ─── Habit ID mapping (UI key → new habit_id) ────────────────────────────────
+const habitIdMap: Record<string, string> = {
+    workout1: 'workout_outdoor',
+    workout2: 'workout_2',
+    water: 'water',
+    diet: 'diet',
+    reading: 'reading',
+    teeth: 'teeth',
+    bedtime: 'bedtime',
+    wake: 'wake',
+};
+
+// ─── Habit Modal ──────────────────────────────────────────────────────────────
+interface ModalState {
+    key: string;
+    label: string;
+    icon: string;
+    done: boolean;
+    time: string;
+    description: string;
+    notes: string;
+}
+
+function HabitModal({
+    state,
+    date,
+    onClose,
+    onSave,
+}: {
+    state: ModalState;
+    date: string;
+    onClose: () => void;
+    onSave: (key: string, done: boolean, value: string | null, notes: string | null) => void;
+}) {
+    const [done, setDone] = useState(state.done);
+    const [time, setTime] = useState(state.time);
+    const [desc, setDesc] = useState(state.description);
+    const [notes, setNotes] = useState(state.notes);
+    const [saving, setSaving] = useState(false);
+    const fields = habitFields[state.key] ?? { showTime: false, showDescription: false, showNotes: true };
+
+    const handleSave = async () => {
+        setSaving(true);
+        const value = [desc, time].filter(Boolean).join(' @ ') || null;
+        try {
+            await fetch('/api/dashboard/habits', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date,
+                    habit_id: habitIdMap[state.key] ?? state.key,
+                    done,
+                    value,
+                    notes: notes || null,
+                }),
+            });
+            onSave(state.key, done, value, notes || null);
+        } finally {
+            setSaving(false);
+            onClose();
+        }
+    };
+
+    const overlay: React.CSSProperties = {
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+    };
+    const modal: React.CSSProperties = {
+        background: 'var(--color-bg-secondary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-xl)',
+        padding: 'var(--space-6)',
+        width: '100%', maxWidth: 420,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+    };
+    const input: React.CSSProperties = {
+        width: '100%', background: 'var(--color-bg)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)',
+        color: 'var(--color-text)', fontSize: 'var(--text-sm)',
+        outline: 'none', boxSizing: 'border-box',
+    };
+    const label: React.CSSProperties = {
+        fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)',
+        display: 'block', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+    };
 
     return (
-        <div className={styles.widget}>
-            <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
-                <span className={styles.widgetBadge}>{data.today_complete ? '✓ Success' : '× Incomplete'}</span>
-            </div>
+        <div style={overlay} onClick={onClose}>
+            <div style={modal} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+                    <span style={{ fontSize: 28 }}>{state.icon}</span>
+                    <div>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text)' }}>{state.label}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{date}</div>
+                    </div>
+                </div>
 
-            <div className={styles.habitProgress}>
-                <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : 'linear-gradient(90deg, var(--accent-500), var(--accent-300))' }} />
-            </div>
+                {/* Done toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3)', background: done ? 'rgba(90,154,90,0.1)' : 'rgba(180,80,80,0.08)', borderRadius: 'var(--radius)', border: `1px solid ${done ? 'rgba(90,154,90,0.3)' : 'rgba(180,80,80,0.2)'}` }}>
+                    <button
+                        onClick={() => setDone(d => !d)}
+                        style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', background: done ? '#5a9a5a' : 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: done ? '0 0 0 3px rgba(90,154,90,0.3)' : '0 0 0 2px var(--color-border)', transition: 'all 0.2s' }}
+                    >
+                        {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </button>
+                    <span style={{ fontWeight: 600, color: done ? '#6db86d' : 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>{done ? 'Completed ✓' : 'Mark as not done'}</span>
+                </div>
 
-            <ul className={styles.habitList}>
-                {checkDefs.map(({ key, icon, label }) => {
-                    const item = data.checks?.[key];
-                    const done = item?.done ?? false;
-                    return (
-                        <li key={key} className={styles.habitItem}>
-                            <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
-                                {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                                    <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>}
-                            </div>
-                            <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{icon} {label}</span>
-                            {item?.time && <span className={styles.streak}>{item.time}</span>}
-                        </li>
-                    );
-                })}
-            </ul>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {fields.showTime && (
+                        <div>
+                            <span style={label}>Time</span>
+                            <input style={input} type="text" placeholder={fields.timePlaceholder ?? 'HH:MM'} value={time} onChange={e => setTime(e.target.value)} />
+                        </div>
+                    )}
+                    {fields.showDescription && (
+                        <div>
+                            <span style={label}>Activity / Description</span>
+                            <input style={input} type="text" placeholder="e.g. Morning run 5km, Soccer match…" value={desc} onChange={e => setDesc(e.target.value)} />
+                        </div>
+                    )}
+                    {fields.showNotes && (
+                        <div>
+                            <span style={label}>Notes</span>
+                            <textarea style={{ ...input, resize: 'vertical', minHeight: 72, fontFamily: 'inherit' }} placeholder="Extra context, how it felt…" value={notes} onChange={e => setNotes(e.target.value)} />
+                        </div>
+                    )}
+                </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
-                <span>{doneCount}/{checkDefs.length} done · {data.day != null ? `Day ${data.day}` : 'Pre-challenge'}</span>
-                <span>Confidence: <strong style={{ color: (data.finish_confidence ?? 0) >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence != null ? `${data.finish_confidence}%` : '—'}</strong></span>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-5)' }}>
+                    <button onClick={onClose} style={{ flex: 1, padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)' }}>
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent-500)', color: 'white', cursor: saving ? 'wait' : 'pointer', fontWeight: 600, fontSize: 'var(--text-sm)', opacity: saving ? 0.7 : 1 }}>
+                        {saving ? 'Saving…' : 'Save'}
+                    </button>
+                </div>
             </div>
         </div>
+    );
+}
+
+// ─── Habits Widget ───────────────────────────────────────────────────────────
+function HabitsWidget({ data }: { data: DashboardData['hard75History'][0] | null }) {
+    // Local override state for optimistic updates (key → check override)
+    const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({});
+    const [modal, setModal] = useState<ModalState | null>(null);
+
+    if (!data) return <EmptyWidget icon="◈" title="Habits" message="No habit data found for this day." />;
+
+    const getCheck = (key: string) => {
+        if (overrides[key] !== undefined) return overrides[key];
+        return data.checks?.[key] ?? { done: false, time: null };
+    };
+
+    const doneCount = checkDefs.filter(c => getCheck(c.key).done).length;
+    const pct = Math.round((doneCount / checkDefs.length) * 100);
+
+    const openModal = (key: string, icon: string, label: string) => {
+        const check = getCheck(key);
+        // Parse value back into time/description if stored as "desc @ time"
+        const [desc, ...rest] = (check.time ?? '').split(' @ ');
+        setModal({
+            key, label, icon, done: check.done,
+            time: rest.join(' @ ') || (check.time?.match(/^\d{1,2}:\d{2}$/) ? check.time : ''),
+            description: check.time?.includes(' @ ') ? desc : '',
+            notes: '',
+        });
+    };
+
+    const handleSave = (key: string, done: boolean, value: string | null) => {
+        setOverrides(o => ({ ...o, [key]: { done, time: value } }));
+    };
+
+    return (
+        <>
+            {modal && (
+                <HabitModal
+                    state={modal}
+                    date={data.date}
+                    onClose={() => setModal(null)}
+                    onSave={handleSave}
+                />
+            )}
+            <div className={styles.widget}>
+                <div className={styles.widgetHeader}>
+                    <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
+                    <span className={styles.widgetBadge}>{data.today_complete ? '✓ Success' : '× Incomplete'}</span>
+                </div>
+
+                <div className={styles.habitProgress}>
+                    <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : 'linear-gradient(90deg, var(--accent-500), var(--accent-300))' }} />
+                </div>
+
+                <ul className={styles.habitList}>
+                    {checkDefs.map(({ key, icon, label }) => {
+                        const item = getCheck(key);
+                        const done = item.done;
+                        return (
+                            <li
+                                key={key}
+                                className={styles.habitItem}
+                                onClick={() => openModal(key, icon, label)}
+                                style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                                title="Click to update"
+                            >
+                                <div className={`${styles.habitCheck} ${done ? styles.habitDone : ''}`}>
+                                    {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                                        <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>}
+                                </div>
+                                <span className={`${styles.habitName} ${done ? styles.habitNameDone : ''}`}>{icon} {label}</span>
+                                {item.time && <span className={styles.streak}>{item.time}</span>}
+                                <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--color-text-muted)', opacity: 0.5 }}>✎</span>
+                            </li>
+                        );
+                    })}
+                </ul>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)' }}>
+                    <span>{doneCount}/{checkDefs.length} done · {data.day != null ? `Day ${data.day}` : 'Pre-challenge'}</span>
+                    <span>Confidence: <strong style={{ color: (data.finish_confidence ?? 0) >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence != null ? `${data.finish_confidence}%` : '—'}</strong></span>
+                </div>
+            </div>
+        </>
     );
 }
 
