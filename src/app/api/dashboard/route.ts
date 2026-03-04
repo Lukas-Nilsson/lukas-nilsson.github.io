@@ -130,6 +130,41 @@ export async function GET() {
         completed: t.completed_delta ?? 0,
         added: t.added_delta ?? 0,
     }));
+
+    // Enhance trajectory with per-task created_at/completed_at data if available
+    let individualTasks: { name: string; status: string; category: string; created_at: string; completed_at: string | null }[] = [];
+    try {
+        const tasksRes = await supabase
+            .from('tasks')
+            .select('name,status,category,created_at,completed_at');
+        individualTasks = tasksRes.data ?? [];
+    } catch { /* tasks table may not exist yet */ }
+
+    if (individualTasks.length > 0) {
+        // Compute per-day added/completed from task timestamps
+        const addedByDate = new Map<string, number>();
+        const completedByDate = new Map<string, number>();
+
+        for (const task of individualTasks) {
+            if (task.created_at) {
+                const createdDate = new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+                addedByDate.set(createdDate, (addedByDate.get(createdDate) ?? 0) + 1);
+            }
+            if (task.completed_at) {
+                const completedDate = new Date(task.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+                completedByDate.set(completedDate, (completedByDate.get(completedDate) ?? 0) + 1);
+            }
+        }
+
+        // Override snapshot deltas with accurate task-level data
+        for (const point of taskHistory) {
+            const addedCount = addedByDate.get(point.date);
+            const completedCount = completedByDate.get(point.date);
+            if (addedCount !== undefined) point.added = addedCount;
+            if (completedCount !== undefined) point.completed = completedCount;
+        }
+    }
+
     const tasks = latestTask ? {
         updated_at: latestTask.updated_at,
         total_open: latestTask.open_count,
