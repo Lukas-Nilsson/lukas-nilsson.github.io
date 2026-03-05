@@ -28,7 +28,7 @@ interface ConnectedAccount { account: string; email: string; }
 interface TaskInfo {
     task_name: string;
     status: string;
-    priority: number | null;
+    priority: string | null;
     category: string | null;
     estimated_duration: number | null;
 }
@@ -553,16 +553,25 @@ function MonthView({ events, selectedDate, onDayClick }: { events: CalendarEvent
     );
 }
 
-// ─── Task Chips (hover popover) ──────────────────────────────────────────────
+// ─── Task Chips (hover popover — position:fixed to escape overflow) ──────────
 
 function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean }) {
     const [showPopover, setShowPopover] = useState(false);
-    const wrapperRef = useRef<HTMLSpanElement>(null);
+    const [popoverPos, setPopoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const chipRef = useRef<HTMLSpanElement>(null);
+
+    const handleEnter = () => {
+        if (chipRef.current) {
+            const rect = chipRef.current.getBoundingClientRect();
+            setPopoverPos({ x: rect.left, y: rect.bottom + 4 });
+        }
+        setShowPopover(true);
+    };
 
     return (
         <span
-            ref={wrapperRef}
-            onMouseEnter={() => setShowPopover(true)}
+            ref={chipRef}
+            onMouseEnter={handleEnter}
             onMouseLeave={() => setShowPopover(false)}
             onClick={(e) => e.stopPropagation()}
             style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
@@ -585,15 +594,17 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
 
             {showPopover && (
                 <div style={{
-                    position: 'absolute', top: '100%', left: 0,
-                    marginTop: 4, zIndex: 50,
+                    position: 'fixed',
+                    top: popoverPos.y,
+                    left: popoverPos.x,
+                    zIndex: 9999,
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-md)',
                     padding: 'var(--space-2)',
-                    minWidth: 200, maxWidth: 280,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-                    pointerEvents: 'auto',
+                    minWidth: 220, maxWidth: 300,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                    pointerEvents: 'none',
                 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                         Linked Tasks ({tasks.length})
@@ -686,9 +697,21 @@ function EventDetail({ event, task, onClose, onEdit, onDelete }: {
     );
 }
 
-// ─── Task Sidebar (draggable) ────────────────────────────────────────────────
+// ─── Task Sidebar (draggable, priority-sorted) ──────────────────────────────
+
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, this_week: 1, this_month: 2, ongoing: 3, someday: 4 };
+function priorityRank(p: string | null): number { return p ? (PRIORITY_ORDER[p] ?? 5) : 5; }
+const priorityColors: Record<string, { bg: string; text: string }> = {
+    urgent: { bg: 'rgba(192,80,80,0.12)', text: '#c05050' },
+    this_week: { bg: 'rgba(193,127,58,0.12)', text: '#c17f3a' },
+    this_month: { bg: 'rgba(90,130,200,0.12)', text: '#5a82c8' },
+    ongoing: { bg: 'rgba(90,154,90,0.12)', text: '#5a9a5a' },
+    someday: { bg: 'rgba(120,120,140,0.1)', text: '#78788c' },
+};
 
 function TaskSidebar({ tasks }: { tasks: TaskInfo[] }) {
+    const sorted = useMemo(() => [...tasks].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority)), [tasks]);
+
     return (
         <div>
             <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
@@ -698,34 +721,44 @@ function TaskSidebar({ tasks }: { tasks: TaskInfo[] }) {
                 Drag onto calendar to schedule
             </div>
 
-            {tasks.length === 0 ? (
+            {sorted.length === 0 ? (
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', padding: 'var(--space-2)' }}>All tasks scheduled ✓</div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {tasks.slice(0, 20).map(task => (
-                        <div
-                            key={task.task_name}
-                            draggable
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', JSON.stringify({ taskName: task.task_name, duration: task.estimated_duration ?? 30 }));
-                                e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                            style={{
-                                padding: '5px 8px', borderRadius: 'var(--radius-sm)',
-                                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                                fontSize: 'var(--text-xs)', cursor: 'grab', userSelect: 'none',
-                                borderLeft: `3px solid ${accountColors.task.border}`,
-                                transition: 'border-color 0.15s, box-shadow 0.15s',
-                            }}
-                        >
-                            <div style={{ fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.task_name}</div>
-                            <div style={{ fontSize: 9, color: 'var(--color-text-muted)', marginTop: 1 }}>
-                                {task.estimated_duration ? formatDuration(task.estimated_duration) : '30m'}
-                                {task.category && ` · ${task.category}`}
+                    {sorted.slice(0, 20).map(task => {
+                        const pc = priorityColors[task.priority ?? ''] ?? priorityColors.someday;
+                        return (
+                            <div
+                                key={task.task_name}
+                                draggable
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', JSON.stringify({ taskName: task.task_name, duration: task.estimated_duration ?? 30 }));
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                style={{
+                                    padding: '5px 8px', borderRadius: 'var(--radius-sm)',
+                                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                                    fontSize: 'var(--text-xs)', cursor: 'grab', userSelect: 'none',
+                                    borderLeft: `3px solid ${accountColors.task.border}`,
+                                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <div style={{ fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{task.task_name}</div>
+                                    {task.priority && (
+                                        <span style={{ fontSize: 7, padding: '0 4px', borderRadius: 2, background: pc.bg, color: pc.text, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                            {String(task.priority).replace('_', ' ')}
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: 9, color: 'var(--color-text-muted)', marginTop: 1 }}>
+                                    {task.estimated_duration ? formatDuration(task.estimated_duration) : '30m'}
+                                    {task.category && ` · ${task.category}`}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    {tasks.length > 20 && <div style={{ fontSize: 9, color: 'var(--color-text-muted)', textAlign: 'center' }}>+{tasks.length - 20} more</div>}
+                        );
+                    })}
+                    {sorted.length > 20 && <div style={{ fontSize: 9, color: 'var(--color-text-muted)', textAlign: 'center' }}>+{sorted.length - 20} more</div>}
                 </div>
             )}
         </div>
