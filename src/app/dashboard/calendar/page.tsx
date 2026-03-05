@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef, type DragEvent } from 'react';
+import { createPortal } from 'react-dom';
 import styles from '../dashboard.module.css';
 import DashboardShell from '../DashboardShell';
 
@@ -86,8 +87,8 @@ function tokenize(text: string): string[] {
 
 function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
     if (!tasks.length) return [];
-    // Direct link via source_id
-    if (ev.source === 'task' && ev.source_id) {
+    // Direct link via source_id (works for any source — google events can have task links)
+    if (ev.source_id) {
         const direct = tasks.filter(t => t.task_name === ev.source_id);
         if (direct.length) return direct;
     }
@@ -151,9 +152,14 @@ export default function CalendarPage() {
     const toggleSource = (s: string) => setVisibleSources(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
 
     const filteredEvents = useMemo(() => events.filter(ev => {
+        // Google/calendar events: filter by account (personal/business)
         if (ev.source === 'google' || ev.source === 'calendar') return visibleSources.has(ev.account ?? 'personal');
+        // Task/habit-only events (created from OpenClaw, not synced from Google)
         return visibleSources.has(ev.source);
     }), [events, visibleSources]);
+
+    // Whether to show task UI overlays (chips, pills) on events
+    const showTaskUI = visibleSources.has('task');
 
     // Init — load cached data immediately, then fetch fresh
     useEffect(() => {
@@ -325,9 +331,9 @@ export default function CalendarPage() {
                         {loading && events.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
                         ) : view === 'day' ? (
-                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
                         ) : view === 'week' ? (
-                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
                         ) : (
                             <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                         )}
@@ -353,10 +359,11 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, onSlotClick, onEventClick, onDrop }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, onSlotClick, onEventClick, onDrop }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
+    showTaskUI: boolean;
     onSlotClick: (start: string, end: string) => void;
     onEventClick: (ev: CalendarEvent) => void;
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
@@ -458,7 +465,7 @@ function TimeGrid({ events, dates, tasks, onSlotClick, onEventClick, onDrop }: {
                             const top = ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT + (isMulti ? 36 : 0);
                             const height = Math.max(((endMins - startMins) / 60) * HOUR_HEIGHT, 18);
                             const c = eventColor(ev);
-                            const matchedTasks = matchTasksToEvent(ev, tasks);
+                            const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
 
                             return (
                                 <div
@@ -470,7 +477,7 @@ function TimeGrid({ events, dates, tasks, onSlotClick, onEventClick, onDrop }: {
                                         padding: '1px 4px', fontSize: isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
                                         cursor: 'pointer', zIndex: 5, backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
                                     }}
-                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}`}
+                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}`}
                                 >
                                     <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
                                         {ev.source !== 'google' && <span style={{ opacity: 0.6 }}>{ev.source === 'task' ? '📋 ' : '🔁 '}</span>}
@@ -553,28 +560,37 @@ function MonthView({ events, selectedDate, onDayClick }: { events: CalendarEvent
     );
 }
 
-// ─── Task Chips (hover popover — position:fixed to escape overflow) ──────────
+// ─── Task Chips (hover popover — rendered via portal to escape overflow) ─────
 
 function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean }) {
     const [showPopover, setShowPopover] = useState(false);
     const [popoverPos, setPopoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const chipRef = useRef<HTMLSpanElement>(null);
+    const hideTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
     const handleEnter = () => {
+        if (hideTimer.current) clearTimeout(hideTimer.current);
         if (chipRef.current) {
             const rect = chipRef.current.getBoundingClientRect();
-            setPopoverPos({ x: rect.left, y: rect.bottom + 4 });
+            // Position below the chip, clamp to viewport
+            const x = Math.min(rect.left, window.innerWidth - 310);
+            const y = rect.bottom + 6;
+            setPopoverPos({ x: Math.max(8, x), y: Math.min(y, window.innerHeight - 200) });
         }
         setShowPopover(true);
+    };
+
+    const handleLeave = () => {
+        hideTimer.current = setTimeout(() => setShowPopover(false), 150);
     };
 
     return (
         <span
             ref={chipRef}
             onMouseEnter={handleEnter}
-            onMouseLeave={() => setShowPopover(false)}
+            onMouseLeave={handleLeave}
             onClick={(e) => e.stopPropagation()}
-            style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+            style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
         >
             <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 2,
@@ -592,20 +608,23 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
                 📋 {tasks.length}
             </span>
 
-            {showPopover && (
-                <div style={{
-                    position: 'fixed',
-                    top: popoverPos.y,
-                    left: popoverPos.x,
-                    zIndex: 9999,
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: 'var(--space-2)',
-                    minWidth: 220, maxWidth: 300,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                    pointerEvents: 'none',
-                }}>
+            {showPopover && createPortal(
+                <div
+                    onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); }}
+                    onMouseLeave={handleLeave}
+                    style={{
+                        position: 'fixed',
+                        top: popoverPos.y,
+                        left: popoverPos.x,
+                        zIndex: 99999,
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: 'var(--space-2)',
+                        minWidth: 220, maxWidth: 300,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+                    }}
+                >
                     <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                         Linked Tasks ({tasks.length})
                     </div>
@@ -640,7 +659,8 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
                             </div>
                         </div>
                     ))}
-                </div>
+                </div>,
+                document.body
             )}
         </span>
     );
