@@ -857,7 +857,10 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                         {matchedHabits.length > 0 && !isMulti && (
                                             <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
                                                 {matchedHabits.map(h => (
-                                                    <span key={h.key} title={h.label} style={{ cursor: 'default' }}>{h.icon}</span>
+                                                    <span key={h.key} className="tip-wrap" style={{ cursor: 'default', position: 'relative' }}>
+                                                        {h.icon}
+                                                        <span className="tip-label">{h.label}</span>
+                                                    </span>
                                                 ))}
                                             </span>
                                         )}

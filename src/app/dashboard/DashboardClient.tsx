@@ -804,8 +804,16 @@ function CalendarWidget() {
                             <span style={{ fontSize: 'var(--text-xs)', fontWeight: isNow ? 700 : 500, color: isNow ? c.border : 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                 {ev.title}
                             </span>
-                            {taskNames.length > 0 && <span style={{ fontSize: 10, flexShrink: 0, cursor: 'default' }} title={`📋 ${taskNames.join(', ')}`}>📋</span>}
-                            {matchedHabits.map(h => <span key={h.label} style={{ fontSize: 10, flexShrink: 0, cursor: 'default' }} title={h.label}>{h.icon}</span>)}
+                            {taskNames.length > 0 && (
+                                <span className="tip-wrap" style={{ fontSize: 10, flexShrink: 0 }}>
+                                    📋<span className="tip-label">{taskNames.join(', ')}</span>
+                                </span>
+                            )}
+                            {matchedHabits.map(h => (
+                                <span key={h.label} className="tip-wrap" style={{ fontSize: 10, flexShrink: 0 }}>
+                                    {h.icon}<span className="tip-label">{h.label}</span>
+                                </span>
+                            ))}
                             {isNow && <span style={{ fontSize: 8, fontWeight: 700, color: c.border, textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>NOW</span>}
                             {!ev.all_day && !isNow && (
                                 <span style={{ fontSize: 9, color: 'var(--color-text-muted)', flexShrink: 0 }}>
