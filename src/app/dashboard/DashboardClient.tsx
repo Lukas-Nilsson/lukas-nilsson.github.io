@@ -726,6 +726,87 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
 }
 
 
+// ─── Calendar Widget (today's events) ──────────────────────────────────────────
+function CalendarWidget() {
+    const [events, setEvents] = useState<{ id: string; title: string; start_time: string; end_time: string; all_day: boolean; source: string; account: string | null }[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/dashboard/calendar')
+            .then(r => r.json())
+            .then(d => { setEvents(d.events ?? []); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, []);
+
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+    const todayEvents = events
+        .filter(e => {
+            const s = new Date(e.start_time).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+            return s === todayStr;
+        })
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+    const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hour12: false });
+
+    const colorMap: Record<string, { bg: string; border: string }> = {
+        personal: { bg: 'rgba(90,130,200,0.08)', border: '#5a82c8' },
+        business: { bg: 'rgba(201,168,76,0.08)', border: '#c9a84c' },
+        task: { bg: 'rgba(193,127,58,0.08)', border: '#c17f3a' },
+        habit: { bg: 'rgba(90,154,90,0.08)', border: '#5a9a5a' },
+    };
+    const getColor = (ev: typeof events[0]) => colorMap[ev.account ?? ev.source] ?? colorMap.personal;
+
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    if (loading) return <EmptyWidget icon="▦" title="Today" message="Loading events…" />;
+    if (!todayEvents.length) return <EmptyWidget icon="▦" title="Today" message="No events scheduled for today." />;
+
+    return (
+        <div className={styles.widget}>
+            <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>▦</span>Today</div>
+                <span className={styles.widgetBadge}>{todayEvents.length} event{todayEvents.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {todayEvents.slice(0, 8).map(ev => {
+                    const c = getColor(ev);
+                    const startMins = new Date(ev.start_time).getHours() * 60 + new Date(ev.start_time).getMinutes();
+                    const endMins = new Date(ev.end_time).getHours() * 60 + new Date(ev.end_time).getMinutes();
+                    const isPast = endMins < currentMins;
+                    const isNow = startMins <= currentMins && currentMins < endMins;
+                    return (
+                        <div key={ev.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                            padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+                            borderLeft: `3px solid ${c.border}`, background: isNow ? c.bg : 'transparent',
+                            opacity: isPast ? 0.5 : 1, transition: 'opacity 0.2s',
+                        }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', minWidth: 38, fontVariantNumeric: 'tabular-nums' }}>
+                                {ev.all_day ? 'All day' : fmtTime(ev.start_time)}
+                            </span>
+                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: isNow ? 700 : 500, color: isNow ? c.border : 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                {ev.title}
+                            </span>
+                            {isNow && <span style={{ fontSize: 8, fontWeight: 700, color: c.border, textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>NOW</span>}
+                            {!ev.all_day && !isNow && (
+                                <span style={{ fontSize: 9, color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                                    {Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000)}m
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+                {todayEvents.length > 8 && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', textAlign: 'center', padding: 'var(--space-1)' }}>+{todayEvents.length - 8} more</span>
+                )}
+            </div>
+            <a href="/dashboard/calendar" className={styles.widgetLink} style={{ display: 'block', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-3)', textDecoration: 'none' }}>
+                View calendar →
+            </a>
+        </div>
+    );
+}
 // ─── Empty state ──────────────────────────────────────────────────────────────
 function EmptyWidget({ icon, title, message }: { icon: string; title: string; message: string }) {
     return (
@@ -914,6 +995,11 @@ export default function DashboardClient({ user }: Props) {
                         {/* Recent Tasks Snapshot */}
                         <div className={styles.gridItem}>
                             <TasksWidget data={data.tasks} />
+                        </div>
+
+                        {/* Today's Events */}
+                        <div className={styles.gridItem}>
+                            <CalendarWidget />
                         </div>
 
                         {/* Sleep Stage Chart */}
