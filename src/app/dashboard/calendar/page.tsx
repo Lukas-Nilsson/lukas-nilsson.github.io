@@ -477,12 +477,18 @@ export default function CalendarPage() {
     };
     const handlePinchEnd = () => { lastPinchDist.current = null; };
 
-    // Desktop: Ctrl+scroll to zoom
-    const handleWheel = (e: React.WheelEvent) => {
-        if (!e.ctrlKey && !e.metaKey) return;
-        e.preventDefault();
-        setZoomHeight(h => Math.min(120, Math.max(32, h - e.deltaY * 0.3)));
-    };
+    // Desktop: Ctrl+scroll to zoom (native event to allow preventDefault on non-passive listener)
+    useEffect(() => {
+        const el = calendarBodyRef.current;
+        if (!el) return;
+        const handler = (e: WheelEvent) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            setZoomHeight(h => Math.min(120, Math.max(32, h - e.deltaY * 0.3)));
+        };
+        el.addEventListener('wheel', handler, { passive: false });
+        return () => el.removeEventListener('wheel', handler);
+    });
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -587,7 +593,6 @@ export default function CalendarPage() {
                         onTouchEnd={isMobile ? handleTouchEnd : undefined}
                         onTouchMove={isMobile ? handlePinchMove : undefined}
                         onTouchCancel={isMobile ? handlePinchEnd : undefined}
-                        onWheel={handleWheel}
                         style={{ flex: 1, overflow: 'auto', touchAction: 'pan-y' }}
                     >
                         {calendarBody}
