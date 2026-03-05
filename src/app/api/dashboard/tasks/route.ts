@@ -61,8 +61,14 @@ export async function PATCH(req: NextRequest) {
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
 
-            // Update tasks table
-            await supabase.from('tasks').update({ status: 'done', completed_at: now, updated_at: now }).eq('name', task_name);
+            // Upsert tasks table (create row if it doesn't exist yet — e.g. tasks from markdown sync)
+            await supabase.from('tasks').upsert({
+                name: task_name,
+                status: 'done',
+                category: category ?? null,
+                completed_at: now,
+                updated_at: now,
+            }, { onConflict: 'name' });
 
             // Increment completed_delta in today's snapshot
             const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
@@ -83,8 +89,13 @@ export async function PATCH(req: NextRequest) {
                 return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
 
-            // Update tasks table
-            await supabase.from('tasks').update({ status: 'open', completed_at: null, updated_at: now }).eq('name', task_name);
+            // Upsert tasks table back to open
+            await supabase.from('tasks').upsert({
+                name: task_name,
+                status: 'open',
+                completed_at: null,
+                updated_at: now,
+            }, { onConflict: 'name' });
 
             // Decrement completed_delta in today's snapshot
             const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
