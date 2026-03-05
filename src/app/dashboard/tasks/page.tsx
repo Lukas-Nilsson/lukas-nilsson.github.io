@@ -19,6 +19,7 @@ interface TaskMeta {
     notes: string | null;
     context: string | null;
     parent_task: string | null;
+    location: string | null;
 }
 
 const catColors: Record<string, string> = {
@@ -173,6 +174,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
     const [notes, setNotes] = useState(task.meta?.notes ?? '');
     const [context, setContext] = useState(task.meta?.context ?? '');
     const [parentTask, setParentTask] = useState(task.meta?.parent_task ?? '');
+    const [location, setLocation] = useState(task.meta?.location ?? '');
     const [completedAt, setCompletedAt] = useState(() => {
         // Format completed_at date for the input (YYYY-MM-DD)
         if (task.completion?.completed_at) {
@@ -221,6 +223,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                     notes: notes || null,
                     context: context || null,
                     parent_task: parentTask || null,
+                    location: location || null,
                 }),
             });
             if (!res.ok) {
@@ -236,6 +239,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                 notes: notes || null,
                 context: context || null,
                 parent_task: parentTask || null,
+                location: location || null,
             });
 
             // If completed_at was changed, update it separately
@@ -347,6 +351,18 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                     />
                 </div>
 
+                {/* Location */}
+                <div className={styles.modalField}>
+                    <label className={styles.modalLabel}>Location</label>
+                    <input
+                        type="text"
+                        className={styles.modalInput}
+                        placeholder="e.g. Home, Office, Gym, Bunnings..."
+                        value={location}
+                        onChange={e => setLocation(e.target.value)}
+                    />
+                </div>
+
                 {/* Quick notes */}
                 <div className={styles.modalField}>
                     <label className={styles.modalLabel}>Quick Notes</label>
@@ -439,7 +455,7 @@ export default function TasksPage() {
             setCompletions(new Set((taskData.completions ?? []).map((c: { task_name: string }) => c.task_name)));
             setCompletionMap(new Map((taskData.completions ?? []).map((c: { task_name: string; completed_at: string; completed_by: string }) => [c.task_name, { completed_at: c.completed_at, completed_by: c.completed_by }])));
             const metaEntries = (taskData.metadata ?? []).map((m: TaskMeta & { task_name: string }) =>
-                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task }] as [string, TaskMeta]
+                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task, location: m.location ?? null }] as [string, TaskMeta]
             );
             setMetaMap(new Map(metaEntries));
             setLoading(false);
@@ -619,7 +635,7 @@ export default function TasksPage() {
                             )}
                         </div>
                         {/* Tags row */}
-                        {(meta?.waiting_on || meta?.due_date || meta?.parent_task || meta?.context || priCfg) && (
+                        {(meta?.waiting_on || meta?.due_date || meta?.parent_task || meta?.context || meta?.location || priCfg) && (
                             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                                 {meta?.waiting_on && (
                                     <span className={styles.taskTag} style={{ color: '#c9a84c', borderColor: 'rgba(201,168,76,0.3)' }}>
@@ -639,6 +655,11 @@ export default function TasksPage() {
                                 {meta?.context && (
                                     <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)' }} title={meta.context}>
                                         📋
+                                    </span>
+                                )}
+                                {meta?.location && (
+                                    <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)' }} title={meta.location}>
+                                        📍 {meta.location}
                                     </span>
                                 )}
                             </div>

@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name, completed_at } = body as {
+        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name, completed_at, location } = body as {
             task_name: string;
             category?: string;
             action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon' | 'add' | 'update_completed_at';
@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest) {
             parent_task?: string | null;
             new_name?: string;
             completed_at?: string;
+            location?: string | null;
         };
 
         if (!task_name || !action) {
@@ -104,6 +105,7 @@ export async function PATCH(req: NextRequest) {
                     notes: notes ?? null,
                     context: context ?? null,
                     parent_task: parent_task ?? null,
+                    location: location ?? null,
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'task_name' });
 
@@ -283,7 +285,7 @@ export async function GET() {
 
         const [compRes, metaRes] = await Promise.all([
             supabase.from('task_completions').select('task_name,category,completed_at,completed_by,notes'),
-            supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,context,parent_task,updated_at'),
+            supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,context,parent_task,location,updated_at'),
         ]);
 
         if (compRes.error) console.error('[tasks GET] completions error:', compRes.error);
