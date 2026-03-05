@@ -107,9 +107,10 @@ function tokenize(text: string): string[] {
 
 function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
     if (!tasks.length) return [];
-    // Direct link via source_id (works for any source — google events can have task links)
+    // Direct link via source_id (supports comma-separated multi-task links)
     if (ev.source_id) {
-        const direct = tasks.filter(t => t.task_name === ev.source_id);
+        const ids = ev.source_id.split(',').map(s => s.trim()).filter(Boolean);
+        const direct = tasks.filter(t => ids.includes(t.task_name));
         if (direct.length) return direct;
     }
     // Keyword matching
@@ -385,7 +386,12 @@ export default function CalendarPage() {
 
     // Drop a task onto an existing event to link them
     const handleLinkToEvent = async (eventId: string, taskName: string) => {
-        await handleUpdate(eventId, { source_id: taskName });
+        // Append task to existing comma-separated list (don't overwrite)
+        const existing = events.find(e => e.id === eventId);
+        const currentIds = existing?.source_id ? existing.source_id.split(',').map(s => s.trim()).filter(Boolean) : [];
+        if (currentIds.includes(taskName)) return; // Already linked
+        const newSourceId = [...currentIds, taskName].join(',');
+        await handleUpdate(eventId, { source_id: newSourceId });
     };
 
     // Drag an existing event to a new time slot
@@ -394,22 +400,13 @@ export default function CalendarPage() {
     };
 
     // Tasks that are linked to any event via source_id are 'scheduled'
-    const linkedTaskNames = useMemo(() => new Set(events.filter(e => e.source_id).map(e => e.source_id!)), [events]);
-
-    // ─── Guard ───────────────────────────────────────────────────────────────
-
-    if (!mounted || !selectedDate) {
-        return <DashboardShell><div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div></DashboardShell>;
-    }
-
-    const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
-    const selectedTask = selectedEvent?.source_id ? tasks.find(t => t.task_name === selectedEvent.source_id) : null;
-
-    // Mobile: open bottom sheet when an event is tapped
-    const handleEventSelect = (ev: CalendarEvent) => {
-        setSelectedEvent(ev);
-        if (isMobile) setBottomSheet('half');
-    };
+    const linkedTaskNames = useMemo(() => {
+        const names = new Set<string>();
+        events.forEach(e => {
+            if (e.source_id) e.source_id.split(',').map(s => s.trim()).filter(Boolean).forEach(n => names.add(n));
+        });
+        return names;
+    }, [events]);
 
     // Mobile: 3-day week view centred on selectedDate
     const mobileWeekDates = useMemo(() => {
@@ -419,8 +416,28 @@ export default function CalendarPage() {
         return [prev, selectedDate, next];
     }, [selectedDate]);
 
-    // Touch swipe for day navigation
+    // Touch refs (must be before guard for Rules of Hooks)
     const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+    const lastPinchDist = useRef<number | null>(null);
+
+    // ─── Guard ───────────────────────────────────────────────────────────────
+
+    if (!mounted || !selectedDate) {
+        return <DashboardShell><div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div></DashboardShell>;
+    }
+
+    const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
+    const selectedTasks = selectedEvent?.source_id
+        ? selectedEvent.source_id.split(',').map(s => s.trim()).filter(Boolean).map(n => tasks.find(t => t.task_name === n)).filter(Boolean) as TaskInfo[]
+        : [];
+
+    // Mobile: open bottom sheet when an event is tapped
+    const handleEventSelect = (ev: CalendarEvent) => {
+        setSelectedEvent(ev);
+        if (isMobile) setBottomSheet('half');
+    };
+
+    // Touch swipe for day navigation
     const handleTouchStart = (e: React.TouchEvent) => {
         const t = e.touches[0];
         touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
@@ -438,7 +455,6 @@ export default function CalendarPage() {
     };
 
     // Pinch to zoom hour height (mobile)
-    const lastPinchDist = useRef<number | null>(null);
     const handlePinchMove = (e: React.TouchEvent) => {
         if (e.touches.length !== 2 || !isMobile) return;
         const dist = Math.hypot(
@@ -560,7 +576,7 @@ export default function CalendarPage() {
                 {!isMobile && (
                     <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--color-border)', padding: 'var(--space-3)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                         {selectedEvent ? (
-                            <EventDetail event={selectedEvent} task={selectedTask ?? undefined} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} />
+                            <EventDetail event={selectedEvent} tasks={selectedTasks} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} />
                         ) : (
                             <TaskSidebar tasks={unscheduledTasks} />
                         )}
@@ -593,7 +609,7 @@ export default function CalendarPage() {
                         {selectedEvent ? (
                             <EventDetail
                                 event={selectedEvent}
-                                task={selectedTask ?? undefined}
+                                tasks={selectedTasks}
                                 onClose={() => { setSelectedEvent(null); setBottomSheet('peek'); }}
                                 onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); setBottomSheet('hidden'); }}
                                 onDelete={() => { handleDelete(selectedEvent.id); setBottomSheet('peek'); }}
@@ -994,8 +1010,8 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
 
 // ─── Event Detail Panel ──────────────────────────────────────────────────────
 
-function EventDetail({ event, task, onClose, onEdit, onDelete }: {
-    event: CalendarEvent; task?: TaskInfo; onClose: () => void; onEdit: () => void; onDelete: () => void;
+function EventDetail({ event, tasks, onClose, onEdit, onDelete }: {
+    event: CalendarEvent; tasks?: TaskInfo[]; onClose: () => void; onEdit: () => void; onDelete: () => void;
 }) {
     const c = eventColor(event);
     const start = new Date(event.start_time), end = new Date(event.end_time);
@@ -1027,11 +1043,15 @@ function EventDetail({ event, task, onClose, onEdit, onDelete }: {
                 <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', marginBottom: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{event.description}</div>
             )}
 
-            {task && (
+            {tasks && tasks.length > 0 && (
                 <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(193,127,58,0.2)', background: 'rgba(193,127,58,0.05)', marginBottom: 'var(--space-2)' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.task.text, textTransform: 'uppercase', marginBottom: 4 }}>📋 Linked Task</div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{task.task_name}</div>
-                    {task.estimated_duration && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>{formatDuration(task.estimated_duration)} estimated</div>}
+                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.task.text, textTransform: 'uppercase', marginBottom: 4 }}>📋 Linked Task{tasks.length > 1 ? 's' : ''}</div>
+                    {tasks.map(task => (
+                        <div key={task.task_name} style={{ marginBottom: tasks.length > 1 ? 4 : 0 }}>
+                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{task.task_name}</div>
+                            {task.estimated_duration && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>{formatDuration(task.estimated_duration)} estimated</div>}
+                        </div>
+                    ))}
                 </div>
             )}
 
