@@ -99,6 +99,46 @@ function getMinutesFromAEST(d: Date): number {
     return parseInt(parts[0]) * 60 + parseInt(parts[1]);
 }
 
+// Portal-based hover tooltip — escapes overflow:hidden/auto containers
+function HoverTip({ children, label }: { children: React.ReactNode; label: string }) {
+    const ref = useRef<HTMLSpanElement>(null);
+    const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+    return (
+        <span
+            ref={ref}
+            onMouseEnter={() => {
+                if (!ref.current) return;
+                const r = ref.current.getBoundingClientRect();
+                setPos({ x: r.left + r.width / 2, y: r.top });
+            }}
+            onMouseLeave={() => setPos(null)}
+            style={{ cursor: 'default', position: 'relative', display: 'inline-flex' }}
+        >
+            {children}
+            {pos && createPortal(
+                <div style={{
+                    position: 'fixed', left: pos.x, top: pos.y - 6,
+                    transform: 'translate(-50%, -100%)',
+                    padding: '3px 8px', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--neutral-800, #262626)', color: 'var(--neutral-200, #e5e5e5)',
+                    fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
+                    pointerEvents: 'none', zIndex: 9999,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                }}>
+                    {label}
+                    <div style={{
+                        position: 'absolute', top: '100%', left: '50%',
+                        transform: 'translateX(-50%)',
+                        border: '4px solid transparent',
+                        borderTopColor: 'var(--neutral-800, #262626)',
+                    }} />
+                </div>,
+                document.body
+            )}
+        </span>
+    );
+}
+
 // ─── Task Matching ───────────────────────────────────────────────────────────
 
 function tokenize(text: string): string[] {
@@ -857,10 +897,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                         {matchedHabits.length > 0 && !isMulti && (
                                             <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
                                                 {matchedHabits.map(h => (
-                                                    <span key={h.key} className="tip-wrap" style={{ cursor: 'default', position: 'relative' }}>
-                                                        {h.icon}
-                                                        <span className="tip-label">{h.label}</span>
-                                                    </span>
+                                                    <HoverTip key={h.key} label={h.label}>{h.icon}</HoverTip>
                                                 ))}
                                             </span>
                                         )}
