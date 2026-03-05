@@ -78,6 +78,43 @@ function getMinutesFromAEST(d: Date): number {
     return parseInt(parts[0]) * 60 + parseInt(parts[1]);
 }
 
+// ─── Task Matching ───────────────────────────────────────────────────────────
+
+function tokenize(text: string): string[] {
+    return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+}
+
+function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
+    if (!tasks.length) return [];
+    // Direct link via source_id
+    if (ev.source === 'task' && ev.source_id) {
+        const direct = tasks.filter(t => t.task_name === ev.source_id);
+        if (direct.length) return direct;
+    }
+    // Keyword matching
+    const evTokens = tokenize(ev.title + ' ' + (ev.description ?? ''));
+    if (evTokens.length === 0) return [];
+    const matches: { task: TaskInfo; score: number }[] = [];
+    for (const task of tasks) {
+        const tTokens = tokenize(task.task_name);
+        if (tTokens.length === 0) continue;
+        // Check exact substring match
+        const evLower = (ev.title + ' ' + (ev.description ?? '')).toLowerCase();
+        const taskLower = task.task_name.toLowerCase();
+        if (evLower.includes(taskLower) || taskLower.includes(ev.title.toLowerCase())) {
+            matches.push({ task, score: 10 });
+            continue;
+        }
+        // Keyword overlap
+        const overlap = tTokens.filter(w => evTokens.includes(w)).length;
+        const ratio = overlap / Math.max(tTokens.length, 1);
+        if (overlap >= 2 || ratio >= 0.5) {
+            matches.push({ task, score: overlap + ratio * 5 });
+        }
+    }
+    return matches.sort((a, b) => b.score - a.score).map(m => m.task);
+}
+
 // ─── Cache Helpers ───────────────────────────────────────────────────────────
 
 function getCachedData(): { events: CalendarEvent[]; accounts: ConnectedAccount[]; ts: number } | null {
@@ -288,9 +325,9 @@ export default function CalendarPage() {
                         {loading && events.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
                         ) : view === 'day' ? (
-                            <TimeGrid events={filteredEvents} dates={[selectedDate]} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
                         ) : view === 'week' ? (
-                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
                         ) : (
                             <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                         )}
@@ -316,9 +353,10 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, onSlotClick, onEventClick, onDrop }: {
+function TimeGrid({ events, dates, tasks, onSlotClick, onEventClick, onDrop }: {
     events: CalendarEvent[];
     dates: Date[];
+    tasks: TaskInfo[];
     onSlotClick: (start: string, end: string) => void;
     onEventClick: (ev: CalendarEvent) => void;
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
@@ -420,6 +458,7 @@ function TimeGrid({ events, dates, onSlotClick, onEventClick, onDrop }: {
                             const top = ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT + (isMulti ? 36 : 0);
                             const height = Math.max(((endMins - startMins) / 60) * HOUR_HEIGHT, 18);
                             const c = eventColor(ev);
+                            const matchedTasks = matchTasksToEvent(ev, tasks);
 
                             return (
                                 <div
@@ -433,13 +472,34 @@ function TimeGrid({ events, dates, onSlotClick, onEventClick, onDrop }: {
                                     }}
                                     title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}`}
                                 >
-                                    <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3' }}>
+                                    <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
                                         {ev.source !== 'google' && <span style={{ opacity: 0.6 }}>{ev.source === 'task' ? '📋 ' : '🔁 '}</span>}
-                                        {ev.title}
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                                        {matchedTasks.length > 0 && !isMulti && (
+                                            <TaskChips tasks={matchedTasks} compact={height < 36} />
+                                        )}
                                     </div>
                                     {height > 28 && !isMulti && (
-                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>
+                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                                             {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
+                                        </div>
+                                    )}
+                                    {height > 42 && !isMulti && matchedTasks.length > 0 && (
+                                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 1 }}>
+                                            {matchedTasks.slice(0, 3).map(t => (
+                                                <span key={t.task_name} style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: accountColors.task.bg, border: `1px solid ${accountColors.task.border}40`, color: accountColors.task.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
+                                                    {t.task_name}
+                                                </span>
+                                            ))}
+                                            {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
+                                        </div>
+                                    )}
+                                    {/* Week view: small dot indicator for matched tasks */}
+                                    {isMulti && matchedTasks.length > 0 && (
+                                        <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
+                                            {matchedTasks.slice(0, 3).map((_, i) => (
+                                                <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border }} />
+                                            ))}
                                         </div>
                                     )}
                                 </div>
@@ -490,6 +550,88 @@ function MonthView({ events, selectedDate, onDayClick }: { events: CalendarEvent
                 })}
             </div>
         </div>
+    );
+}
+
+// ─── Task Chips (hover popover) ──────────────────────────────────────────────
+
+function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean }) {
+    const [showPopover, setShowPopover] = useState(false);
+    const wrapperRef = useRef<HTMLSpanElement>(null);
+
+    return (
+        <span
+            ref={wrapperRef}
+            onMouseEnter={() => setShowPopover(true)}
+            onMouseLeave={() => setShowPopover(false)}
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+        >
+            <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 2,
+                padding: compact ? '0 3px' : '0 5px',
+                borderRadius: 3,
+                background: accountColors.task.bg,
+                border: `1px solid ${accountColors.task.border}50`,
+                color: accountColors.task.text,
+                fontSize: compact ? 7 : 8,
+                fontWeight: 700,
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+                lineHeight: '1.4',
+            }}>
+                📋 {tasks.length}
+            </span>
+
+            {showPopover && (
+                <div style={{
+                    position: 'absolute', top: '100%', left: 0,
+                    marginTop: 4, zIndex: 50,
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-2)',
+                    minWidth: 200, maxWidth: 280,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                    pointerEvents: 'auto',
+                }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Linked Tasks ({tasks.length})
+                    </div>
+                    {tasks.map(t => (
+                        <div key={t.task_name} style={{
+                            padding: '4px 6px', marginBottom: 2,
+                            borderRadius: 'var(--radius-sm)',
+                            borderLeft: `3px solid ${accountColors.task.border}`,
+                            background: accountColors.task.bg,
+                        }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+                                {t.task_name}
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2 }}>
+                                {t.category && (
+                                    <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,130,200,0.1)', color: '#5a82c8' }}>
+                                        {t.category}
+                                    </span>
+                                )}
+                                {t.estimated_duration && (
+                                    <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,154,90,0.1)', color: '#5a9a5a' }}>
+                                        {formatDuration(t.estimated_duration)}
+                                    </span>
+                                )}
+                                <span style={{
+                                    fontSize: 8, padding: '0 4px', borderRadius: 2,
+                                    background: t.status === 'done' ? 'rgba(90,154,90,0.1)' : 'rgba(193,127,58,0.1)',
+                                    color: t.status === 'done' ? '#5a9a5a' : '#c17f3a',
+                                }}>
+                                    {t.status}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </span>
     );
 }
 
