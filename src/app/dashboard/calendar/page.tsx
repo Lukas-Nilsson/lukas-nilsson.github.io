@@ -48,6 +48,26 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 min
 const shortDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const shortMonth = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// ─── Habit Definitions ───────────────────────────────────────────────────────
+
+interface HabitDef {
+    key: string;
+    label: string;
+    icon: string;
+    keywords: string[]; // words that match this habit to an event
+}
+
+const HABITS: HabitDef[] = [
+    { key: 'outdoor_workout', label: 'Outdoor Workout', icon: '🏃', keywords: ['walk', 'outdoor', 'run', 'hike', 'park', 'jog'] },
+    { key: 'workout', label: '2nd Workout', icon: '💪', keywords: ['workout', 'gym', 'muay', 'thai', 'mma', 'exercise', 'train', 'pt', 'mobility'] },
+    { key: 'water', label: 'Gallon Water', icon: '💧', keywords: ['water'] },
+    { key: 'diet', label: 'Whole Foods', icon: '🥗', keywords: ['lunch', 'dinner', 'meal', 'food', 'eat'] },
+    { key: 'reading', label: '10 Pages', icon: '📖', keywords: ['read', 'reading', 'book'] },
+    { key: 'teeth', label: 'Brush Teeth', icon: '🦷', keywords: [] },
+    { key: 'bedtime', label: 'Bedtime', icon: '😴', keywords: ['sleep', 'bed', 'chamomile', 'wind'] },
+    { key: 'wake', label: 'Wake', icon: '☀️', keywords: ['wake', 'morning'] },
+];
+
 const accountColors: Record<string, { bg: string; border: string; text: string }> = {
     personal: { bg: 'rgba(90,130,200,0.18)', border: '#5a82c8', text: '#7aa0e0' },
     business: { bg: 'rgba(90,170,120,0.18)', border: '#5aaa78', text: '#7ac89a' },
@@ -114,6 +134,12 @@ function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
         }
     }
     return matches.sort((a, b) => b.score - a.score).map(m => m.task);
+}
+
+function matchHabitsToEvent(ev: CalendarEvent): HabitDef[] {
+    const evTokens = tokenize(ev.title + ' ' + (ev.description ?? ''));
+    if (evTokens.length === 0) return [];
+    return HABITS.filter(h => h.keywords.length > 0 && h.keywords.some(kw => evTokens.includes(kw)));
 }
 
 // ─── Cache Helpers ───────────────────────────────────────────────────────────
@@ -265,14 +291,21 @@ export default function CalendarPage() {
         await handleCreate(taskName, start.toISOString(), end.toISOString(), '', 'task', taskName);
     };
 
+    // Drop a task onto an existing event to link them
+    const handleLinkToEvent = async (eventId: string, taskName: string) => {
+        await handleUpdate(eventId, { source_id: taskName } as Record<string, string>);
+    };
+
     // ─── Guard ───────────────────────────────────────────────────────────────
 
     if (!mounted || !selectedDate) {
         return <DashboardShell><div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div></DashboardShell>;
     }
 
-    const unscheduledTasks = tasks.filter(t => t.status === 'open');
-    const selectedTask = selectedEvent?.source === 'task' && selectedEvent.source_id ? tasks.find(t => t.task_name === selectedEvent.source_id) : null;
+    // Tasks that are linked to any event via source_id are 'scheduled'
+    const linkedTaskNames = useMemo(() => new Set(events.filter(e => e.source_id).map(e => e.source_id!)), [events]);
+    const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
+    const selectedTask = selectedEvent?.source_id ? tasks.find(t => t.task_name === selectedEvent.source_id) : null;
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -331,9 +364,9 @@ export default function CalendarPage() {
                         {loading && events.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
                         ) : view === 'day' ? (
-                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} />
                         ) : view === 'week' ? (
-                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} />
+                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} />
                         ) : (
                             <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                         )}
@@ -359,14 +392,16 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, showTaskUI, onSlotClick, onEventClick, onDrop }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
     showTaskUI: boolean;
+    showHabitUI: boolean;
     onSlotClick: (start: string, end: string) => void;
     onEventClick: (ev: CalendarEvent) => void;
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
+    onLinkToEvent: (eventId: string, taskName: string) => void;
 }) {
     const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
     const isMulti = dates.length > 1;
@@ -466,22 +501,37 @@ function TimeGrid({ events, dates, tasks, showTaskUI, onSlotClick, onEventClick,
                             const height = Math.max(((endMins - startMins) / 60) * HOUR_HEIGHT, 18);
                             const c = eventColor(ev);
                             const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
+                            const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
 
                             return (
                                 <div
                                     key={ev.id}
                                     onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'link'; }}
+                                    onDrop={(e) => {
+                                        e.preventDefault(); e.stopPropagation();
+                                        try {
+                                            const { taskName } = JSON.parse(e.dataTransfer.getData('text/plain'));
+                                            if (taskName) onLinkToEvent(ev.id, taskName);
+                                        } catch { /* ignore */ }
+                                    }}
                                     style={{
                                         position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0), height,
                                         background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
                                         padding: '1px 4px', fontSize: isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
                                         cursor: 'pointer', zIndex: 5, backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
                                     }}
-                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}`}
+                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
                                 >
                                     <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        {ev.source !== 'google' && <span style={{ opacity: 0.6 }}>{ev.source === 'task' ? '📋 ' : '🔁 '}</span>}
                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                                        {matchedHabits.length > 0 && !isMulti && (
+                                            <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
+                                                {matchedHabits.map(h => (
+                                                    <span key={h.key} title={h.label} style={{ cursor: 'default' }}>{h.icon}</span>
+                                                ))}
+                                            </span>
+                                        )}
                                         {matchedTasks.length > 0 && !isMulti && (
                                             <TaskChips tasks={matchedTasks} compact={height < 36} />
                                         )}
@@ -501,12 +551,15 @@ function TimeGrid({ events, dates, tasks, showTaskUI, onSlotClick, onEventClick,
                                             {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
                                         </div>
                                     )}
-                                    {/* Week view: small dot indicator for matched tasks */}
-                                    {isMulti && matchedTasks.length > 0 && (
+                                    {/* Week view: dot indicators */}
+                                    {isMulti && (matchedTasks.length > 0 || matchedHabits.length > 0) && (
                                         <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
-                                            {matchedTasks.slice(0, 3).map((_, i) => (
-                                                <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border }} />
+                                            {matchedHabits.slice(0, 2).map(h => (
+                                                <span key={h.key} style={{ fontSize: 6, lineHeight: 1 }}>{h.icon}</span>
                                             ))}
+                                            {matchedTasks.length > 0 && (
+                                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
+                                            )}
                                         </div>
                                     )}
                                 </div>
