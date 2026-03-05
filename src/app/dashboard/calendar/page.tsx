@@ -395,7 +395,7 @@ export default function CalendarPage() {
         }
     };
 
-    const handleUpdate = async (id: string, updates: Partial<{ title: string; start_time: string; end_time: string; description: string; source_id: string }>) => {
+    const handleUpdate = async (id: string, updates: Partial<{ title: string; start_time: string; end_time: string; description: string; source_id: string; account: string | null }>) => {
         // Optimistic: apply updates immediately
         const rollback = events;
         setEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
@@ -702,7 +702,7 @@ export default function CalendarPage() {
 
             {/* Modals */}
             {showCreate && <EventModal mode="create" accounts={accounts} defaultStart={createSlot?.start} defaultEnd={createSlot?.end} onClose={() => { setShowCreate(false); setCreateSlot(null); }} onSubmit={(t, s, e, a) => handleCreate(t, s, e, a)} isMobile={isMobile} />}
-            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => setEditEvent(null)} onSubmit={(t, s, e, _a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, description: desc })} isMobile={isMobile} />}
+            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => setEditEvent(null)} onSubmit={(t, s, e, a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, account: a || null, description: desc })} isMobile={isMobile} />}
         </DashboardShell>
     );
 }
