@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextResponse } from 'next/server';
 import { getAccessToken, listEvents } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
@@ -9,6 +10,9 @@ import type { CalendarToken } from '@/lib/google-calendar';
  * Separated from GET so data reads are never blocked by sync latency.
  */
 export async function POST() {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
         const result = await syncFromGoogle(supabase);

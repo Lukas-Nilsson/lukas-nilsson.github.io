@@ -694,6 +694,73 @@ export default function CalendarPage() {
         </DashboardShell>
     );
 }
+// ─── Overlap Layout Algorithm ────────────────────────────────────────────────
+// Groups concurrent events and assigns each a column index for side-by-side rendering.
+
+function computeOverlapLayout(events: CalendarEvent[]): Map<string, { col: number; total: number }> {
+    const layout = new Map<string, { col: number; total: number }>();
+    if (!events.length) return layout;
+
+    // Sort by start time, then longest duration first (so wider events get col 0)
+    const sorted = [...events].sort((a, b) => {
+        const diff = new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+        if (diff !== 0) return diff;
+        return (new Date(b.end_time).getTime() - new Date(b.start_time).getTime())
+            - (new Date(a.end_time).getTime() - new Date(a.start_time).getTime());
+    });
+
+    // Build overlap groups: events that transitively share time
+    const groups: CalendarEvent[][] = [];
+    let currentGroup: CalendarEvent[] = [];
+    let groupEnd = 0;
+
+    for (const ev of sorted) {
+        const evStart = new Date(ev.start_time).getTime();
+        const evEnd = new Date(ev.end_time).getTime();
+        if (currentGroup.length === 0 || evStart < groupEnd) {
+            // Overlaps with current group
+            currentGroup.push(ev);
+            groupEnd = Math.max(groupEnd, evEnd);
+        } else {
+            // No overlap — start a new group
+            groups.push(currentGroup);
+            currentGroup = [ev];
+            groupEnd = evEnd;
+        }
+    }
+    if (currentGroup.length) groups.push(currentGroup);
+
+    // Assign columns within each group
+    for (const group of groups) {
+        // Greedy column assignment: place each event in the first column that's free
+        const columns: CalendarEvent[][] = [];
+        for (const ev of group) {
+            const evStart = new Date(ev.start_time).getTime();
+            let placed = false;
+            for (let c = 0; c < columns.length; c++) {
+                const lastInCol = columns[c][columns[c].length - 1];
+                if (new Date(lastInCol.end_time).getTime() <= evStart) {
+                    columns[c].push(ev);
+                    layout.set(ev.id, { col: c, total: 0 }); // total filled below
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                layout.set(ev.id, { col: columns.length, total: 0 });
+                columns.push([ev]);
+            }
+        }
+        // Set total columns for all events in this group
+        const total = columns.length;
+        for (const ev of group) {
+            const entry = layout.get(ev.id)!;
+            entry.total = total;
+        }
+    }
+
+    return layout;
+}
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
@@ -839,159 +906,168 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                         )}
 
                         {/* Rendered events */}
-                        {dayEvents.map(ev => {
-                            const startMins = getMinutesFromAEST(new Date(ev.start_time));
-                            const endMins = getMinutesFromAEST(new Date(ev.end_time));
-                            const top = ((startMins - START_HOUR * 60) / 60) * hourHeight + (isMulti ? 36 : 0);
-                            const height = Math.max(((endMins - startMins) / 60) * hourHeight, 18);
-                            const c = eventColor(ev);
-                            const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
-                            const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
+                        {(() => {
+                            const overlapLayout = computeOverlapLayout(dayEvents);
+                            return dayEvents.map(ev => {
+                                const { col, total } = overlapLayout.get(ev.id) ?? { col: 0, total: 1 };
+                                const startMins = getMinutesFromAEST(new Date(ev.start_time));
+                                const endMins = getMinutesFromAEST(new Date(ev.end_time));
+                                const top = ((startMins - START_HOUR * 60) / 60) * hourHeight + (isMulti ? 36 : 0);
+                                const height = Math.max(((endMins - startMins) / 60) * hourHeight, 18);
+                                const c = eventColor(ev);
+                                const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
+                                const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
 
-                            return (
-                                <div
-                                    key={ev.id}
-                                    draggable
-                                    onDragStart={(e) => {
-                                        const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
-                                        e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
-                                        e.dataTransfer.effectAllowed = 'all';
-                                        (e.currentTarget as HTMLElement).style.opacity = '0.4';
-                                        setDraggingId(ev.id);
-                                        wasDragging.current = true;
-                                    }}
-                                    onDragEnd={(e) => {
-                                        (e.currentTarget as HTMLElement).style.opacity = '1';
-                                        setDraggingId(null);
-                                        // Suppress the click that fires after drag
-                                        setTimeout(() => { wasDragging.current = false; }, 0);
-                                    }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (wasDragging.current) return; // Suppress click after drag
-                                        onEventClick(ev);
-                                    }}
-                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                    onDrop={(e) => {
-                                        e.preventDefault(); e.stopPropagation();
-                                        try {
-                                            const parsed = JSON.parse(e.dataTransfer.getData('text/plain'));
-                                            if (parsed.taskName) onLinkToEvent(ev.id, parsed.taskName);
-                                        } catch { /* ignore */ }
-                                    }}
-                                    style={{
-                                        position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0),
-                                        height: resizingId === ev.id && resizePreviewHeight !== null ? resizePreviewHeight : height,
-                                        background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
-                                        padding: isMobile ? '4px 8px' : '1px 4px', fontSize: isMobile ? 12 : isMulti ? 9 : 'var(--text-xs)',
-                                        cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
-                                        backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
-                                        userSelect: 'none', WebkitUserSelect: 'none',
-                                        // During drag, make OTHER events transparent to drops so slots receive them
-                                        pointerEvents: draggingId && draggingId !== ev.id ? 'none' : undefined,
-                                    }}
-                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
-                                >
-                                    <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
-                                        {matchedHabits.length > 0 && !isMulti && (
-                                            <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
-                                                {matchedHabits.map(h => (
-                                                    <HoverTip key={h.key} label={h.label}>{h.icon}</HoverTip>
-                                                ))}
-                                            </span>
-                                        )}
-                                        {matchedTasks.length > 0 && !isMulti && (
-                                            <TaskChips tasks={matchedTasks} compact={height < 36} />
-                                        )}
-                                    </div>
-                                    {height > 28 && !isMulti && (
-                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
-                                        </div>
-                                    )}
-                                    {height > 42 && !isMulti && matchedTasks.length > 0 && (
-                                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 1 }}>
-                                            {matchedTasks.slice(0, 3).map(t => (
-                                                <span key={t.task_name} style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: accountColors.task.bg, border: `1px solid ${accountColors.task.border}40`, color: accountColors.task.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
-                                                    {t.task_name}
+                                return (
+                                    <div
+                                        key={ev.id}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
+                                            e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
+                                            e.dataTransfer.effectAllowed = 'all';
+                                            (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                                            setDraggingId(ev.id);
+                                            wasDragging.current = true;
+                                        }}
+                                        onDragEnd={(e) => {
+                                            (e.currentTarget as HTMLElement).style.opacity = '1';
+                                            setDraggingId(null);
+                                            // Suppress the click that fires after drag
+                                            setTimeout(() => { wasDragging.current = false; }, 0);
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (wasDragging.current) return; // Suppress click after drag
+                                            onEventClick(ev);
+                                        }}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        onDrop={(e) => {
+                                            e.preventDefault(); e.stopPropagation();
+                                            try {
+                                                const parsed = JSON.parse(e.dataTransfer.getData('text/plain'));
+                                                if (parsed.taskName) onLinkToEvent(ev.id, parsed.taskName);
+                                            } catch { /* ignore */ }
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            left: total > 1 ? `calc(${(col / total) * 100}% + 1px)` : 2,
+                                            width: total > 1 ? `calc(${100 / total}% - 2px)` : undefined,
+                                            right: total > 1 ? undefined : 2,
+                                            top: Math.max(top, isMulti ? 36 : 0),
+                                            height: resizingId === ev.id && resizePreviewHeight !== null ? resizePreviewHeight : height,
+                                            background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
+                                            padding: isMobile ? '4px 8px' : total >= 3 ? '1px 2px' : '1px 4px',
+                                            fontSize: isMobile ? 12 : total >= 3 ? 8 : isMulti ? 9 : 'var(--text-xs)',
+                                            cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
+                                            backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
+                                            userSelect: 'none', WebkitUserSelect: 'none',
+                                            // During drag, make OTHER events transparent to drops so slots receive them
+                                            pointerEvents: draggingId && draggingId !== ev.id ? 'none' : undefined,
+                                        }}
+                                        title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
+                                    >
+                                        <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                                            {matchedHabits.length > 0 && !isMulti && (
+                                                <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
+                                                    {matchedHabits.map(h => (
+                                                        <HoverTip key={h.key} label={h.label}>{h.icon}</HoverTip>
+                                                    ))}
                                                 </span>
-                                            ))}
-                                            {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
-                                        </div>
-                                    )}
-                                    {/* Week view: dot indicators */}
-                                    {isMulti && (matchedTasks.length > 0 || matchedHabits.length > 0) && (
-                                        <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
-                                            {matchedHabits.slice(0, 2).map(h => (
-                                                <span key={h.key} style={{ fontSize: 6, lineHeight: 1 }}>{h.icon}</span>
-                                            ))}
-                                            {matchedTasks.length > 0 && (
-                                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
+                                            )}
+                                            {matchedTasks.length > 0 && !isMulti && (
+                                                <TaskChips tasks={matchedTasks} compact={height < 36} />
                                             )}
                                         </div>
-                                    )}
-                                    {/* Resize handle at bottom */}
-                                    {onEventResize && !isMulti && (
-                                        <div
-                                            onMouseDown={(e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                const colEl = (e.currentTarget as HTMLElement).closest('[data-col]') as HTMLElement;
-                                                if (!colEl) return;
-                                                const endMins = getMinutesFromAEST(new Date(ev.end_time));
-                                                resizeStart.current = { eventId: ev.id, startTime: ev.start_time, colEl, initialEndMins: endMins, headerOffset: isMulti ? 36 : 0 };
-                                                setResizingId(ev.id);
-                                                const onMove = (me: MouseEvent) => {
-                                                    if (!resizeStart.current) return;
-                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
-                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
-                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
-                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
-                                                    const snapped = Math.round(rawMins / 15) * 15;
-                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
-                                                    const clamped = Math.max(snapped, startMins + 15);
-                                                    const newH = Math.max(((clamped - startMins) / 60) * hourHeight, 18);
-                                                    setResizePreviewHeight(newH);
-                                                };
-                                                const onUp = (me: MouseEvent) => {
-                                                    document.removeEventListener('mousemove', onMove);
-                                                    document.removeEventListener('mouseup', onUp);
-                                                    if (!resizeStart.current) return;
-                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
-                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
-                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
-                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
-                                                    const snapped = Math.round(rawMins / 15) * 15;
-                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
-                                                    const clamped = Math.max(snapped, startMins + 15);
-                                                    // Build new end date in AEST
-                                                    const evDate = new Date(resizeStart.current.startTime);
-                                                    const newEnd = new Date(evDate.toLocaleString('en-US', { timeZone: AEST }));
-                                                    newEnd.setHours(Math.floor(clamped / 60), clamped % 60, 0, 0);
-                                                    // Convert back to ISO via AEST offset
-                                                    const isoEnd = newEnd.toLocaleString('sv-SE', { timeZone: AEST }).replace(' ', 'T');
-                                                    const utcEnd = new Date(isoEnd + '+11:00').toISOString();
-                                                    onEventResize(resizeStart.current.eventId, resizeStart.current.startTime, utcEnd);
-                                                    resizeStart.current = null;
-                                                    setResizingId(null);
-                                                    setResizePreviewHeight(null);
-                                                };
-                                                document.addEventListener('mousemove', onMove);
-                                                document.addEventListener('mouseup', onUp);
-                                            }}
-                                            style={{
-                                                position: 'absolute', bottom: 0, left: 0, right: 0, height: 6,
-                                                cursor: 'ns-resize', background: 'transparent',
-                                                borderBottomLeftRadius: 'var(--radius-sm)', borderBottomRightRadius: 'var(--radius-sm)',
-                                            }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.border}40`; }}
-                                            onMouseLeave={(e) => { if (resizingId !== ev.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                                        />
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        {height > 28 && !isMulti && (
+                                            <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
+                                            </div>
+                                        )}
+                                        {height > 42 && !isMulti && matchedTasks.length > 0 && (
+                                            <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 1 }}>
+                                                {matchedTasks.slice(0, 3).map(t => (
+                                                    <span key={t.task_name} style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: accountColors.task.bg, border: `1px solid ${accountColors.task.border}40`, color: accountColors.task.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
+                                                        {t.task_name}
+                                                    </span>
+                                                ))}
+                                                {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
+                                            </div>
+                                        )}
+                                        {/* Week view: dot indicators */}
+                                        {isMulti && (matchedTasks.length > 0 || matchedHabits.length > 0) && (
+                                            <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
+                                                {matchedHabits.slice(0, 2).map(h => (
+                                                    <span key={h.key} style={{ fontSize: 6, lineHeight: 1 }}>{h.icon}</span>
+                                                ))}
+                                                {matchedTasks.length > 0 && (
+                                                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Resize handle at bottom */}
+                                        {onEventResize && !isMulti && (
+                                            <div
+                                                onMouseDown={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    const colEl = (e.currentTarget as HTMLElement).closest('[data-col]') as HTMLElement;
+                                                    if (!colEl) return;
+                                                    const endMins = getMinutesFromAEST(new Date(ev.end_time));
+                                                    resizeStart.current = { eventId: ev.id, startTime: ev.start_time, colEl, initialEndMins: endMins, headerOffset: isMulti ? 36 : 0 };
+                                                    setResizingId(ev.id);
+                                                    const onMove = (me: MouseEvent) => {
+                                                        if (!resizeStart.current) return;
+                                                        const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                        const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                        const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                        const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                        const snapped = Math.round(rawMins / 15) * 15;
+                                                        const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                        const clamped = Math.max(snapped, startMins + 15);
+                                                        const newH = Math.max(((clamped - startMins) / 60) * hourHeight, 18);
+                                                        setResizePreviewHeight(newH);
+                                                    };
+                                                    const onUp = (me: MouseEvent) => {
+                                                        document.removeEventListener('mousemove', onMove);
+                                                        document.removeEventListener('mouseup', onUp);
+                                                        if (!resizeStart.current) return;
+                                                        const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                        const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                        const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                        const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                        const snapped = Math.round(rawMins / 15) * 15;
+                                                        const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                        const clamped = Math.max(snapped, startMins + 15);
+                                                        // Build new end date in AEST
+                                                        const evDate = new Date(resizeStart.current.startTime);
+                                                        const newEnd = new Date(evDate.toLocaleString('en-US', { timeZone: AEST }));
+                                                        newEnd.setHours(Math.floor(clamped / 60), clamped % 60, 0, 0);
+                                                        // Convert back to ISO via AEST offset
+                                                        const isoEnd = newEnd.toLocaleString('sv-SE', { timeZone: AEST }).replace(' ', 'T');
+                                                        const utcEnd = new Date(isoEnd + '+11:00').toISOString();
+                                                        onEventResize(resizeStart.current.eventId, resizeStart.current.startTime, utcEnd);
+                                                        resizeStart.current = null;
+                                                        setResizingId(null);
+                                                        setResizePreviewHeight(null);
+                                                    };
+                                                    document.addEventListener('mousemove', onMove);
+                                                    document.addEventListener('mouseup', onUp);
+                                                }}
+                                                style={{
+                                                    position: 'absolute', bottom: 0, left: 0, right: 0, height: 6,
+                                                    cursor: 'ns-resize', background: 'transparent',
+                                                    borderBottomLeftRadius: 'var(--radius-sm)', borderBottomRightRadius: 'var(--radius-sm)',
+                                                }}
+                                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.border}40`; }}
+                                                onMouseLeave={(e) => { if (resizingId !== ev.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 );
             })}

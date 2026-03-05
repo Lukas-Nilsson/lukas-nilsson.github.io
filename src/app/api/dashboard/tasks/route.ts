@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -15,6 +16,9 @@ import { NextRequest, NextResponse } from 'next/server';
  *   { task_name, action: 'update_completed_at', completed_at: string } — change when a task was completed
  */
 export async function PATCH(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const body = await req.json();
         const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name, completed_at } = body as {
@@ -115,116 +119,30 @@ export async function PATCH(req: NextRequest) {
             }
             const trimmedName = new_name.trim();
 
-            // Update task_metadata (rename the PK)
-            const { data: existingMeta } = await supabase
-                .from('task_metadata')
-                .select('*')
-                .eq('task_name', task_name)
-                .single();
-            if (existingMeta) {
-                await supabase.from('task_metadata').delete().eq('task_name', task_name);
-                await supabase.from('task_metadata').upsert({ ...existingMeta, task_name: trimmedName, updated_at: new Date().toISOString() }, { onConflict: 'task_name' });
-            }
+            // Atomic rename across all tables via stored procedure
+            const { error } = await supabase.rpc('rename_task', {
+                old_name: task_name,
+                new_name: trimmedName,
+                snapshot_date: today,
+            });
 
-            // Update task_completions (rename the PK)
-            const { data: existingComp } = await supabase
-                .from('task_completions')
-                .select('*')
-                .eq('task_name', task_name)
-                .single();
-            if (existingComp) {
-                await supabase.from('task_completions').delete().eq('task_name', task_name);
-                await supabase.from('task_completions').upsert({ ...existingComp, task_name: trimmedName }, { onConflict: 'task_name' });
-            }
-
-            // Update tasks table (rename the PK)
-            const { data: existingTask } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('name', task_name)
-                .single();
-            if (existingTask) {
-                await supabase.from('tasks').delete().eq('name', task_name);
-                await supabase.from('tasks').upsert({ ...existingTask, name: trimmedName, updated_at: now }, { onConflict: 'name' });
-            }
-
-            // Update any subtasks that reference this task as parent_task
-            await supabase
-                .from('task_metadata')
-                .update({ parent_task: trimmedName, updated_at: new Date().toISOString() })
-                .eq('parent_task', task_name);
-
-            // Update task_snapshots categories JSON (replace old name with new name in task arrays)
-            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-            const { data: snapshot } = await supabase
-                .from('task_snapshots')
-                .select('date, categories')
-                .eq('date', today)
-                .single();
-            if (snapshot?.categories) {
-                const cats = snapshot.categories as Record<string, { tasks?: string[];[k: string]: unknown }>;
-                let updated = false;
-                for (const [, catData] of Object.entries(cats)) {
-                    if (catData.tasks) {
-                        const idx = catData.tasks.indexOf(task_name);
-                        if (idx >= 0) {
-                            catData.tasks[idx] = trimmedName;
-                            updated = true;
-                        }
-                    }
-                }
-                if (updated) {
-                    await supabase
-                        .from('task_snapshots')
-                        .update({ categories: cats })
-                        .eq('date', today);
-                }
+            if (error) {
+                console.error('[tasks PATCH] rename error:', error);
+                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
 
             return NextResponse.json({ ok: true, task_name, new_name: trimmedName, action: 'rename' });
 
         } else if (action === 'delete') {
-            // Remove from task_completions
-            await supabase.from('task_completions').delete().eq('task_name', task_name);
-            // Remove from task_metadata
-            await supabase.from('task_metadata').delete().eq('task_name', task_name);
-            // Remove from tasks table
-            await supabase.from('tasks').delete().eq('name', task_name);
-            // Orphan any subtasks (clear their parent_task)
-            await supabase
-                .from('task_metadata')
-                .update({ parent_task: null, updated_at: now })
-                .eq('parent_task', task_name);
+            // Atomic delete across all tables via stored procedure
+            const { error } = await supabase.rpc('delete_task', {
+                p_task_name: task_name,
+                snapshot_date: today,
+            });
 
-            // Remove from task_snapshots categories JSON + adjust counts + track removal
-            const { data: snap } = await supabase
-                .from('task_snapshots')
-                .select('date, categories, open_count, done_count, removed_delta')
-                .eq('date', today)
-                .single();
-            if (snap?.categories) {
-                const cats = snap.categories as Record<string, { tasks?: string[]; open?: number; done?: number;[k: string]: unknown }>;
-                let found = false;
-                for (const [, catData] of Object.entries(cats)) {
-                    if (catData.tasks) {
-                        const idx = catData.tasks.indexOf(task_name);
-                        if (idx >= 0) {
-                            catData.tasks.splice(idx, 1);
-                            if (catData.open != null) catData.open = Math.max(0, catData.open - 1);
-                            found = true;
-                        }
-                    }
-                }
-                if (found) {
-                    await supabase
-                        .from('task_snapshots')
-                        .update({
-                            categories: cats,
-                            open_count: Math.max(0, (snap.open_count ?? 0) - 1),
-                            removed_delta: (snap.removed_delta ?? 0) + 1,
-                        })
-                        .eq('date', today);
-                }
+            if (error) {
+                console.error('[tasks PATCH] delete error:', error);
+                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
             }
 
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
@@ -357,6 +275,9 @@ export async function PATCH(req: NextRequest) {
  * Returns completions + metadata for all tasks.
  */
 export async function GET() {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
 

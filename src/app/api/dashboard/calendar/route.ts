@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
@@ -9,6 +10,9 @@ import type { CalendarToken } from '@/lib/google-calendar';
  * Google sync is handled by POST /api/dashboard/calendar/sync.
  */
 export async function GET(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
         const start = req.nextUrl.searchParams.get('start');
@@ -47,6 +51,9 @@ export async function GET(req: NextRequest) {
  * Create a new event → Supabase + Google Calendar.
  */
 export async function POST(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
         const body = await req.json();
@@ -135,6 +142,9 @@ export async function POST(req: NextRequest) {
  * Update an existing event → sync to Google.
  */
 export async function PATCH(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
         const body = await req.json();
@@ -224,6 +234,9 @@ export async function PATCH(req: NextRequest) {
  * Delete an event → remove from Google too.
  */
 export async function DELETE(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const supabase = createAdminClient();
         const id = req.nextUrl.searchParams.get('id');

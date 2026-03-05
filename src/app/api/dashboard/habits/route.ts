@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -8,6 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
  * Uses the service-role admin client to bypass RLS and upsert into daily_habits.
  */
 export async function PATCH(req: NextRequest) {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     try {
         const body = await req.json();
         const { date, habit_id, done, value, notes } = body as {

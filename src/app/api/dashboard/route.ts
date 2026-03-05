@@ -1,7 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+    const { error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const supabase = createAdminClient();
 
     const [sleepRes, habitRes, challengeRes, taskRes] = await Promise.all([
@@ -12,10 +16,11 @@ export async function GET() {
             .order('date', { ascending: true })
             .limit(14),
 
-        // NEW: all habits grouped by date, joined to definitions for label/icon/category
+        // NEW: all habits from last 90 days, joined to definitions for label/icon/category
         supabase
             .from('daily_habits')
             .select('date,habit_id,done,value,notes,source')
+            .gte('date', new Date(Date.now() - 90 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' }))
             .order('date', { ascending: true }),
 
         // NEW: challenge days from active challenge
