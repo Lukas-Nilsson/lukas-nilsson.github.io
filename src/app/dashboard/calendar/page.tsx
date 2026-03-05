@@ -329,11 +329,23 @@ export default function CalendarPage() {
                 if (!res.ok) return;
                 const td = await res.json();
                 const done = new Set((td.completions ?? []).map((c: { task_name: string }) => c.task_name));
-                setTasks((td.metadata ?? []).map((m: { task_name: string; priority?: number; context?: string; estimated_duration?: number }) => ({
-                    task_name: m.task_name, status: done.has(m.task_name) ? 'done' : 'open',
-                    priority: m.priority ?? null, category: m.context ?? null,
-                    estimated_duration: (m as Record<string, unknown>).estimated_duration as number | null ?? null,
-                })));
+                // Build metadata lookup
+                const metaMap = new Map<string, { priority?: string; context?: string; estimated_duration?: number }>();
+                for (const m of td.metadata ?? []) {
+                    metaMap.set(m.task_name, m);
+                }
+                // Use allTasks (from snapshot categories) as the source of truth for the pile
+                const taskList = (td.allTasks ?? []).map((t: { task_name: string; category: string }) => {
+                    const meta = metaMap.get(t.task_name);
+                    return {
+                        task_name: t.task_name,
+                        status: done.has(t.task_name) ? 'done' : 'open',
+                        priority: meta?.priority ?? null,
+                        category: t.category ?? meta?.context ?? null,
+                        estimated_duration: (meta as Record<string, unknown>)?.estimated_duration as number | null ?? null,
+                    };
+                });
+                setTasks(taskList);
             } catch (e) { console.error('Failed to load tasks:', e); }
         })();
     }, [mounted]);

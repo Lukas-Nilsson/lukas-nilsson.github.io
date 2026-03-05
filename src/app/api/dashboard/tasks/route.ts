@@ -294,17 +294,29 @@ export async function GET() {
     try {
         const supabase = createAdminClient();
 
-        const [compRes, metaRes] = await Promise.all([
+        const [compRes, metaRes, snapRes] = await Promise.all([
             supabase.from('task_completions').select('task_name,category,completed_at,completed_by,notes'),
             supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,context,parent_task,location,updated_at'),
+            supabase.from('task_snapshots').select('categories').order('date', { ascending: false }).limit(1).single(),
         ]);
 
         if (compRes.error) console.error('[tasks GET] completions error:', compRes.error);
         if (metaRes.error) console.error('[tasks GET] metadata error:', metaRes.error);
 
+        // Build full task list from snapshot categories (the source of truth for the pile)
+        const allTasks: { task_name: string; category: string }[] = [];
+        if (snapRes.data?.categories) {
+            for (const [cat, data] of Object.entries(snapRes.data.categories as Record<string, { tasks?: string[] }>)) {
+                for (const taskName of data.tasks ?? []) {
+                    allTasks.push({ task_name: taskName, category: cat });
+                }
+            }
+        }
+
         return NextResponse.json({
             completions: compRes.data ?? [],
             metadata: metaRes.data ?? [],
+            allTasks,
         });
     } catch (e) {
         console.error('[tasks GET] Unexpected error:', e);
