@@ -757,6 +757,20 @@ function CalendarWidget() {
     };
     const getColor = (ev: typeof events[0]) => colorMap[ev.account ?? ev.source] ?? colorMap.personal;
 
+    // Habit keyword matching (mirrors calendar page logic)
+    const WIDGET_HABITS = [
+        { icon: '🏃', label: 'Outdoor Workout', keywords: ['walk', 'outdoor', 'run', 'hike', 'park', 'jog'] },
+        { icon: '💪', label: '2nd Workout', keywords: ['workout', 'gym', 'muay', 'thai', 'mma', 'exercise', 'train', 'pt', 'mobility'] },
+        { icon: '🥗', label: 'Whole Foods', keywords: ['lunch', 'dinner', 'meal', 'food', 'eat'] },
+        { icon: '📖', label: '10 Pages', keywords: ['read', 'reading', 'book'] },
+        { icon: '😴', label: 'Bedtime', keywords: ['sleep', 'bed', 'chamomile', 'wind'] },
+        { icon: '☀️', label: 'Wake', keywords: ['wake', 'morning'] },
+    ];
+    const matchHabits = (title: string) => {
+        const lower = title.toLowerCase();
+        return WIDGET_HABITS.filter(h => h.keywords.some(k => lower.includes(k)));
+    };
+
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
     if (loading) return <EmptyWidget icon="▦" title="Today" message="Loading events…" />;
@@ -775,8 +789,8 @@ function CalendarWidget() {
                     const endMins = new Date(ev.end_time).getHours() * 60 + new Date(ev.end_time).getMinutes();
                     const isPast = endMins < currentMins;
                     const isNow = startMins <= currentMins && currentMins < endMins;
-                    const hasTask = !!ev.source_id;
-                    const isHabit = ev.source === 'habit';
+                    const taskNames = ev.source_id ? ev.source_id.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    const matchedHabits = matchHabits(ev.title);
                     return (
                         <div key={ev.id} style={{
                             display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
@@ -790,8 +804,8 @@ function CalendarWidget() {
                             <span style={{ fontSize: 'var(--text-xs)', fontWeight: isNow ? 700 : 500, color: isNow ? c.border : 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                 {ev.title}
                             </span>
-                            {hasTask && <span style={{ fontSize: 10, flexShrink: 0 }} title="Linked task">📋</span>}
-                            {isHabit && <span style={{ fontSize: 10, flexShrink: 0 }} title="Habit">🔁</span>}
+                            {taskNames.length > 0 && <span style={{ fontSize: 10, flexShrink: 0, cursor: 'default' }} title={`📋 ${taskNames.join(', ')}`}>📋</span>}
+                            {matchedHabits.map(h => <span key={h.label} style={{ fontSize: 10, flexShrink: 0, cursor: 'default' }} title={h.label}>{h.icon}</span>)}
                             {isNow && <span style={{ fontSize: 8, fontWeight: 700, color: c.border, textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>NOW</span>}
                             {!ev.all_day && !isNow && (
                                 <span style={{ fontSize: 9, color: 'var(--color-text-muted)', flexShrink: 0 }}>
