@@ -296,14 +296,15 @@ export default function CalendarPage() {
         await handleUpdate(eventId, { source_id: taskName } as Record<string, string>);
     };
 
+    // Tasks that are linked to any event via source_id are 'scheduled'
+    const linkedTaskNames = useMemo(() => new Set(events.filter(e => e.source_id).map(e => e.source_id!)), [events]);
+
     // ─── Guard ───────────────────────────────────────────────────────────────
 
     if (!mounted || !selectedDate) {
         return <DashboardShell><div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading calendar…</div></DashboardShell>;
     }
 
-    // Tasks that are linked to any event via source_id are 'scheduled'
-    const linkedTaskNames = useMemo(() => new Set(events.filter(e => e.source_id).map(e => e.source_id!)), [events]);
     const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
     const selectedTask = selectedEvent?.source_id ? tasks.find(t => t.task_name === selectedEvent.source_id) : null;
 
