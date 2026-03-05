@@ -178,10 +178,10 @@ export default function CalendarPage() {
     const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google']));
     const syncInFlight = useRef(false);
 
-    // Mobile responsive
+    // Responsive
     const [isMobile, setIsMobile] = useState(false);
     const [bottomSheet, setBottomSheet] = useState<'hidden' | 'peek' | 'half' | 'full'>('hidden');
-    const [mobileHourHeight, setMobileHourHeight] = useState(64);
+    const [zoomHeight, setZoomHeight] = useState(HOUR_HEIGHT);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const calendarBodyRef = useRef<HTMLDivElement>(null);
 
@@ -210,10 +210,18 @@ export default function CalendarPage() {
         // Mobile detection
         const mq = window.matchMedia('(max-width: 768px)');
         setIsMobile(mq.matches);
-        if (mq.matches) setView('day');
+        if (mq.matches) {
+            setView('day');
+            setZoomHeight(64); // Larger slots on mobile
+        }
         const handler = (e: MediaQueryListEvent) => {
             setIsMobile(e.matches);
-            if (e.matches) setView('day');
+            if (e.matches) {
+                setView('day');
+                setZoomHeight(64);
+            } else {
+                setZoomHeight(HOUR_HEIGHT);
+            }
         };
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
@@ -454,7 +462,7 @@ export default function CalendarPage() {
         }
     };
 
-    // Pinch to zoom hour height (mobile)
+    // Pinch to zoom hour height (mobile) / Ctrl+scroll (desktop)
     const handlePinchMove = (e: React.TouchEvent) => {
         if (e.touches.length !== 2 || !isMobile) return;
         const dist = Math.hypot(
@@ -463,11 +471,18 @@ export default function CalendarPage() {
         );
         if (lastPinchDist.current !== null) {
             const delta = dist - lastPinchDist.current;
-            setMobileHourHeight(h => Math.min(120, Math.max(44, h + delta * 0.5)));
+            setZoomHeight(h => Math.min(120, Math.max(32, h + delta * 0.5)));
         }
         lastPinchDist.current = dist;
     };
     const handlePinchEnd = () => { lastPinchDist.current = null; };
+
+    // Desktop: Ctrl+scroll to zoom
+    const handleWheel = (e: React.WheelEvent) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        setZoomHeight(h => Math.min(120, Math.max(32, h - e.deltaY * 0.3)));
+    };
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -480,9 +495,9 @@ export default function CalendarPage() {
     const calendarBody = loading && events.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
     ) : view === 'day' ? (
-        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} isMobile={isMobile} hourHeight={isMobile ? mobileHourHeight : HOUR_HEIGHT} />
+        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : view === 'week' ? (
-        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} isMobile={isMobile} hourHeight={isMobile ? mobileHourHeight : HOUR_HEIGHT} />
+        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : (
         <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
     );
@@ -540,6 +555,12 @@ export default function CalendarPage() {
                             <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{dateLabel}</span>
                             <div style={{ flex: 1 }} />
                             <SyncIndicator status={syncStatus} lastSyncedAt={lastSyncedAt} onSync={triggerSync} />
+                            {/* Zoom controls */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: '1px 2px', border: '1px solid var(--color-border)' }}>
+                                <button onClick={() => setZoomHeight(h => Math.max(32, h - 8))} style={{ ...navBtnStyle, padding: '2px 6px', fontSize: 12, border: 'none', background: 'transparent' }}>−</button>
+                                <span style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600, minWidth: 28, textAlign: 'center' }}>{Math.round(zoomHeight)}px</span>
+                                <button onClick={() => setZoomHeight(h => Math.min(120, h + 8))} style={{ ...navBtnStyle, padding: '2px 6px', fontSize: 12, border: 'none', background: 'transparent' }}>+</button>
+                            </div>
                             <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                                 {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }].map(({ k, l }) => {
@@ -559,13 +580,14 @@ export default function CalendarPage() {
                         </div>
                     )}
 
-                    {/* Calendar body with touch gestures */}
+                    {/* Calendar body with touch/scroll gestures */}
                     <div
                         ref={calendarBodyRef}
                         onTouchStart={isMobile ? handleTouchStart : undefined}
                         onTouchEnd={isMobile ? handleTouchEnd : undefined}
                         onTouchMove={isMobile ? handlePinchMove : undefined}
                         onTouchCancel={isMobile ? handlePinchEnd : undefined}
+                        onWheel={handleWheel}
                         style={{ flex: 1, overflow: 'auto', touchAction: 'pan-y' }}
                     >
                         {calendarBody}
@@ -630,7 +652,7 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove, isMobile = false, hourHeight = HOUR_HEIGHT }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove, onEventResize, isMobile = false, hourHeight = HOUR_HEIGHT }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
@@ -641,6 +663,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
     onLinkToEvent: (eventId: string, taskName: string) => void;
     onEventMove: (eventId: string, newStart: string, newEnd: string) => void;
+    onEventResize?: (eventId: string, newStart: string, newEnd: string) => void;
     isMobile?: boolean;
     hourHeight?: number;
 }) {
@@ -651,6 +674,11 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const wasDragging = useRef(false);
+
+    // Resize state
+    const [resizingId, setResizingId] = useState<string | null>(null);
+    const [resizePreviewHeight, setResizePreviewHeight] = useState<number | null>(null);
+    const resizeStart = useRef<{ eventId: string; startTime: string; colEl: HTMLElement; initialEndMins: number; headerOffset: number } | null>(null);
 
     // Scroll to 7am on mount
     useEffect(() => {
@@ -689,7 +717,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                 const allDayEvts = events.filter(ev => ev.all_day && toAESTDate(new Date(ev.start_time)) <= ds && toAESTDate(new Date(ev.end_time)) >= ds);
 
                 return (
-                    <div key={ds} style={{ flex: 1, minWidth: isMulti ? 80 : 0, borderLeft: '1px solid var(--color-border)', position: 'relative' }}>
+                    <div key={ds} data-col style={{ flex: 1, minWidth: isMulti ? 80 : 0, borderLeft: '1px solid var(--color-border)', position: 'relative' }}>
                         {/* Column header (week only) */}
                         {isMulti && (
                             <div style={{ height: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--color-border)', background: isToday ? 'rgba(90,130,200,0.06)' : 'transparent', position: 'sticky', top: 0, zIndex: 20 }}>
@@ -801,7 +829,8 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                         } catch { /* ignore */ }
                                     }}
                                     style={{
-                                        position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0), height,
+                                        position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0),
+                                        height: resizingId === ev.id && resizePreviewHeight !== null ? resizePreviewHeight : height,
                                         background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
                                         padding: isMobile ? '4px 8px' : '1px 4px', fontSize: isMobile ? 12 : isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
                                         cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
@@ -850,6 +879,64 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                                 <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
                                             )}
                                         </div>
+                                    )}
+                                    {/* Resize handle at bottom */}
+                                    {onEventResize && !isMulti && (
+                                        <div
+                                            onMouseDown={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                const colEl = (e.currentTarget as HTMLElement).closest('[data-col]') as HTMLElement;
+                                                if (!colEl) return;
+                                                const endMins = getMinutesFromAEST(new Date(ev.end_time));
+                                                resizeStart.current = { eventId: ev.id, startTime: ev.start_time, colEl, initialEndMins: endMins, headerOffset: isMulti ? 36 : 0 };
+                                                setResizingId(ev.id);
+                                                const onMove = (me: MouseEvent) => {
+                                                    if (!resizeStart.current) return;
+                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                    const snapped = Math.round(rawMins / 15) * 15;
+                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                    const clamped = Math.max(snapped, startMins + 15);
+                                                    const newH = Math.max(((clamped - startMins) / 60) * hourHeight, 18);
+                                                    setResizePreviewHeight(newH);
+                                                };
+                                                const onUp = (me: MouseEvent) => {
+                                                    document.removeEventListener('mousemove', onMove);
+                                                    document.removeEventListener('mouseup', onUp);
+                                                    if (!resizeStart.current) return;
+                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                    const snapped = Math.round(rawMins / 15) * 15;
+                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                    const clamped = Math.max(snapped, startMins + 15);
+                                                    // Build new end date in AEST
+                                                    const evDate = new Date(resizeStart.current.startTime);
+                                                    const newEnd = new Date(evDate.toLocaleString('en-US', { timeZone: AEST }));
+                                                    newEnd.setHours(Math.floor(clamped / 60), clamped % 60, 0, 0);
+                                                    // Convert back to ISO via AEST offset
+                                                    const isoEnd = newEnd.toLocaleString('sv-SE', { timeZone: AEST }).replace(' ', 'T');
+                                                    const utcEnd = new Date(isoEnd + '+11:00').toISOString();
+                                                    onEventResize(resizeStart.current.eventId, resizeStart.current.startTime, utcEnd);
+                                                    resizeStart.current = null;
+                                                    setResizingId(null);
+                                                    setResizePreviewHeight(null);
+                                                };
+                                                document.addEventListener('mousemove', onMove);
+                                                document.addEventListener('mouseup', onUp);
+                                            }}
+                                            style={{
+                                                position: 'absolute', bottom: 0, left: 0, right: 0, height: 6,
+                                                cursor: 'ns-resize', background: 'transparent',
+                                                borderBottomLeftRadius: 'var(--radius-sm)', borderBottomRightRadius: 'var(--radius-sm)',
+                                            }}
+                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.border}40`; }}
+                                            onMouseLeave={(e) => { if (resizingId !== ev.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                                        />
                                     )}
                                 </div>
                             );
