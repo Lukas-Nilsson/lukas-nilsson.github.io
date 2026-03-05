@@ -177,6 +177,13 @@ export default function CalendarPage() {
     const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google']));
     const syncInFlight = useRef(false);
 
+    // Mobile responsive
+    const [isMobile, setIsMobile] = useState(false);
+    const [bottomSheet, setBottomSheet] = useState<'hidden' | 'peek' | 'half' | 'full'>('hidden');
+    const [mobileHourHeight, setMobileHourHeight] = useState(64);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const calendarBodyRef = useRef<HTMLDivElement>(null);
+
     const toggleSource = (s: string) => setVisibleSources(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
 
     const filteredEvents = useMemo(() => events.filter(ev => {
@@ -199,6 +206,16 @@ export default function CalendarPage() {
         }
         setSelectedDate(new Date());
         setMounted(true);
+        // Mobile detection
+        const mq = window.matchMedia('(max-width: 768px)');
+        setIsMobile(mq.matches);
+        if (mq.matches) setView('day');
+        const handler = (e: MediaQueryListEvent) => {
+            setIsMobile(e.matches);
+            if (e.matches) setView('day');
+        };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
     }, []);
 
     // Fetch cached events from Supabase (always fast — no Google sync)
@@ -388,50 +405,137 @@ export default function CalendarPage() {
     const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
     const selectedTask = selectedEvent?.source_id ? tasks.find(t => t.task_name === selectedEvent.source_id) : null;
 
+    // Mobile: open bottom sheet when an event is tapped
+    const handleEventSelect = (ev: CalendarEvent) => {
+        setSelectedEvent(ev);
+        if (isMobile) setBottomSheet('half');
+    };
+
+    // Mobile: 3-day week view centred on selectedDate
+    const mobileWeekDates = useMemo(() => {
+        if (!selectedDate) return [];
+        const prev = new Date(selectedDate); prev.setDate(prev.getDate() - 1);
+        const next = new Date(selectedDate); next.setDate(next.getDate() + 1);
+        return [prev, selectedDate, next];
+    }, [selectedDate]);
+
+    // Touch swipe for day navigation
+    const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+    const handleTouchStart = (e: React.TouchEvent) => {
+        const t = e.touches[0];
+        touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    };
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (!touchStart.current) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStart.current.x;
+        const dy = Math.abs(t.clientY - touchStart.current.y);
+        const dt = Date.now() - touchStart.current.t;
+        touchStart.current = null;
+        if (Math.abs(dx) > 50 && dy < 80 && dt < 500) {
+            navigate(dx < 0 ? 1 : -1);
+        }
+    };
+
+    // Pinch to zoom hour height (mobile)
+    const lastPinchDist = useRef<number | null>(null);
+    const handlePinchMove = (e: React.TouchEvent) => {
+        if (e.touches.length !== 2 || !isMobile) return;
+        const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (lastPinchDist.current !== null) {
+            const delta = dist - lastPinchDist.current;
+            setMobileHourHeight(h => Math.min(120, Math.max(44, h + delta * 0.5)));
+        }
+        lastPinchDist.current = dist;
+    };
+    const handlePinchEnd = () => { lastPinchDist.current = null; };
+
     // ─── Render ──────────────────────────────────────────────────────────────
+
+    const dateLabel = view === 'day'
+        ? `${shortDay[selectedDate.getDay()]}, ${shortMonth[selectedDate.getMonth()]} ${selectedDate.getDate()}`
+        : view === 'week'
+            ? (() => { const d = getWeekDays(selectedDate); return `${shortMonth[d[0].getMonth()]} ${d[0].getDate()} – ${shortMonth[d[6].getMonth()]} ${d[6].getDate()}`; })()
+            : `${shortMonth[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+    const calendarBody = loading && events.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
+    ) : view === 'day' ? (
+        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} isMobile={isMobile} hourHeight={isMobile ? mobileHourHeight : HOUR_HEIGHT} />
+    ) : view === 'week' ? (
+        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} isMobile={isMobile} hourHeight={isMobile ? mobileHourHeight : HOUR_HEIGHT} />
+    ) : (
+        <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
+    );
 
     return (
         <DashboardShell>
-            <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
                 {/* Main area */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    {/* Header */}
-                    <div style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap', flexShrink: 0 }}>
-                        <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>📅 Calendar</h1>
 
-                        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
-                            {(['day', 'week', 'month'] as ViewMode[]).map(v => (
-                                <button key={v} onClick={() => setView(v)} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: view === v ? 'var(--color-accent)' : 'transparent', color: view === v ? 'white' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>{v}</button>
-                            ))}
+                    {/* ─── Header ─── */}
+                    {isMobile ? (
+                        /* Mobile: compact two-row header */
+                        <div style={{ flexShrink: 0, borderBottom: '1px solid var(--color-border)' }}>
+                            {/* Row 1: nav + date */}
+                            <div style={{ display: 'flex', alignItems: 'center', height: 44, padding: '0 var(--space-3)', gap: 'var(--space-2)' }}>
+                                <button onClick={() => navigate(-1)} style={{ ...navBtnStyle, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
+                                <button onClick={() => setSelectedDate(new Date())} style={{ ...navBtnStyle, minHeight: 36, padding: '0 10px', fontSize: 'var(--text-xs)' }}>Today</button>
+                                <button onClick={() => navigate(1)} style={{ ...navBtnStyle, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>→</button>
+                                <span style={{ flex: 1, textAlign: 'center', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>{dateLabel}</span>
+                                {syncStatus === 'syncing' && <span style={{ width: 10, height: 10, border: '2px solid var(--color-text-muted)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />}
+                                {syncStatus === 'error' && <span onClick={triggerSync} style={{ width: 8, height: 8, borderRadius: '50%', background: '#c07070', cursor: 'pointer', flexShrink: 0 }} />}
+                                <button onClick={() => setShowMobileFilters(p => !p)} style={{ ...navBtnStyle, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⋯</button>
+                            </div>
+                            {/* Row 2: view toggle + filters (collapsible) */}
+                            {showMobileFilters && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)', borderTop: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: 2, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
+                                        {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+                                            <button key={v} onClick={() => setView(v)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: view === v ? 'var(--color-accent)' : 'transparent', color: view === v ? 'white' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', minHeight: 32 }}>{v}</button>
+                                        ))}
+                                    </div>
+                                    {[{ k: 'personal', l: 'P' }, { k: 'business', l: 'B' }, { k: 'task', l: 'T' }, { k: 'habit', l: 'H' }].map(({ k, l }) => {
+                                        const c = accountColors[k], on = visibleSources.has(k);
+                                        return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, minHeight: 32 }}>{on ? '●' : '○'} {l}</button>;
+                                    })}
+                                    <SyncIndicator status={syncStatus} lastSyncedAt={lastSyncedAt} onSync={triggerSync} />
+                                </div>
+                            )}
                         </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                            <button onClick={() => navigate(-1)} style={navBtnStyle}>←</button>
-                            <button onClick={() => setSelectedDate(new Date())} style={{ ...navBtnStyle, padding: '4px 10px', fontSize: 'var(--text-xs)' }}>Today</button>
-                            <button onClick={() => navigate(1)} style={navBtnStyle}>→</button>
+                    ) : (
+                        /* Desktop: original header */
+                        <div style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap', flexShrink: 0 }}>
+                            <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>📅 Calendar</h1>
+                            <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: 2 }}>
+                                {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+                                    <button key={v} onClick={() => setView(v)} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: view === v ? 'var(--color-accent)' : 'transparent', color: view === v ? 'white' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>{v}</button>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                <button onClick={() => navigate(-1)} style={navBtnStyle}>←</button>
+                                <button onClick={() => setSelectedDate(new Date())} style={{ ...navBtnStyle, padding: '4px 10px', fontSize: 'var(--text-xs)' }}>Today</button>
+                                <button onClick={() => navigate(1)} style={navBtnStyle}>→</button>
+                            </div>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{dateLabel}</span>
+                            <div style={{ flex: 1 }} />
+                            <SyncIndicator status={syncStatus} lastSyncedAt={lastSyncedAt} onSync={triggerSync} />
+                            <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                                {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }].map(({ k, l }) => {
+                                    const c = accountColors[k], on = visibleSources.has(k);
+                                    return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, transition: 'all 0.15s' }}>{on ? '●' : '○'} {l}</button>;
+                                })}
+                            </div>
                         </div>
+                    )}
 
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                            {view === 'day' && `${shortDay[selectedDate.getDay()]}, ${shortMonth[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
-                            {view === 'week' && (() => { const d = getWeekDays(selectedDate); return `${shortMonth[d[0].getMonth()]} ${d[0].getDate()} – ${shortMonth[d[6].getMonth()]} ${d[6].getDate()}`; })()}
-                            {view === 'month' && `${shortMonth[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`}
-                        </span>
-
-                        <div style={{ flex: 1 }} />
-
-                        <SyncIndicator status={syncStatus} lastSyncedAt={lastSyncedAt} onSync={triggerSync} />
-                        <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
-
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-                            {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }].map(({ k, l }) => {
-                                const c = accountColors[k], on = visibleSources.has(k);
-                                return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, transition: 'all 0.15s' }}>{on ? '●' : '○'} {l}</button>;
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Connect prompts */}
-                    {!loading && accounts.length < 2 && (
+                    {/* Connect prompts (desktop only) */}
+                    {!isMobile && !loading && accounts.length < 2 && (
                         <div style={{ padding: 'var(--space-2) var(--space-4)', background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.15)', fontSize: 'var(--text-xs)' }}>
                             <strong style={{ color: '#c9a84c' }}>Connect: </strong>
                             {!accounts.some(a => a.account === 'personal') && <a href="/api/auth/google/connect?account=personal" style={{ color: accountColors.personal.text, textDecoration: 'underline', marginRight: 12 }}>Personal</a>}
@@ -439,40 +543,78 @@ export default function CalendarPage() {
                         </div>
                     )}
 
-                    {/* Calendar body */}
-                    <div style={{ flex: 1, overflow: 'auto' }}>
-                        {loading && events.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
-                        ) : view === 'day' ? (
-                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} />
-                        ) : view === 'week' ? (
-                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} />
-                        ) : (
-                            <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
-                        )}
+                    {/* Calendar body with touch gestures */}
+                    <div
+                        ref={calendarBodyRef}
+                        onTouchStart={isMobile ? handleTouchStart : undefined}
+                        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+                        onTouchMove={isMobile ? handlePinchMove : undefined}
+                        onTouchCancel={isMobile ? handlePinchEnd : undefined}
+                        style={{ flex: 1, overflow: 'auto', touchAction: 'pan-y' }}
+                    >
+                        {calendarBody}
                     </div>
                 </div>
 
-                {/* Right sidebar */}
-                <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--color-border)', padding: 'var(--space-3)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    {selectedEvent ? (
-                        <EventDetail event={selectedEvent} task={selectedTask ?? undefined} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} />
-                    ) : (
-                        <TaskSidebar tasks={unscheduledTasks} />
-                    )}
-                </div>
+                {/* Desktop sidebar */}
+                {!isMobile && (
+                    <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--color-border)', padding: 'var(--space-3)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                        {selectedEvent ? (
+                            <EventDetail event={selectedEvent} task={selectedTask ?? undefined} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} />
+                        ) : (
+                            <TaskSidebar tasks={unscheduledTasks} />
+                        )}
+                    </div>
+                )}
+
+                {/* Mobile: FAB */}
+                {isMobile && (
+                    <button
+                        onClick={() => { setCreateSlot(null); setShowCreate(true); }}
+                        style={{
+                            position: 'absolute', bottom: bottomSheet !== 'hidden' ? 'calc(60px + var(--space-4))' : 'var(--space-4)',
+                            right: 'var(--space-4)', width: 56, height: 56, borderRadius: '50%',
+                            background: 'var(--color-accent)', border: 'none', color: 'white',
+                            fontSize: 24, fontWeight: 700, cursor: 'pointer',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 50, transition: 'bottom 0.3s ease',
+                        }}
+                    >+</button>
+                )}
+
+                {/* Mobile: Bottom Sheet */}
+                {isMobile && (
+                    <BottomSheet
+                        state={bottomSheet}
+                        onStateChange={setBottomSheet}
+                        peekLabel={`${unscheduledTasks.length} unscheduled task${unscheduledTasks.length !== 1 ? 's' : ''}`}
+                    >
+                        {selectedEvent ? (
+                            <EventDetail
+                                event={selectedEvent}
+                                task={selectedTask ?? undefined}
+                                onClose={() => { setSelectedEvent(null); setBottomSheet('peek'); }}
+                                onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); setBottomSheet('hidden'); }}
+                                onDelete={() => { handleDelete(selectedEvent.id); setBottomSheet('peek'); }}
+                            />
+                        ) : (
+                            <TaskSidebar tasks={unscheduledTasks} />
+                        )}
+                    </BottomSheet>
+                )}
             </div>
 
             {/* Modals */}
-            {showCreate && <EventModal mode="create" accounts={accounts} defaultStart={createSlot?.start} defaultEnd={createSlot?.end} onClose={() => { setShowCreate(false); setCreateSlot(null); }} onSubmit={(t, s, e, a) => handleCreate(t, s, e, a)} />}
-            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => setEditEvent(null)} onSubmit={(t, s, e, _a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, description: desc })} />}
+            {showCreate && <EventModal mode="create" accounts={accounts} defaultStart={createSlot?.start} defaultEnd={createSlot?.end} onClose={() => { setShowCreate(false); setCreateSlot(null); }} onSubmit={(t, s, e, a) => handleCreate(t, s, e, a)} isMobile={isMobile} />}
+            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => setEditEvent(null)} onSubmit={(t, s, e, _a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, description: desc })} isMobile={isMobile} />}
         </DashboardShell>
     );
 }
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove, isMobile = false, hourHeight = HOUR_HEIGHT }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
@@ -483,6 +625,8 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
     onLinkToEvent: (eventId: string, taskName: string) => void;
     onEventMove: (eventId: string, newStart: string, newEnd: string) => void;
+    isMobile?: boolean;
+    hourHeight?: number;
 }) {
     const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
     const isMulti = dates.length > 1;
@@ -495,7 +639,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     // Scroll to 7am on mount
     useEffect(() => {
         if (gridRef.current) {
-            gridRef.current.scrollTop = (7 - START_HOUR) * HOUR_HEIGHT;
+            gridRef.current.scrollTop = (7 - START_HOUR) * hourHeight;
         }
     }, [dates.length]);
 
@@ -506,7 +650,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
             {/* Time labels */}
             <div style={{ width: 48, flexShrink: 0, paddingTop: isMulti ? 36 : 0 }}>
                 {hours.map(h => (
-                    <div key={h} style={{ height: HOUR_HEIGHT, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: 6, paddingTop: 2 }}>
+                    <div key={h} style={{ height: hourHeight, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: 6, paddingTop: 2 }}>
                         <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 500 }}>{formatHour(h)}</span>
                     </div>
                 ))}
@@ -517,7 +661,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                 const ds = toAESTDate(date);
                 const isToday = isSameDay(now, date);
                 const nowMins = isToday ? getMinutesFromAEST(now) : -1;
-                const nowTop = ((nowMins - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                const nowTop = ((nowMins - START_HOUR * 60) / 60) * hourHeight;
 
                 const dayEvents = events.filter(ev => {
                     if (ev.all_day) return false;
@@ -583,7 +727,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                         } catch { /* ignore */ }
                                     }}
                                     style={{
-                                        height: HOUR_HEIGHT, borderBottom: '1px solid var(--color-border)',
+                                        height: hourHeight, borderBottom: '1px solid var(--color-border)',
                                         cursor: 'pointer', position: 'relative',
                                         background: dragOverSlot === slotKey ? 'rgba(90,130,200,0.08)' : undefined,
                                         transition: 'background 0.1s',
@@ -593,7 +737,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                         })}
 
                         {/* Now line */}
-                        {isToday && nowTop > 0 && nowTop < hours.length * HOUR_HEIGHT && (
+                        {isToday && nowTop > 0 && nowTop < hours.length * hourHeight && (
                             <div style={{ position: 'absolute', left: 0, right: 0, top: (isMulti ? 36 : 0) + nowTop, height: 2, background: '#c07070', zIndex: 15, pointerEvents: 'none', boxShadow: '0 0 4px rgba(192,112,112,0.5)' }}>
                                 <div style={{ position: 'absolute', left: -3, top: -3, width: 8, height: 8, borderRadius: '50%', background: '#c07070' }} />
                             </div>
@@ -603,8 +747,8 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                         {dayEvents.map(ev => {
                             const startMins = getMinutesFromAEST(new Date(ev.start_time));
                             const endMins = getMinutesFromAEST(new Date(ev.end_time));
-                            const top = ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT + (isMulti ? 36 : 0);
-                            const height = Math.max(((endMins - startMins) / 60) * HOUR_HEIGHT, 18);
+                            const top = ((startMins - START_HOUR * 60) / 60) * hourHeight + (isMulti ? 36 : 0);
+                            const height = Math.max(((endMins - startMins) / 60) * hourHeight, 18);
                             const c = eventColor(ev);
                             const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
                             const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
@@ -643,7 +787,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     style={{
                                         position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0), height,
                                         background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
-                                        padding: '1px 4px', fontSize: isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
+                                        padding: isMobile ? '4px 8px' : '1px 4px', fontSize: isMobile ? 12 : isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
                                         cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
                                         backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
                                         userSelect: 'none', WebkitUserSelect: 'none',
@@ -1050,9 +1194,82 @@ function SyncIndicator({ status, lastSyncedAt, onSync }: {
     );
 }
 
-// ─── Event Modal (create/edit) ───────────────────────────────────────────────
+// ─── Bottom Sheet (mobile) ──────────────────────────────────────────────────────────
 
-function EventModal({ mode, event, accounts, defaultStart, defaultEnd, onClose, onSubmit }: {
+function BottomSheet({ state, onStateChange, peekLabel, children }: {
+    state: 'hidden' | 'peek' | 'half' | 'full';
+    onStateChange: (s: 'hidden' | 'peek' | 'half' | 'full') => void;
+    peekLabel: string;
+    children: React.ReactNode;
+}) {
+    const sheetRef = useRef<HTMLDivElement>(null);
+    const dragStartY = useRef<number | null>(null);
+    const heightMap = { hidden: 0, peek: 60, half: 45, full: 85 };
+    const h = heightMap[state];
+
+    const handleDragStart = (e: React.TouchEvent) => {
+        dragStartY.current = e.touches[0].clientY;
+    };
+    const handleDragEnd = (e: React.TouchEvent) => {
+        if (dragStartY.current === null) return;
+        const dy = dragStartY.current - e.changedTouches[0].clientY;
+        dragStartY.current = null;
+        if (dy > 40) {
+            // Swipe up
+            onStateChange(state === 'peek' ? 'half' : state === 'half' ? 'full' : 'full');
+        } else if (dy < -40) {
+            // Swipe down
+            onStateChange(state === 'full' ? 'half' : state === 'half' ? 'peek' : 'hidden');
+        }
+    };
+
+    if (state === 'hidden') return null;
+
+    return (
+        <div
+            ref={sheetRef}
+            style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                height: `${h}vh`, minHeight: state === 'peek' ? 60 : undefined,
+                background: 'var(--color-surface)',
+                borderTop: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                boxShadow: '0 -4px 24px rgba(0,0,0,0.25)',
+                zIndex: 60,
+                display: 'flex', flexDirection: 'column',
+                transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)',
+                overflow: 'hidden',
+            }}
+        >
+            {/* Drag handle */}
+            <div
+                onTouchStart={handleDragStart}
+                onTouchEnd={handleDragEnd}
+                onClick={() => onStateChange(state === 'peek' ? 'half' : 'peek')}
+                style={{
+                    padding: 'var(--space-2) var(--space-3)',
+                    cursor: 'grab', flexShrink: 0,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                }}
+            >
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+                {state === 'peek' && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                        {peekLabel}
+                    </span>
+                )}
+            </div>
+            {/* Content */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 var(--space-3) var(--space-3)' }}>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+// ─── Event Modal (create/edit) ─────────────────────────────────────────────────────────────
+
+function EventModal({ mode, event, accounts, defaultStart, defaultEnd, onClose, onSubmit, isMobile = false }: {
     mode: 'create' | 'edit';
     event?: CalendarEvent;
     accounts?: ConnectedAccount[];
@@ -1060,6 +1277,7 @@ function EventModal({ mode, event, accounts, defaultStart, defaultEnd, onClose, 
     defaultEnd?: string;
     onClose: () => void;
     onSubmit: (title: string, start: string, end: string, account: string, description?: string) => void;
+    isMobile?: boolean;
 }) {
     const [title, setTitle] = useState(event?.title ?? '');
     const [desc, setDesc] = useState(event?.description ?? '');
@@ -1074,8 +1292,8 @@ function EventModal({ mode, event, accounts, defaultStart, defaultEnd, onClose, 
     const [account, setAccount] = useState(event?.account ?? accounts?.[0]?.account ?? '');
 
     return (
-        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', width: 400, border: '1px solid var(--color-border)', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-surface)', borderRadius: isMobile ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)', padding: 'var(--space-4)', width: isMobile ? '100%' : 400, maxWidth: '100%', border: '1px solid var(--color-border)', maxHeight: '80vh', overflowY: 'auto' }}>
                 <h3 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text)' }}>
                     {mode === 'create' ? 'New Event' : 'Edit Event'}
                 </h3>
