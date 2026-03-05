@@ -165,7 +165,8 @@ export default function CalendarPage() {
     const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [loading, setLoading] = useState(true);
-    const [syncing, setSyncing] = useState(false);
+    const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+    const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
     const [view, setView] = useState<ViewMode>('day');
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showCreate, setShowCreate] = useState(false);
@@ -174,6 +175,7 @@ export default function CalendarPage() {
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
     const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google']));
+    const syncInFlight = useRef(false);
 
     const toggleSource = (s: string) => setVisibleSources(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
 
@@ -199,15 +201,14 @@ export default function CalendarPage() {
         setMounted(true);
     }, []);
 
-    // Fetch from API (stale-while-revalidate)
-    const fetchEvents = useCallback(async (sync = false) => {
+    // Fetch cached events from Supabase (always fast — no Google sync)
+    const fetchEvents = useCallback(async () => {
         if (!selectedDate) return;
-        if (sync) setSyncing(true);
         try {
             const weekDays = getWeekDays(selectedDate);
             const start = new Date(weekDays[0]); start.setDate(start.getDate() - 7);
             const end = new Date(weekDays[6]); end.setDate(end.getDate() + 7);
-            const url = `/api/dashboard/calendar?start=${start.toISOString()}&end=${end.toISOString()}${sync ? '&sync=true' : ''}`;
+            const url = `/api/dashboard/calendar?start=${start.toISOString()}&end=${end.toISOString()}`;
             const res = await fetch(url);
             const data = await res.json();
             const evts = data.events ?? [];
@@ -217,10 +218,41 @@ export default function CalendarPage() {
             setCachedData(evts, accts);
         } catch (e) { console.error('Failed to fetch calendar:', e); }
         setLoading(false);
-        setSyncing(false);
     }, [selectedDate]);
 
-    useEffect(() => { if (selectedDate) fetchEvents(true); }, [fetchEvents, selectedDate]);
+    // Background sync — calls the dedicated sync endpoint, then refreshes cache
+    const triggerSync = useCallback(async () => {
+        if (syncInFlight.current) return;
+        syncInFlight.current = true;
+        setSyncStatus('syncing');
+        try {
+            const res = await fetch('/api/dashboard/calendar/sync', { method: 'POST' });
+            if (!res.ok) throw new Error('Sync failed');
+            const data = await res.json();
+            setLastSyncedAt(new Date(data.lastSyncedAt));
+            setSyncStatus('synced');
+            // Refresh local cache with fresh data from Supabase
+            await fetchEvents();
+            // Fade "synced" indicator after 4s
+            setTimeout(() => setSyncStatus(prev => prev === 'synced' ? 'idle' : prev), 4000);
+        } catch (e) {
+            console.error('Sync failed:', e);
+            setSyncStatus('error');
+        } finally {
+            syncInFlight.current = false;
+        }
+    }, [fetchEvents]);
+
+    // Fetch cache on date change (instant — Supabase only)
+    useEffect(() => { if (selectedDate) fetchEvents(); }, [fetchEvents, selectedDate]);
+
+    // Background sync on mount + every 60s
+    useEffect(() => {
+        if (!mounted) return;
+        triggerSync();
+        const interval = setInterval(triggerSync, 60_000);
+        return () => clearInterval(interval);
+    }, [mounted, triggerSync]);
 
     // Fetch tasks
     useEffect(() => {
@@ -253,33 +285,76 @@ export default function CalendarPage() {
     // ─── CRUD ────────────────────────────────────────────────────────────────
 
     const handleCreate = async (title: string, start: string, end: string, account: string, source?: string, sourceId?: string) => {
+        // Optimistic: add a temporary event to the UI immediately
+        const tempId = `temp-${Date.now()}`;
+        const optimisticEvent: CalendarEvent = {
+            id: tempId, google_event_id: null, account: account || null,
+            title, description: null, location: null,
+            start_time: start, end_time: end, all_day: false,
+            color: null, source: source ?? (account ? 'google' : 'task'),
+            source_id: sourceId ?? null, status: 'confirmed', is_flexible: false,
+        };
+        setEvents(prev => [...prev, optimisticEvent]);
+        setShowCreate(false);
+        setCreateSlot(null);
+
         try {
             const res = await fetch('/api/dashboard/calendar', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, start_time: start, end_time: end, account: account || null, source: source ?? (account ? 'google' : 'task'), source_id: sourceId ?? null }),
             });
-            if (res.ok) { setShowCreate(false); setCreateSlot(null); fetchEvents(true); }
-        } catch (e) { console.error('Create failed:', e); }
+            if (res.ok) {
+                const data = await res.json();
+                // Replace temp event with the real one from the server
+                setEvents(prev => prev.map(ev => ev.id === tempId ? data.event : ev));
+            } else {
+                // Revert optimistic add
+                setEvents(prev => prev.filter(ev => ev.id !== tempId));
+            }
+        } catch (e) {
+            console.error('Create failed:', e);
+            setEvents(prev => prev.filter(ev => ev.id !== tempId));
+        }
     };
 
-    const handleUpdate = async (id: string, updates: Partial<{ title: string; start_time: string; end_time: string; description: string }>) => {
+    const handleUpdate = async (id: string, updates: Partial<{ title: string; start_time: string; end_time: string; description: string; source_id: string }>) => {
+        // Optimistic: apply updates immediately
+        const rollback = events;
+        setEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
+        setEditEvent(null);
+        setSelectedEvent(null);
+
         try {
             const res = await fetch('/api/dashboard/calendar', {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, ...updates }),
             });
             if (res.ok) {
-                setEditEvent(null);
-                setSelectedEvent(null);
-                fetchEvents(true);
+                const data = await res.json();
+                setEvents(prev => prev.map(ev => ev.id === id ? data.event : ev));
+            } else {
+                setEvents(rollback); // Revert
             }
-        } catch (e) { console.error('Update failed:', e); }
+        } catch (e) {
+            console.error('Update failed:', e);
+            setEvents(rollback);
+        }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this event?')) return;
-        try { await fetch(`/api/dashboard/calendar?id=${id}`, { method: 'DELETE' }); setSelectedEvent(null); fetchEvents(); }
-        catch (e) { console.error('Delete failed:', e); }
+        // Optimistic: remove from UI immediately
+        const rollback = events;
+        setEvents(prev => prev.filter(ev => ev.id !== id));
+        setSelectedEvent(null);
+
+        try {
+            const res = await fetch(`/api/dashboard/calendar?id=${id}`, { method: 'DELETE' });
+            if (!res.ok) setEvents(rollback); // Revert on failure
+        } catch (e) {
+            console.error('Delete failed:', e);
+            setEvents(rollback);
+        }
     };
 
     // ─── Drag & Drop ─────────────────────────────────────────────────────────
@@ -293,7 +368,12 @@ export default function CalendarPage() {
 
     // Drop a task onto an existing event to link them
     const handleLinkToEvent = async (eventId: string, taskName: string) => {
-        await handleUpdate(eventId, { source_id: taskName } as Record<string, string>);
+        await handleUpdate(eventId, { source_id: taskName });
+    };
+
+    // Drag an existing event to a new time slot
+    const handleEventMove = async (eventId: string, newStart: string, newEnd: string) => {
+        await handleUpdate(eventId, { start_time: newStart, end_time: newEnd });
     };
 
     // Tasks that are linked to any event via source_id are 'scheduled'
@@ -339,8 +419,7 @@ export default function CalendarPage() {
 
                         <div style={{ flex: 1 }} />
 
-                        {syncing && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', animation: 'pulse 1.5s infinite' }}>Syncing…</span>}
-                        <button onClick={() => fetchEvents(true)} style={{ ...navBtnStyle, fontSize: 'var(--text-xs)', padding: '4px 10px' }}>🔄 Sync</button>
+                        <SyncIndicator status={syncStatus} lastSyncedAt={lastSyncedAt} onSync={triggerSync} />
                         <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
 
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -365,9 +444,9 @@ export default function CalendarPage() {
                         {loading && events.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
                         ) : view === 'day' ? (
-                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} />
+                            <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} />
                         ) : view === 'week' ? (
-                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} />
+                            <TimeGrid events={filteredEvents} dates={getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={setSelectedEvent} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} />
                         ) : (
                             <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
                         )}
@@ -393,7 +472,7 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
@@ -403,11 +482,13 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     onEventClick: (ev: CalendarEvent) => void;
     onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
     onLinkToEvent: (eventId: string, taskName: string) => void;
+    onEventMove: (eventId: string, newStart: string, newEnd: string) => void;
 }) {
     const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
     const isMulti = dates.length > 1;
     const now = new Date();
     const gridRef = useRef<HTMLDivElement>(null);
+    const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
 
     // Scroll to 7am on mount
     useEffect(() => {
@@ -466,26 +547,49 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                         )}
 
                         {/* Hour slots */}
-                        {hours.map(h => (
-                            <div
-                                key={h}
-                                onClick={() => {
-                                    const s = new Date(date); s.setHours(h, 0, 0, 0);
-                                    const e = new Date(s); e.setHours(h + 1);
-                                    onSlotClick(s.toISOString(), e.toISOString());
-                                }}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    const data = e.dataTransfer.getData('text/plain');
-                                    try {
-                                        const { taskName, duration } = JSON.parse(data);
-                                        onDrop(taskName, date, h, duration ?? 30);
-                                    } catch { /* ignore */ }
-                                }}
-                                style={{ height: HOUR_HEIGHT, borderBottom: '1px solid var(--color-border)', cursor: 'pointer', position: 'relative' }}
-                            />
-                        ))}
+                        {hours.map(h => {
+                            const slotKey = `${ds}-${h}`;
+                            return (
+                                <div
+                                    key={h}
+                                    onClick={() => {
+                                        const s = new Date(date); s.setHours(h, 0, 0, 0);
+                                        const e = new Date(s); e.setHours(h + 1);
+                                        onSlotClick(s.toISOString(), e.toISOString());
+                                    }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.dataTransfer.dropEffect = 'copy';
+                                        setDragOverSlot(slotKey);
+                                    }}
+                                    onDragLeave={() => setDragOverSlot(prev => prev === slotKey ? null : prev)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setDragOverSlot(null);
+                                        const data = e.dataTransfer.getData('text/plain');
+                                        try {
+                                            const parsed = JSON.parse(data);
+                                            if (parsed.eventId) {
+                                                // Event move: compute new start/end preserving duration
+                                                const newStart = new Date(date);
+                                                newStart.setHours(h, 0, 0, 0);
+                                                const newEnd = new Date(newStart.getTime() + (parsed.durationMins ?? 60) * 60000);
+                                                onEventMove(parsed.eventId, newStart.toISOString(), newEnd.toISOString());
+                                            } else if (parsed.taskName) {
+                                                // Task drag from sidebar
+                                                onDrop(parsed.taskName, date, h, parsed.duration ?? 30);
+                                            }
+                                        } catch { /* ignore */ }
+                                    }}
+                                    style={{
+                                        height: HOUR_HEIGHT, borderBottom: '1px solid var(--color-border)',
+                                        cursor: 'pointer', position: 'relative',
+                                        background: dragOverSlot === slotKey ? 'rgba(90,130,200,0.08)' : undefined,
+                                        transition: 'background 0.1s',
+                                    }}
+                                />
+                            );
+                        })}
 
                         {/* Now line */}
                         {isToday && nowTop > 0 && nowTop < hours.length * HOUR_HEIGHT && (
@@ -507,20 +611,32 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                             return (
                                 <div
                                     key={ev.id}
+                                    draggable
+                                    onDragStart={(e) => {
+                                        const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
+                                        e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        // Make the dragged element semi-transparent
+                                        (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                                    }}
+                                    onDragEnd={(e) => {
+                                        (e.currentTarget as HTMLElement).style.opacity = '1';
+                                    }}
                                     onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'link'; }}
                                     onDrop={(e) => {
                                         e.preventDefault(); e.stopPropagation();
                                         try {
-                                            const { taskName } = JSON.parse(e.dataTransfer.getData('text/plain'));
-                                            if (taskName) onLinkToEvent(ev.id, taskName);
+                                            const parsed = JSON.parse(e.dataTransfer.getData('text/plain'));
+                                            if (parsed.taskName) onLinkToEvent(ev.id, parsed.taskName);
                                         } catch { /* ignore */ }
                                     }}
                                     style={{
                                         position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0), height,
                                         background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
                                         padding: '1px 4px', fontSize: isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
-                                        cursor: 'pointer', zIndex: 5, backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
+                                        cursor: 'grab', zIndex: 5, backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
+                                        userSelect: 'none', WebkitUserSelect: 'none',
                                     }}
                                     title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
                                 >
@@ -835,6 +951,89 @@ function TaskSidebar({ tasks }: { tasks: TaskInfo[] }) {
                     {sorted.length > 20 && <div style={{ fontSize: 9, color: 'var(--color-text-muted)', textAlign: 'center' }}>+{sorted.length - 20} more</div>}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Sync Status Indicator ───────────────────────────────────────────────────
+
+function SyncIndicator({ status, lastSyncedAt, onSync }: {
+    status: 'idle' | 'syncing' | 'synced' | 'error';
+    lastSyncedAt: Date | null;
+    onSync: () => void;
+}) {
+    const formatAgo = (d: Date | null): string => {
+        if (!d) return '';
+        const s = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (s < 10) return 'just now';
+        if (s < 60) return `${s}s ago`;
+        if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+        return `${Math.floor(s / 3600)}h ago`;
+    };
+
+    const [, setTick] = useState(0);
+    // Update "X ago" every 15s
+    useEffect(() => {
+        if (!lastSyncedAt) return;
+        const t = setInterval(() => setTick(n => n + 1), 15_000);
+        return () => clearInterval(t);
+    }, [lastSyncedAt]);
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {status === 'syncing' && (
+                <span style={{
+                    fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                }}>
+                    <span style={{
+                        display: 'inline-block', width: 10, height: 10,
+                        border: '2px solid var(--color-text-muted)', borderTopColor: 'transparent',
+                        borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                    }} />
+                    Syncing
+                </span>
+            )}
+            {status === 'synced' && (
+                <span style={{
+                    fontSize: 'var(--text-xs)', color: '#5a9a5a',
+                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                    animation: 'fadeIn 0.3s ease',
+                }}>
+                    <span style={{ fontSize: 10 }}>✓</span> Synced
+                </span>
+            )}
+            {status === 'error' && (
+                <button
+                    onClick={onSync}
+                    style={{
+                        fontSize: 'var(--text-xs)', color: '#c07070',
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        background: 'rgba(192,112,112,0.08)', border: '1px solid rgba(192,112,112,0.2)',
+                        borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer',
+                    }}
+                >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c07070' }} />
+                    Sync failed · Retry
+                </button>
+            )}
+            {status === 'idle' && lastSyncedAt && (
+                <span style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>
+                    Synced {formatAgo(lastSyncedAt)}
+                </span>
+            )}
+            <button
+                onClick={onSync}
+                disabled={status === 'syncing'}
+                style={{
+                    ...navBtnStyle,
+                    fontSize: 'var(--text-xs)', padding: '4px 10px',
+                    opacity: status === 'syncing' ? 0.5 : 1,
+                    cursor: status === 'syncing' ? 'not-allowed' : 'pointer',
+                }}
+            >
+                🔄 Sync
+            </button>
         </div>
     );
 }

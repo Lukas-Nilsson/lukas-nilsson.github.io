@@ -1,25 +1,20 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { getAccessToken, listEvents, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
+import { getAccessToken, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
 
 /**
  * GET /api/dashboard/calendar?start=ISO&end=ISO
- * Returns events from Supabase cache + optionally live-syncs from Google.
+ * Returns cached events from Supabase — always fast.
+ * Google sync is handled by POST /api/dashboard/calendar/sync.
  */
 export async function GET(req: NextRequest) {
     try {
         const supabase = createAdminClient();
         const start = req.nextUrl.searchParams.get('start');
         const end = req.nextUrl.searchParams.get('end');
-        const liveSync = req.nextUrl.searchParams.get('sync') === 'true';
 
-        // If live sync requested, pull from Google first
-        if (liveSync) {
-            await syncFromGoogle(supabase, start, end);
-        }
-
-        // Query cached events from Supabase
+        // Query cached events from Supabase (no Google sync — always fast)
         let query = supabase
             .from('calendar_events')
             .select('*')
@@ -284,84 +279,3 @@ export async function DELETE(req: NextRequest) {
     }
 }
 
-// ─── Sync Helper ────────────────────────────────────────────────────────────
-
-async function syncFromGoogle(
-    supabase: ReturnType<typeof createAdminClient>,
-    start: string | null,
-    end: string | null,
-) {
-    const { data: tokens } = await supabase
-        .from('calendar_tokens')
-        .select('*');
-
-    if (!tokens?.length) return;
-
-    for (const token of tokens) {
-        try {
-            const { access_token, expires_at } = await getAccessToken(token as CalendarToken);
-
-            // Update stored access token
-            await supabase.from('calendar_tokens').update({
-                access_token,
-                token_expiry: expires_at.toISOString(),
-            }).eq('account', token.account);
-
-            // Fetch events (use syncToken for incremental, or date range)
-            const result = await listEvents(access_token, 'primary', {
-                syncToken: token.sync_token ?? undefined,
-                timeMin: token.sync_token ? undefined : (start ?? new Date(Date.now() - 30 * 86400000).toISOString()),
-                timeMax: token.sync_token ? undefined : (end ?? new Date(Date.now() + 90 * 86400000).toISOString()),
-            });
-
-            // Update sync token
-            if (result.nextSyncToken) {
-                await supabase.from('calendar_tokens').update({
-                    sync_token: result.nextSyncToken,
-                }).eq('account', token.account);
-            }
-
-            // Upsert events
-            for (const ge of result.events) {
-                const isAllDay = !!ge.start.date;
-                const startTime = isAllDay
-                    ? new Date(ge.start.date + 'T00:00:00+11:00').toISOString()
-                    : ge.start.dateTime!;
-                const endTime = isAllDay
-                    ? new Date(ge.end.date + 'T00:00:00+11:00').toISOString()
-                    : ge.end.dateTime!;
-
-                if (ge.status === 'cancelled') {
-                    // Mark as cancelled in our DB
-                    await supabase.from('calendar_events')
-                        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-                        .eq('google_event_id', ge.id)
-                        .eq('google_calendar_id', 'primary');
-                    continue;
-                }
-
-                await supabase.from('calendar_events').upsert({
-                    google_event_id: ge.id,
-                    google_calendar_id: 'primary',
-                    account: token.account,
-                    title: ge.summary ?? '(No title)',
-                    description: ge.description ?? null,
-                    location: ge.location ?? null,
-                    start_time: startTime,
-                    end_time: endTime,
-                    all_day: isAllDay,
-                    status: ge.status ?? 'confirmed',
-                    recurrence: ge.recurrence?.[0] ?? null,
-                    google_etag: ge.etag,
-                    synced_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                }, {
-                    onConflict: 'google_event_id,google_calendar_id',
-                    ignoreDuplicates: false,
-                });
-            }
-        } catch (e) {
-            console.error(`[calendar sync] ${token.account} failed:`, e);
-        }
-    }
-}
