@@ -428,6 +428,19 @@ export default function CalendarPage() {
     const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
     const lastPinchDist = useRef<number | null>(null);
 
+    // Desktop: Ctrl+scroll to zoom (native event to allow preventDefault on non-passive listener)
+    useEffect(() => {
+        const el = calendarBodyRef.current;
+        if (!el) return;
+        const handler = (e: WheelEvent) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            setZoomHeight(h => Math.min(120, Math.max(32, h - e.deltaY * 0.3)));
+        };
+        el.addEventListener('wheel', handler, { passive: false });
+        return () => el.removeEventListener('wheel', handler);
+    });
+
     // ─── Guard ───────────────────────────────────────────────────────────────
 
     if (!mounted || !selectedDate) {
@@ -476,19 +489,6 @@ export default function CalendarPage() {
         lastPinchDist.current = dist;
     };
     const handlePinchEnd = () => { lastPinchDist.current = null; };
-
-    // Desktop: Ctrl+scroll to zoom (native event to allow preventDefault on non-passive listener)
-    useEffect(() => {
-        const el = calendarBodyRef.current;
-        if (!el) return;
-        const handler = (e: WheelEvent) => {
-            if (!e.ctrlKey && !e.metaKey) return;
-            e.preventDefault();
-            setZoomHeight(h => Math.min(120, Math.max(32, h - e.deltaY * 0.3)));
-        };
-        el.addEventListener('wheel', handler, { passive: false });
-        return () => el.removeEventListener('wheel', handler);
-    });
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
