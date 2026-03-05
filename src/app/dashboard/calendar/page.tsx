@@ -489,6 +489,8 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     const now = new Date();
     const gridRef = useRef<HTMLDivElement>(null);
     const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
+    const [draggingId, setDraggingId] = useState<string | null>(null);
+    const wasDragging = useRef(false);
 
     // Scroll to 7am on mount
     useEffect(() => {
@@ -559,7 +561,6 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     }}
                                     onDragOver={(e) => {
                                         e.preventDefault();
-                                        e.dataTransfer.dropEffect = 'copy';
                                         setDragOverSlot(slotKey);
                                     }}
                                     onDragLeave={() => setDragOverSlot(prev => prev === slotKey ? null : prev)}
@@ -615,15 +616,23 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     onDragStart={(e) => {
                                         const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
                                         e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
-                                        e.dataTransfer.effectAllowed = 'move';
-                                        // Make the dragged element semi-transparent
+                                        e.dataTransfer.effectAllowed = 'all';
                                         (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                                        setDraggingId(ev.id);
+                                        wasDragging.current = true;
                                     }}
                                     onDragEnd={(e) => {
                                         (e.currentTarget as HTMLElement).style.opacity = '1';
+                                        setDraggingId(null);
+                                        // Suppress the click that fires after drag
+                                        setTimeout(() => { wasDragging.current = false; }, 0);
                                     }}
-                                    onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
-                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'link'; }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (wasDragging.current) return; // Suppress click after drag
+                                        onEventClick(ev);
+                                    }}
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDrop={(e) => {
                                         e.preventDefault(); e.stopPropagation();
                                         try {
@@ -635,8 +644,11 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                         position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0), height,
                                         background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
                                         padding: '1px 4px', fontSize: isMulti ? 9 : 'var(--text-xs)', overflow: 'hidden',
-                                        cursor: 'grab', zIndex: 5, backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
+                                        cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
+                                        backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
                                         userSelect: 'none', WebkitUserSelect: 'none',
+                                        // During drag, make OTHER events transparent to drops so slots receive them
+                                        pointerEvents: draggingId && draggingId !== ev.id ? 'none' : undefined,
                                     }}
                                     title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
                                 >
