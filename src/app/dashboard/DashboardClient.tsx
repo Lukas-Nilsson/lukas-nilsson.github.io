@@ -40,6 +40,7 @@ const checkDefs = [
 const catColors: Record<string, string> = {
     Wedding: '#a07040', THA: '#7a5030', Home: '#8a7a5a',
     Fitness: '#5a8a5a', Finance: '#5a7a8a', Personal: '#7a5a8a', Dev: '#8a5a5a',
+    Uncategorized: '#6a6a6a',
 };
 
 function fmt(dateStr: string) {
