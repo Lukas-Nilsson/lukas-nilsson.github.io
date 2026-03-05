@@ -125,82 +125,23 @@ export async function GET() {
         hours: s.sleep_hours ?? null,
     }));
 
-    // ── Computed trajectory from tasks table (single source of truth) ──
-    // Instead of snapshot deltas, compute everything from created_at/completed_at
-    let allTasks: { name: string; status: string; created_at: string; completed_at: string | null }[] = [];
-    try {
-        const tasksRes = await supabase
-            .from('tasks')
-            .select('name,status,created_at,completed_at');
-        allTasks = tasksRes.data ?? [];
-    } catch { /* tasks table may not exist yet */ }
-
+    // ── Task data — use task_snapshots as single source of truth ──
+    // task_snapshots are written by openclaw-supabase-sync.js from parse-tasks.js output
     const latestTask = taskRows[0] ?? null;
-    let taskHistory: { date: string; open: number; done: number; completed: number; added: number; removed: number }[] = [];
-
-    if (allTasks.length > 0) {
-        // Compute per-day added/completed/removed from task timestamps
-        const addedByDate = new Map<string, number>();
-        const completedByDate = new Map<string, number>();
-        const removedByDate = new Map<string, number>();
-
-        for (const task of allTasks) {
-            if (task.created_at) {
-                const d = new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                addedByDate.set(d, (addedByDate.get(d) ?? 0) + 1);
-            }
-            if (task.completed_at && task.status === 'done') {
-                const d = new Date(task.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                completedByDate.set(d, (completedByDate.get(d) ?? 0) + 1);
-            }
-            if (task.completed_at && task.status === 'abandoned') {
-                const d = new Date(task.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                removedByDate.set(d, (removedByDate.get(d) ?? 0) + 1);
-            }
-        }
-
-        // Build date range from earliest created_at to today
-        const todayAESTStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-        const dates = new Set([...addedByDate.keys(), ...completedByDate.keys(), ...removedByDate.keys(), todayAESTStr]);
-        const sortedDates = [...dates].sort();
-
-        // Compute running totals
-        let cumulativeOpen = 0;
-        let cumulativeDone = 0;
-        for (const date of sortedDates) {
-            const added = addedByDate.get(date) ?? 0;
-            const completed = completedByDate.get(date) ?? 0;
-            const removed = removedByDate.get(date) ?? 0;
-            cumulativeOpen += added - completed - removed;
-            cumulativeDone += completed;
-            taskHistory.push({
-                date,
-                open: cumulativeOpen,
-                done: cumulativeDone,
-                added,
-                completed,
-                removed,
-            });
-        }
-    } else {
-        // Fallback to snapshot-based trajectory if no tasks table data
-        taskHistory = [...taskRows].reverse().map(t => ({
-            date: t.date,
-            open: t.open_count,
-            done: t.done_count,
-            completed: t.completed_delta ?? 0,
-            added: t.added_delta ?? 0,
-            removed: t.removed_delta ?? 0,
-        }));
-    }
-
-    const totalOpen = taskHistory.length > 0 ? taskHistory[taskHistory.length - 1].open : (latestTask?.open_count ?? 0);
-    const totalDone = taskHistory.length > 0 ? taskHistory[taskHistory.length - 1].done : (latestTask?.done_count ?? 0);
+    // Sort oldest→newest for the chart
+    const taskHistory = [...taskRows].reverse().map(t => ({
+        date: t.date,
+        open: t.open_count,
+        done: t.done_count,
+        completed: t.completed_delta ?? 0,
+        added: t.added_delta ?? 0,
+        removed: 0,
+    }));
 
     const tasks = latestTask ? {
         updated_at: latestTask.updated_at,
-        total_open: totalOpen,
-        total_done: totalDone,
+        total_open: latestTask.open_count,
+        total_done: latestTask.done_count,
         overdue_count: latestTask.overdue_count,
         categories: latestTask.categories ?? {},
         overdue_tasks: latestTask.overdue_tasks ?? [],
