@@ -755,13 +755,19 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     onDrop={(e) => {
                                         e.preventDefault();
                                         setDragOverSlot(null);
+                                        // Calculate sub-hour offset from drop Y position (snap to 15min)
+                                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                        const yInSlot = e.clientY - rect.top;
+                                        const fracMins = (yInSlot / hourHeight) * 60;
+                                        const snapMins = Math.round(fracMins / 15) * 15;
+                                        const minuteOffset = Math.max(0, Math.min(45, snapMins));
                                         const data = e.dataTransfer.getData('text/plain');
                                         try {
                                             const parsed = JSON.parse(data);
                                             if (parsed.eventId) {
                                                 // Event move: compute new start/end preserving duration
                                                 const newStart = new Date(date);
-                                                newStart.setHours(h, 0, 0, 0);
+                                                newStart.setHours(h, minuteOffset, 0, 0);
                                                 const newEnd = new Date(newStart.getTime() + (parsed.durationMins ?? 60) * 60000);
                                                 onEventMove(parsed.eventId, newStart.toISOString(), newEnd.toISOString());
                                             } else if (parsed.taskName) {
