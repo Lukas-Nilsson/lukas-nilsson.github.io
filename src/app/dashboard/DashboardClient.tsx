@@ -797,16 +797,15 @@ function CalendarWidget() {
 
     // Habit keyword matching (mirrors calendar page logic)
     const WIDGET_HABITS = [
-        { icon: '🦷', label: 'Brush Teeth', keywords: ['teeth', 'brush', 'floss'] },
-        { icon: '😴', label: 'Bedtime', keywords: ['sleep', 'bed', 'chamomile', 'wind'] },
-        { icon: '☀️', label: 'Wake', keywords: ['wake', 'morning'] },
-        { icon: '📱', label: 'Phone Down', keywords: ['phone'] },
-        { icon: '🧘', label: 'Meditation', keywords: ['meditat', 'mindful', 'breathe', 'calm'] },
-        { icon: '💧', label: 'Hydration', keywords: ['water', 'hydrat', 'drink'] },
+        { icon: '🦷', label: 'Brush Teeth', keywords: ['brush teeth', 'floss', 'dental', 'oral hygiene'] },
+        { icon: '😴', label: 'Bedtime', keywords: ['wind down', 'bedtime', 'sleep routine', 'chamomile', 'nighttime routine'] },
+        { icon: '☀️', label: 'Wake', keywords: ['morning routine', 'wake up', 'sunrise'] },
+        { icon: '📱', label: 'Phone Down', keywords: ['phone down', 'screen time', 'digital detox', 'no phone'] },
+        { icon: '🧘', label: 'Meditation', keywords: ['meditat', 'mindful', 'breathwork'] },
+        { icon: '💧', label: 'Hydration', keywords: ['hydrat', 'water intake', 'drink water'] },
     ];
-    // Only match habits for events explicitly marked as habit-source
-    const matchHabits = (title: string, source?: string) => {
-        if (source !== 'habit') return [];
+    // Match habits with curated, specific keywords (no false positives)
+    const matchHabits = (title: string) => {
         const lower = title.toLowerCase();
         return WIDGET_HABITS.filter(h => h.keywords.some(k => lower.includes(k)));
     };
@@ -830,7 +829,7 @@ function CalendarWidget() {
                     const isPast = endMins < currentMins;
                     const isNow = startMins <= currentMins && currentMins < endMins;
                     const taskNames = ev.source_id ? ev.source_id.split(',').map(s => s.trim()).filter(Boolean) : [];
-                    const matchedHabits = matchHabits(ev.title, ev.source);
+                    const matchedHabits = matchHabits(ev.title);
                     return (
                         <div key={ev.id} style={{
                             display: 'flex', alignItems: 'center', gap: 'var(--space-2)',

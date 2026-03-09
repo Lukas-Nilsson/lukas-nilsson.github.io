@@ -58,12 +58,12 @@ interface HabitDef {
 }
 
 const HABITS: HabitDef[] = [
-    { key: 'teeth', label: 'Brush Teeth', icon: '🦷', keywords: ['teeth', 'brush', 'floss'] },
-    { key: 'bedtime', label: 'Bedtime', icon: '🌙', keywords: ['sleep', 'bed', 'chamomile', 'wind'] },
-    { key: 'wake', label: 'Wake', icon: '🌅', keywords: ['wake', 'morning'] },
-    { key: 'phone_down', label: 'Phone Down', icon: '📱', keywords: ['phone'] },
-    { key: 'meditation', label: 'Meditation', icon: '🧘', keywords: ['meditat', 'mindful', 'breathe', 'calm'] },
-    { key: 'hydration', label: 'Hydration', icon: '💧', keywords: ['water', 'hydrat', 'drink'] },
+    { key: 'teeth', label: 'Brush Teeth', icon: '🦷', keywords: ['brush teeth', 'floss', 'dental', 'oral hygiene'] },
+    { key: 'bedtime', label: 'Bedtime', icon: '🌙', keywords: ['wind down', 'bedtime', 'sleep routine', 'chamomile', 'nighttime routine'] },
+    { key: 'wake', label: 'Wake', icon: '🌅', keywords: ['morning routine', 'wake up', 'sunrise'] },
+    { key: 'phone_down', label: 'Phone Down', icon: '📱', keywords: ['phone down', 'screen time', 'digital detox', 'no phone'] },
+    { key: 'meditation', label: 'Meditation', icon: '🧘', keywords: ['meditat', 'mindful', 'breathwork'] },
+    { key: 'hydration', label: 'Hydration', icon: '💧', keywords: ['hydrat', 'water intake', 'drink water'] },
 ];
 
 const accountColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -197,16 +197,11 @@ function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
 }
 
 function matchHabitsToEvent(ev: CalendarEvent): HabitDef[] {
-    // Disabled auto-matching — habit keywords (water, morning, phone, etc.) are too
-    // generic and produce false positives on most events. Habits should only be
-    // associated with events explicitly (source: 'habit' or manual association).
-    // The UI shows habit icons on events that have source === 'habit'.
-    if (ev.source === 'habit') {
-        // Match based on the event title for source:'habit' events
-        const lower = ev.title.toLowerCase();
-        return HABITS.filter(h => h.keywords.some(kw => lower.includes(kw)));
-    }
-    return [];
+    const lower = ev.title.toLowerCase();
+    // Match habits whose curated keywords appear in the event title.
+    // Keywords are now specific phrases/terms (e.g. 'meditat', 'brush teeth',
+    // 'wind down') rather than generic words, so false positives are minimal.
+    return HABITS.filter(h => h.keywords.some(kw => lower.includes(kw)));
 }
 
 // ─── Cache Helpers ───────────────────────────────────────────────────────────
