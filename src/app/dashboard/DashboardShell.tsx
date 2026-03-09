@@ -23,7 +23,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         { icon: '◈', label: 'Habits', href: '/dashboard/habits' },
         { icon: '◇', label: 'Tasks', href: '/dashboard/tasks' },
         { icon: '▦', label: 'Calendar', href: '/dashboard/calendar' },
-        { icon: '⬡', label: '75 Hard', href: '/dashboard/75-hard' },
     ];
 
     return (

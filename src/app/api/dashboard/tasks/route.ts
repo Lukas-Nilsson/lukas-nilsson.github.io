@@ -1,19 +1,34 @@
-import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAuth } from '@/lib/supabase/auth-guard';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+    getAccessToken,
+    getAllTasks,
+    mapClickUpTask,
+    updateTask as clickupUpdateTask,
+    createTask as clickupCreateTask,
+    deleteTask as clickupDeleteTask,
+    getListIdForCategory,
+    composeDescription,
+    parseDescription,
+    getTask as clickupGetTask,
+    REVERSE_PRIORITY_MAP,
+    type ClickUpTask,
+} from '@/lib/clickup';
 
 /**
  * PATCH /api/dashboard/tasks
  *
+ * All mutations go directly to ClickUp (live, single source of truth).
+ *
  * Actions:
  *   { task_name, category, action: 'complete' }
  *   { task_name, action: 'uncomplete' }
- *   { task_name, action: 'update_metadata', priority?, due_date?, waiting_on?, notes?, context?, parent_task? }
+ *   { task_name, action: 'update_metadata', priority?, due_date?, context?, notes?, waiting_on?, location? }
  *   { task_name, action: 'rename', new_name: string }
- *   { task_name, action: 'delete' }       — removes task from all tables + snapshots
- *   { task_name, action: 'abandon' }      — soft-close (completed_by='abandoned')
- *   { task_name, category, action: 'add' } — creates a new task in snapshots
- *   { task_name, action: 'update_completed_at', completed_at: string } — change when a task was completed
+ *   { task_name, action: 'delete' }
+ *   { task_name, action: 'abandon' }
+ *   { task_name, category, action: 'add' }
  */
 export async function PATCH(req: NextRequest) {
     const { error: authError } = await requireAuth();
@@ -21,305 +36,198 @@ export async function PATCH(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { task_name, category, action, priority, due_date, waiting_on, notes, context, parent_task, new_name, completed_at, location } = body as {
+        const {
+            task_name, category, action, priority, due_date,
+            context, notes, waiting_on, location,
+            new_name, clickup_id: providedId,
+        } = body as {
             task_name: string;
             category?: string;
-            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon' | 'add' | 'update_completed_at';
+            action: 'complete' | 'uncomplete' | 'update_metadata' | 'rename' | 'delete' | 'abandon' | 'add' | 'set_status';
             priority?: string | null;
             due_date?: string | null;
-            waiting_on?: string | null;
-            notes?: string | null;
             context?: string | null;
-            parent_task?: string | null;
-            new_name?: string;
-            completed_at?: string;
+            notes?: string | null;
+            waiting_on?: string | null;
             location?: string | null;
+            new_name?: string;
+            clickup_id?: string;
+            clickup_status?: string;  // for set_status action
         };
 
         if (!task_name || !action) {
             return NextResponse.json({ error: 'task_name and action are required' }, { status: 400 });
         }
 
-        const supabase = createAdminClient();
+        // Find the ClickUp task ID — either provided directly or search ClickUp
+        let clickupId = providedId || null;
+        if (!clickupId && action !== 'add') {
+            // Search ClickUp directly (no Supabase dependency)
+            const { tasks: allTasks } = await getAllTasks();
+            const match = allTasks.find((t: ClickUpTask) => t.name === task_name);
+            clickupId = match?.id ?? null;
+        }
 
-        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-        const now = new Date().toISOString();
+        if (!clickupId && action !== 'add') {
+            return NextResponse.json({ error: `No ClickUp task found for "${task_name}"` }, { status: 404 });
+        }
 
         if (action === 'complete') {
-            const { error } = await supabase
-                .from('task_completions')
-                .upsert({
-                    task_name,
-                    category: category ?? null,
-                    notes: notes ?? null,
-                    completed_at: now,
-                    completed_by: 'manual',
-                }, { onConflict: 'task_name' });
-
-            if (error) {
-                console.error('[tasks PATCH] complete error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-            }
-
-            // Upsert tasks table (create row if it doesn't exist yet — e.g. tasks from markdown sync)
-            await supabase.from('tasks').upsert({
-                name: task_name,
-                status: 'done',
-                category: category ?? null,
-                completed_at: now,
-                updated_at: now,
-            }, { onConflict: 'name' });
-
-            // Increment completed_delta in today's snapshot
-            const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
-            if (snap) {
-                await supabase.from('task_snapshots').update({ completed_delta: (snap.completed_delta ?? 0) + 1 }).eq('date', today);
-            }
-
+            await clickupUpdateTask(clickupId!, { status: 'complete' });
             return NextResponse.json({ ok: true, task_name, action: 'complete' });
 
         } else if (action === 'uncomplete') {
-            const { error } = await supabase
-                .from('task_completions')
-                .delete()
-                .eq('task_name', task_name);
-
-            if (error) {
-                console.error('[tasks PATCH] uncomplete error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-            }
-
-            // Upsert tasks table back to open
-            await supabase.from('tasks').upsert({
-                name: task_name,
-                status: 'open',
-                completed_at: null,
-                updated_at: now,
-            }, { onConflict: 'name' });
-
-            // Decrement completed_delta in today's snapshot
-            const { data: snap } = await supabase.from('task_snapshots').select('completed_delta').eq('date', today).single();
-            if (snap) {
-                await supabase.from('task_snapshots').update({ completed_delta: Math.max(0, (snap.completed_delta ?? 0) - 1) }).eq('date', today);
-            }
-
+            await clickupUpdateTask(clickupId!, { status: 'to do' });
             return NextResponse.json({ ok: true, task_name, action: 'uncomplete' });
 
         } else if (action === 'update_metadata') {
-            const { error } = await supabase
-                .from('task_metadata')
-                .upsert({
-                    task_name,
-                    priority: priority ?? null,
-                    due_date: due_date ?? null,
-                    waiting_on: waiting_on ?? null,
-                    notes: notes ?? null,
-                    context: context ?? null,
-                    parent_task: parent_task ?? null,
-                    location: location ?? null,
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'task_name' });
+            const updateData: Parameters<typeof clickupUpdateTask>[1] = {};
 
-            if (error) {
-                console.error('[tasks PATCH] metadata error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+            // Priority → ClickUp native priority
+            if (priority !== undefined) {
+                updateData.priority = priority ? (REVERSE_PRIORITY_MAP[priority] ?? null) : null;
             }
+
+            // Due date → Unix ms
+            if (due_date !== undefined) {
+                updateData.due_date = due_date ? new Date(due_date + 'T23:59:59+11:00').getTime() : null;
+            }
+
+            // Compose structured description from all metadata fields
+            // First, fetch current task to preserve existing fields that aren't being updated
+            const currentTask = await clickupGetTask(clickupId!);
+            const currentFields = parseDescription(currentTask.description);
+
+            const composedDescription = composeDescription({
+                context: context !== undefined ? context : currentFields.context,
+                notes: notes !== undefined ? notes : currentFields.notes,
+                waiting_on: waiting_on !== undefined ? waiting_on : currentFields.waiting_on,
+                location: location !== undefined ? location : currentFields.location,
+            });
+
+            updateData.description = composedDescription;
+
+            await clickupUpdateTask(clickupId!, updateData);
             return NextResponse.json({ ok: true, task_name, action: 'update_metadata' });
 
         } else if (action === 'rename') {
-            if (!new_name || !new_name.trim()) {
+            if (!new_name?.trim()) {
                 return NextResponse.json({ error: 'new_name is required for rename' }, { status: 400 });
             }
-            const trimmedName = new_name.trim();
-
-            // Atomic rename across all tables via stored procedure
-            const { error } = await supabase.rpc('rename_task', {
-                old_name: task_name,
-                new_name: trimmedName,
-                snapshot_date: today,
-            });
-
-            if (error) {
-                console.error('[tasks PATCH] rename error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-            }
-
-            return NextResponse.json({ ok: true, task_name, new_name: trimmedName, action: 'rename' });
+            await clickupUpdateTask(clickupId!, { name: new_name.trim() });
+            // Also update the Supabase mapping table
+            const supabase = createAdminClient();
+            await supabase.from('tasks').update({ name: new_name.trim() }).eq('clickup_id', clickupId!);
+            return NextResponse.json({ ok: true, task_name, new_name: new_name.trim(), action: 'rename' });
 
         } else if (action === 'delete') {
-            // Atomic delete across all tables via stored procedure
-            const { error } = await supabase.rpc('delete_task', {
-                p_task_name: task_name,
-                snapshot_date: today,
-            });
-
-            if (error) {
-                console.error('[tasks PATCH] delete error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-            }
-
+            await clickupDeleteTask(clickupId!);
+            const supabase = createAdminClient();
+            await supabase.from('tasks').delete().eq('clickup_id', clickupId!);
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
 
         } else if (action === 'abandon') {
-            // Mark as abandoned — keeps it in the system but out of the pile
-            const { error } = await supabase
-                .from('task_completions')
-                .upsert({
-                    task_name,
-                    category: category ?? null,
-                    notes: notes ?? 'Abandoned',
-                    completed_at: now,
-                    completed_by: 'abandoned',
-                }, { onConflict: 'task_name' });
-
-            if (error) {
-                console.error('[tasks PATCH] abandon error:', error);
-                return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-            }
-
-            // Update tasks table
-            await supabase.from('tasks').update({ status: 'abandoned', completed_at: now, updated_at: now }).eq('name', task_name);
-
-            // Track as removed from pile (not completed — abandoned)
-            const { data: snap } = await supabase.from('task_snapshots').select('removed_delta').eq('date', today).single();
-            if (snap) {
-                await supabase.from('task_snapshots').update({ removed_delta: (snap.removed_delta ?? 0) + 1 }).eq('date', today);
-            }
-
+            await clickupUpdateTask(clickupId!, { status: 'closed' });
             return NextResponse.json({ ok: true, task_name, action: 'abandon' });
 
         } else if (action === 'add') {
             if (!category) {
                 return NextResponse.json({ error: 'category is required for add' }, { status: 400 });
             }
-
-            // Add to today's task_snapshots categories JSON
-            const { data: snap } = await supabase
-                .from('task_snapshots')
-                .select('date, categories, open_count, done_count, added_delta')
-                .eq('date', today)
-                .single();
-
-            if (!snap) {
-                return NextResponse.json({ error: 'No snapshot for today — run a sync first' }, { status: 400 });
+            const listId = await getListIdForCategory(category);
+            if (!listId) {
+                return NextResponse.json({ error: `No ClickUp list found for category "${category}"` }, { status: 404 });
             }
-
-            const cats = (snap.categories ?? {}) as Record<string, { tasks?: string[]; open?: number; done?: number;[k: string]: unknown }>;
-
-            // Check for duplicate
-            for (const [, catData] of Object.entries(cats)) {
-                if (catData.tasks?.includes(task_name)) {
-                    return NextResponse.json({ error: 'Task already exists' }, { status: 409 });
-                }
-            }
-
-            // Add to category (create if needed)
-            if (!cats[category]) {
-                cats[category] = { tasks: [], open: 0, done: 0 };
-            }
-            cats[category].tasks = [...(cats[category].tasks ?? []), task_name];
-            cats[category].open = (cats[category].open ?? 0) + 1;
-
-            await supabase
-                .from('task_snapshots')
-                .update({
-                    categories: cats,
-                    open_count: (snap.open_count ?? 0) + 1,
-                    added_delta: (snap.added_delta ?? 0) + 1,
-                })
-                .eq('date', today);
-
-            // Add to tasks table
+            const newTask = await clickupCreateTask(listId, {
+                name: task_name,
+                priority: priority ? (REVERSE_PRIORITY_MAP[priority] ?? undefined) : undefined,
+                due_date: due_date ? new Date(due_date + 'T23:59:59+11:00').getTime() : undefined,
+            });
+            // Store mapping
+            const supabase = createAdminClient();
             await supabase.from('tasks').upsert({
                 name: task_name,
+                clickup_id: newTask.id,
                 category,
                 status: 'open',
-                tags: [],
-                progress: 0,
-                created_at: now,
-                updated_at: now,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
             }, { onConflict: 'name' });
+            return NextResponse.json({ ok: true, task_name, category, clickup_id: newTask.id, action: 'add' });
 
-            // Optionally set initial metadata if priority was provided
-            if (priority) {
-                await supabase.from('task_metadata').upsert({
-                    task_name,
-                    priority: priority ?? null,
-                    due_date: due_date ?? null,
-                    waiting_on: waiting_on ?? null,
-                    notes: notes ?? null,
-                    context: context ?? null,
-                    parent_task: parent_task ?? null,
-                    updated_at: now,
-                }, { onConflict: 'task_name' });
+        } else if (action === 'set_status') {
+            const { clickup_status: newStatus } = body as { clickup_status: string };
+            if (!newStatus) {
+                return NextResponse.json({ error: 'clickup_status is required for set_status' }, { status: 400 });
             }
-
-            return NextResponse.json({ ok: true, task_name, category, action: 'add' });
-
-        } else if (action === 'update_completed_at') {
-            if (!completed_at) {
-                return NextResponse.json({ error: 'completed_at is required' }, { status: 400 });
-            }
-            // Parse the date string (YYYY-MM-DD) and set to noon AEST to avoid timezone issues
-            const dateISO = new Date(completed_at + 'T12:00:00+11:00').toISOString();
-
-            // Update task_completions
-            await supabase.from('task_completions')
-                .update({ completed_at: dateISO })
-                .eq('task_name', task_name);
-
-            // Update tasks table
-            await supabase.from('tasks')
-                .update({ completed_at: dateISO, updated_at: now })
-                .eq('name', task_name);
-
-            return NextResponse.json({ ok: true, task_name, completed_at: dateISO, action: 'update_completed_at' });
+            await clickupUpdateTask(clickupId!, { status: newStatus });
+            return NextResponse.json({ ok: true, task_name, clickup_status: newStatus, action: 'set_status' });
         }
 
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     } catch (e) {
-        console.error('[tasks PATCH] Unexpected error:', e);
+        console.error('[tasks PATCH] Error:', e);
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
 
 /**
  * GET /api/dashboard/tasks
- * Returns completions + metadata for all tasks.
+ *
+ * Fetches all tasks directly from ClickUp and returns them in the shape
+ * the dashboard UI expects (completions + metadata).
  */
 export async function GET() {
     const { error: authError } = await requireAuth();
     if (authError) return authError;
 
     try {
-        const supabase = createAdminClient();
+        await getAccessToken();
 
-        const [compRes, metaRes, snapRes] = await Promise.all([
-            supabase.from('task_completions').select('task_name,category,completed_at,completed_by,notes'),
-            supabase.from('task_metadata').select('task_name,priority,due_date,waiting_on,notes,context,parent_task,location,updated_at'),
-            supabase.from('task_snapshots').select('categories').order('date', { ascending: false }).limit(1).single(),
-        ]);
+        const { tasks: clickupTasks } = await getAllTasks();
 
-        if (compRes.error) console.error('[tasks GET] completions error:', compRes.error);
-        if (metaRes.error) console.error('[tasks GET] metadata error:', metaRes.error);
+        const completions: { task_name: string; category: string; completed_at: string; completed_by: string; notes: string | null }[] = [];
+        const metadata: {
+            task_name: string; clickup_id: string; clickup_status: string; priority: string | null; due_date: string | null;
+            waiting_on: string | null; notes: string | null; context: string | null;
+            parent_task: string | null; location: string | null; url: string;
+        }[] = [];
 
-        // Build full task list from snapshot categories (the source of truth for the pile)
-        const allTasks: { task_name: string; category: string }[] = [];
-        if (snapRes.data?.categories) {
-            for (const [cat, data] of Object.entries(snapRes.data.categories as Record<string, { tasks?: string[] }>)) {
-                for (const taskName of data.tasks ?? []) {
-                    allTasks.push({ task_name: taskName, category: cat });
-                }
+        // Build parent name lookup
+        const idToName = new Map<string, string>(clickupTasks.map((t: ClickUpTask) => [t.id, t.name]));
+
+        for (const task of clickupTasks) {
+            const mapped = mapClickUpTask(task);
+
+            if (mapped.status === 'done' || mapped.status === 'abandoned') {
+                completions.push({
+                    task_name: mapped.name,
+                    category: mapped.category,
+                    completed_at: mapped.completed_at ?? new Date().toISOString(),
+                    completed_by: mapped.status === 'abandoned' ? 'abandoned' : 'manual',
+                    notes: null,
+                });
             }
+
+            const parentName = task.parent ? (idToName.get(task.parent) ?? null) : null;
+            metadata.push({
+                task_name: mapped.name,
+                clickup_id: mapped.clickup_id,
+                clickup_status: mapped.clickup_status,
+                priority: mapped.priority,
+                due_date: mapped.due_date,
+                waiting_on: mapped.waiting_on,
+                notes: mapped.notes,
+                context: mapped.context,
+                parent_task: parentName,
+                location: mapped.location,
+                url: mapped.url,
+            });
         }
 
-        return NextResponse.json({
-            completions: compRes.data ?? [],
-            metadata: metaRes.data ?? [],
-            allTasks,
-        });
+        return NextResponse.json({ completions, metadata });
     } catch (e) {
-        console.error('[tasks GET] Unexpected error:', e);
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        console.error('[tasks GET] Error fetching from ClickUp:', e);
+        return NextResponse.json({ completions: [], metadata: [] });
     }
 }

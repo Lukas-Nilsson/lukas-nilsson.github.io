@@ -6,43 +6,35 @@ import DashboardShell from '../DashboardShell';
 import styles from '../dashboard.module.css';
 
 interface HabitDay {
-    date: string; day: number | null; today_complete: boolean;
+    date: string;
     checks: Record<string, { done: boolean; time: string | null }>;
-    discipline_score: number; finish_confidence: number | null;
+    discipline_score: number;
 }
 
-// All daily habits — unified list
+// All daily habits
 const allHabits = [
-    { key: 'workout1', icon: '🏃', label: 'Outdoor Workout', group: '75 Hard', weight: 15 },
-    { key: 'workout2', icon: '💪', label: '2nd Workout', group: '75 Hard', weight: 15 },
-    { key: 'water', icon: '💧', label: 'Gallon Water', group: '75 Hard', weight: 12 },
-    { key: 'diet', icon: '🥗', label: 'Whole Foods', group: '75 Hard', weight: 12 },
-    { key: 'reading', icon: '📖', label: '10 Pages', group: '75 Hard', weight: 10 },
     { key: 'teeth', icon: '🦷', label: 'Brush teeth (AM + PM)', group: 'Health', weight: 12 },
     { key: 'bedtime', icon: '🌙', label: 'In bed by 11pm', group: 'Sleep', weight: 12 },
     { key: 'wake', icon: '🌅', label: 'Up by 7am', group: 'Sleep', weight: 12 },
     { key: 'phone_down', icon: '📱', label: 'Phone Down by 11:30pm', group: 'Sleep', weight: 12 },
+    { key: 'meditation', icon: '🧘', label: 'Meditation', group: 'Mind', weight: 15 },
+    { key: 'hydration', icon: '💧', label: 'Hydration', group: 'Health', weight: 12 },
 ];
 
 const totalWeight = allHabits.reduce((s, h) => s + h.weight, 0);
 
 const habitIdMap: Record<string, string> = {
-    workout1: 'workout_outdoor', workout2: 'workout_2',
-    water: 'water', diet: 'diet', reading: 'reading',
     teeth: 'teeth', bedtime: 'bedtime', wake: 'wake',
-    phone_down: 'phone_down',
+    phone_down: 'phone_down', meditation: 'meditation', hydration: 'hydration',
 };
 
 const modalFields: Record<string, { descLabel: string; timeLabel?: string }> = {
-    workout1: { descLabel: 'Workout description', timeLabel: 'Duration / time' },
-    workout2: { descLabel: 'Workout description', timeLabel: 'Duration / time' },
-    water: { descLabel: 'Notes' },
-    diet: { descLabel: 'What you ate' },
-    reading: { descLabel: 'Title / chapter' },
     teeth: { descLabel: 'Notes' },
     bedtime: { descLabel: 'Notes', timeLabel: 'Actual bedtime' },
     wake: { descLabel: 'Notes', timeLabel: 'Actual wake time' },
     phone_down: { descLabel: 'Notes', timeLabel: 'Last message time' },
+    meditation: { descLabel: 'Notes', timeLabel: 'Duration' },
+    hydration: { descLabel: 'Notes' },
 };
 
 function shortDate(d: string) {
@@ -150,7 +142,7 @@ export default function HabitsPage() {
         fetch('/api/dashboard')
             .then(r => r.json())
             .then(d => {
-                const hist = d.hard75History ?? [];
+                const hist = d.habitHistory ?? [];
                 setHistory(hist);
                 setIdx(hist.length - 1);
                 setLastSynced(d.lastSynced ?? null);
@@ -162,11 +154,6 @@ export default function HabitsPage() {
     const today = history[history.length - 1];
     const data = history[idx];
     const isViewingToday = idx === history.length - 1;
-    const isChallenge = data?.day != null;
-    const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
-
-    // On non-challenge days, filter out 75-hard-specific habits
-    const activeDefs = isChallenge ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
 
     const getCheck = (key: string) => {
         if (isViewingToday && overrides[key] !== undefined) return overrides[key];
@@ -195,7 +182,6 @@ export default function HabitsPage() {
         let count = 0;
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
-            if (d.day == null && hard75Keys.has(key)) continue;
             if (d.checks?.[key]?.done) count++;
             else break;
         }
@@ -206,7 +192,6 @@ export default function HabitsPage() {
     const bestStreak = (key: string): number => {
         let best = 0, current = 0;
         for (const d of history) {
-            if (d.day == null && hard75Keys.has(key)) continue;
             if (d.checks?.[key]?.done) { current++; best = Math.max(best, current); }
             else current = 0;
         }
@@ -214,20 +199,17 @@ export default function HabitsPage() {
     };
 
     const completionRate = (key: string): number => {
-        const applicable = history.filter(d => !(d.day == null && hard75Keys.has(key)));
-        if (!applicable.length) return 0;
-        return Math.round(applicable.filter(d => d.checks?.[key]?.done).length / applicable.length * 100);
+        if (!history.length) return 0;
+        return Math.round(history.filter(d => d.checks?.[key]?.done).length / history.length * 100);
     };
 
     // ── Discipline score breakdown ──
-    const viewDoneCount = activeDefs.filter(c => getCheck(c.key).done).length;
+    const viewDoneCount = allHabits.filter(c => getCheck(c.key).done).length;
     const viewScore = useMemo(() => {
-        const activeWeight = activeDefs.reduce((s, h) => s + h.weight, 0);
-        const doneWeight = activeDefs.filter(h => getCheck(h.key).done).reduce((s, h) => s + h.weight, 0);
-        return activeWeight > 0 ? Math.round((doneWeight / activeWeight) * 100) : 0;
+        const doneWeight = allHabits.filter(h => getCheck(h.key).done).reduce((s, h) => s + h.weight, 0);
+        return totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeDefs, overrides, data]);
-    // For overall streak, use today's count
+    }, [overrides, data]);
     const todayDoneCount = isViewingToday ? viewDoneCount : (today ? allHabits.filter(c => today.checks?.[c.key]?.done).length : 0);
 
     // ── Chart ──
@@ -245,12 +227,10 @@ export default function HabitsPage() {
         let count = 0;
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
-            const dayHabits = d.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
-            if (dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done)) count++;
+            if (allHabits.length > 0 && allHabits.every(c => d.checks?.[c.key]?.done)) count++;
             else break;
         }
-        const todayActiveDefs = today?.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
-        if (count > 0 && todayDoneCount === todayActiveDefs.length) count++;
+        if (count > 0 && todayDoneCount === allHabits.length) count++;
         return count;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [history, overrides, todayDoneCount]);
@@ -258,13 +238,13 @@ export default function HabitsPage() {
     // ── Groups for rendering ──
     const groups = useMemo(() => {
         const map = new Map<string, typeof allHabits>();
-        activeDefs.forEach(h => {
+        allHabits.forEach(h => {
             const arr = map.get(h.group) ?? [];
             arr.push(h);
             map.set(h.group, arr);
         });
         return Array.from(map.entries());
-    }, [activeDefs]);
+    }, []);
 
     if (loading) return (
         <DashboardShell>
@@ -301,7 +281,7 @@ export default function HabitsPage() {
                                     {shortDate(data.date)}
                                 </div>
                                 <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
-                                    {isChallenge ? `Day ${data.day}` : ''}{isViewingToday ? (isChallenge ? ' · Today' : 'Today') : ''}
+                                    {isViewingToday ? 'Today' : 'Historical'}
                                 </div>
                             </div>
                             <button className={styles.dayNavBtn} onClick={() => setIdx(i => Math.min(history.length - 1, i + 1))} disabled={idx === history.length - 1}>›</button>
@@ -317,12 +297,11 @@ export default function HabitsPage() {
                 {/* Daily habits */}
                 <div className={styles.widget}>
                     <div className={styles.kanbanHeader}>
-                        <ProgressRing done={viewDoneCount} total={activeDefs.length} />
+                        <ProgressRing done={viewDoneCount} total={allHabits.length} />
                         <div style={{ flex: 1 }}>
                             <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>{isViewingToday ? 'Today' : shortDate(data.date)}</div>
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                {isChallenge ? `Day ${data.day} of 75 Hard` : ''}
-                                {!isViewingToday ? ' · View only' : ''}
+                                {!isViewingToday ? 'View only' : 'Daily tracking'}
                             </div>
                         </div>
                         {overallStreak > 0 && isViewingToday && (
@@ -398,12 +377,12 @@ export default function HabitsPage() {
                         <span className={styles.widgetBadge} style={{ fontSize: 18, fontWeight: 800, color: viewScore >= 80 ? '#6db86d' : viewScore >= 50 ? '#c9a84c' : '#c07070' }}>{viewScore}%</span>
                     </div>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: '0 0 var(--space-3)', maxWidth: 'none' }}>
-                        Each habit has a weighted contribution. Completing habits earlier in the day boosts your score further. Don&apos;t leave them to the last minute.
+                        Each habit has a weighted contribution. Build streaks to boost your daily score.
                     </p>
 
                     {/* Per-habit contribution bars */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                        {activeDefs.map(h => {
+                        {allHabits.map(h => {
                             const done = getCheck(h.key).done;
                             const contribution = Math.round((h.weight / totalWeight) * 100);
                             const earned = done ? contribution : 0;
@@ -418,7 +397,6 @@ export default function HabitsPage() {
                                             background: done ? '#5a9a5a' : 'transparent',
                                             transition: 'width 0.3s ease',
                                         }} />
-                                        {/* Weight marker */}
                                         <div style={{
                                             position: 'absolute', top: 0, right: 0, bottom: 0,
                                             width: 1, background: 'var(--color-text-muted)', opacity: 0.3,
@@ -442,7 +420,7 @@ export default function HabitsPage() {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
                         <span>
-                            {activeDefs.filter(h => getCheck(h.key).done).length} of {activeDefs.length} habits done
+                            {allHabits.filter(h => getCheck(h.key).done).length} of {allHabits.length} habits done
                         </span>
                         <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>
                             = {viewScore}% discipline
@@ -468,7 +446,7 @@ export default function HabitsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {activeDefs.map(c => {
+                                {allHabits.map(c => {
                                     const rate = completionRate(c.key);
                                     const current = perHabitStreak(c.key);
                                     const best2 = bestStreak(c.key);
@@ -514,18 +492,13 @@ export default function HabitsPage() {
 
                 {/* Monthly contribution heatmap — GitHub-style */}
                 {history.length > 1 && (() => {
-                    // Build date → completion fraction map
                     const dateMap = new Map<string, number>();
                     history.forEach(d => {
-                        const dayHabits = d.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
-                        const dayDone = dayHabits.filter(h => d.checks?.[h.key]?.done).length;
-                        dateMap.set(d.date, dayHabits.length > 0 ? dayDone / dayHabits.length : 0);
+                        const dayDone = allHabits.filter(h => d.checks?.[h.key]?.done).length;
+                        dateMap.set(d.date, allHabits.length > 0 ? dayDone / allHabits.length : 0);
                     });
 
-                    // Generate all days for the last 5 full weeks (always 35 days, ending on today's weekday)
                     const todayDate = new Date();
-                    const todayDow = todayDate.getDay(); // 0=Sun
-                    // Go back enough to fill 5 full weeks ending today
                     const totalDays = 5 * 7;
                     const startOffset = totalDays - 1;
                     const cells: { date: string; dow: number; pct: number; dayNum: number; monthStr: string }[] = [];
@@ -543,13 +516,11 @@ export default function HabitsPage() {
                         });
                     }
 
-                    // Group into weeks (each 7 cells, already aligned)
                     const weeks: typeof cells[] = [];
                     for (let i = 0; i < cells.length; i += 7) {
                         weeks.push(cells.slice(i, i + 7));
                     }
 
-                    // Month labels: for each week, show the month of the first day if it differs from previous
                     const monthLabels: (string | null)[] = [];
                     let lastMonth = '';
                     weeks.forEach(week => {
@@ -626,7 +597,7 @@ export default function HabitsPage() {
                     );
                 })()}
 
-                {/* 7-day heatmap */}
+                {/* 14-day history table */}
                 {history.length > 1 && (
                     <div className={styles.widget}>
                         <div className={styles.widgetHeader}>
@@ -637,7 +608,7 @@ export default function HabitsPage() {
                                 <thead>
                                     <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                                         <td style={{ padding: '6px', fontWeight: 700, color: 'var(--color-text-muted)' }}>Date</td>
-                                        {activeDefs.map(h => (
+                                        {allHabits.map(h => (
                                             <td key={h.key} style={{ padding: '6px', textAlign: 'center', fontSize: 14 }} title={h.label}>{h.icon}</td>
                                         ))}
                                         <td style={{ padding: '6px', textAlign: 'center', fontWeight: 700, color: 'var(--color-text-muted)' }}>Score</td>
@@ -645,20 +616,16 @@ export default function HabitsPage() {
                                 </thead>
                                 <tbody>
                                     {[...history].reverse().slice(0, 14).map(d => {
-                                        const dayHabits = d.day != null ? allHabits : allHabits.filter(h => !hard75Keys.has(h.key));
-                                        const dayDone = dayHabits.filter(h => d.checks?.[h.key]?.done).length;
-                                        const dayTotal = dayHabits.length;
+                                        const dayDone = allHabits.filter(h => d.checks?.[h.key]?.done).length;
+                                        const dayTotal = allHabits.length;
                                         return (
                                             <tr key={d.date} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                                 <td style={{ padding: '6px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{shortDate(d.date)}</td>
-                                                {activeDefs.map(h => {
-                                                    const applicable = d.day != null || !hard75Keys.has(h.key);
-                                                    const done = applicable && d.checks?.[h.key]?.done;
+                                                {allHabits.map(h => {
+                                                    const done = d.checks?.[h.key]?.done;
                                                     return (
                                                         <td key={h.key} style={{ padding: '6px', textAlign: 'center' }}>
-                                                            {!applicable ? (
-                                                                <span style={{ color: 'var(--color-border)' }}>·</span>
-                                                            ) : done ? (
+                                                            {done ? (
                                                                 <span style={{ color: '#5a9a5a', fontWeight: 700 }}>✓</span>
                                                             ) : (
                                                                 <span style={{ color: '#c07070' }}>✗</span>

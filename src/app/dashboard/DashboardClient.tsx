@@ -9,11 +9,22 @@ import styles from './dashboard.module.css';
 
 interface Props { user: User; }
 
+interface HabitDefinition {
+    habit_id: string;
+    label: string;
+    icon: string;
+    tracking_start: string;
+    show_time: boolean;
+    show_notes: boolean;
+    default_to_now: boolean;
+    sort_order: number;
+}
+
 interface DashboardData {
     whoop: { date: string; recovery: number; hrv: number; rhr: number; strain: number; sleep_hours: number; sleep_performance: number } | null;
     whoopHistory: { date: string; recovery: number; hrv: number; strain: number; sleep_hours: number; sleep_performance: number }[];
-    hard75: { date: string; day: number; days_completed: number; today_complete: boolean; checks: Record<string, { done: boolean; time: string | null }>; finish_confidence: number } | null;
-    hard75History: { date: string; day: number; days_completed: number; today_complete: boolean; checks: Record<string, { done: boolean; time: string | null }>; finish_confidence: number; discipline_score: number }[];
+    habitHistory: { date: string; checks: Record<string, { done: boolean; time: string | null }>; discipline_score: number }[];
+    habitDefinitions?: HabitDefinition[];
     tasks: {
         updated_at: string; total_open: number; total_done: number;
         categories: Record<string, { open: number; done: number; tasks: string[]; overdue: { name: string; due: string }[] }>;
@@ -22,20 +33,27 @@ interface DashboardData {
     } | null;
     sleep: { date: string; performance: number; hours_in_bed: number; deep: number; rem: number; light: number }[];
     lastSynced: string | null;
-    todayAEST: string;  // YYYY-MM-DD in Australia/Melbourne — used to detect stale Whoop data
+    todayAEST: string;
 }
 
-const checkDefs = [
-    { key: 'workout1', icon: '🏃', label: 'Outdoor Workout' },
-    { key: 'workout2', icon: '💪', label: '2nd Workout' },
-    { key: 'water', icon: '💧', label: 'Gallon Water' },
-    { key: 'diet', icon: '🥗', label: 'Whole Foods Diet' },
-    { key: 'reading', icon: '📖', label: '10 Pages' },
+// Fallback check definitions — used when API hasn't returned habitDefinitions yet
+const FALLBACK_CHECK_DEFS = [
     { key: 'teeth', icon: '🦷', label: 'Brush Teeth' },
-    { key: 'bedtime', icon: '🛌', label: 'In Bed by 11pm' },
+    { key: 'bedtime', icon: '🌙', label: 'In Bed by 11pm' },
     { key: 'wake', icon: '🌅', label: 'Up by 7am' },
     { key: 'phone_down', icon: '📱', label: 'Phone Down', target: '11:30pm' },
+    { key: 'meditation', icon: '🧘', label: 'Meditation' },
+    { key: 'hydration', icon: '💧', label: 'Hydration' },
 ];
+
+// Build checkDefs from API habitDefinitions (with fallback)
+function buildCheckDefs(defs?: HabitDefinition[]) {
+    if (!defs?.length) return FALLBACK_CHECK_DEFS;
+    return defs.map(d => ({ key: d.habit_id, icon: d.icon, label: d.label }));
+}
+
+// Default export for components that use checkDefs outside DashboardClient
+let checkDefs = FALLBACK_CHECK_DEFS;
 
 const catColors: Record<string, string> = {
     Wedding: '#a07040', THA: '#7a5030', Home: '#8a7a5a',
@@ -192,28 +210,28 @@ function PileTrajectoryWidget({ data, selectedDate }: { data: DashboardData['tas
 }
 
 // ─── Per-habit modal field config ────────────────────────────────────────────
-const habitFields: Record<string, { showTime: boolean; showDescription: boolean; showNotes: boolean; timePlaceholder?: string }> = {
-    workout1: { showTime: true, showDescription: true, showNotes: true, timePlaceholder: 'e.g. 15:00' },
-    workout2: { showTime: true, showDescription: true, showNotes: true, timePlaceholder: 'e.g. 18:30' },
-    water: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'Time finished' },
-    diet: { showTime: false, showDescription: false, showNotes: true },
-    reading: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'Time finished' },
+const habitFields: Record<string, { showTime: boolean; showDescription: boolean; showNotes: boolean; timePlaceholder?: string; defaultToNow?: boolean }> = {
     teeth: { showTime: false, showDescription: false, showNotes: false },
     bedtime: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 22:45' },
     wake: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 06:30' },
+    phone_down: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 23:30', defaultToNow: true },
+    meditation: { showTime: true, showDescription: false, showNotes: true, timePlaceholder: 'Duration e.g. 10 min', defaultToNow: true },
+    hydration: { showTime: false, showDescription: false, showNotes: true },
 };
 
-// ─── Habit ID mapping (UI key → new habit_id) ────────────────────────────────
+// Helper: get current Melbourne time as HH:MM
+function getMelbourneTime(): string {
+    return new Date().toLocaleTimeString('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// ─── Habit ID mapping (UI key → habit_id) ────────────────────────────────
 const habitIdMap: Record<string, string> = {
-    workout1: 'workout_outdoor',
-    workout2: 'workout_2',
-    water: 'water',
-    diet: 'diet',
-    reading: 'reading',
     teeth: 'teeth',
     bedtime: 'bedtime',
     wake: 'wake',
     phone_down: 'phone_down',
+    meditation: 'meditation',
+    hydration: 'hydration',
 };
 
 // ─── Habit Modal ──────────────────────────────────────────────────────────────
@@ -243,6 +261,15 @@ function HabitModal({
     const [notes, setNotes] = useState(state.notes);
     const [saving, setSaving] = useState(false);
     const fields = habitFields[state.key] ?? { showTime: false, showDescription: false, showNotes: true };
+
+    const handleMarkDone = () => {
+        const newDone = !done;
+        setDone(newDone);
+        // Auto-fill time with current Melbourne time when marking done
+        if (newDone && fields.showTime && (fields.defaultToNow || !time)) {
+            setTime(getMelbourneTime());
+        }
+    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -315,22 +342,51 @@ function HabitModal({
                     </div>
                 </div>
 
-                {/* Done toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3)', background: done ? 'rgba(90,154,90,0.1)' : 'rgba(180,80,80,0.08)', borderRadius: 'var(--radius)', border: `1px solid ${done ? 'rgba(90,154,90,0.3)' : 'rgba(180,80,80,0.2)'}` }}>
-                    <button
-                        onClick={() => setDone(d => !d)}
-                        style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', background: done ? '#5a9a5a' : 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: done ? '0 0 0 3px rgba(90,154,90,0.3)' : '0 0 0 2px var(--color-border)', transition: 'all 0.2s' }}
-                    >
-                        {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                    </button>
-                    <span style={{ fontWeight: 600, color: done ? '#6db86d' : 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>{done ? 'Completed ✓' : 'Mark as not done'}</span>
-                </div>
+                {/* Done button */}
+                <button
+                    onClick={handleMarkDone}
+                    style={{
+                        width: '100%', padding: 'var(--space-3)', borderRadius: 'var(--radius)',
+                        border: `2px solid ${done ? 'rgba(90,154,90,0.5)' : 'rgba(180,80,80,0.3)'}`,
+                        background: done ? 'rgba(90,154,90,0.12)' : 'rgba(180,80,80,0.06)',
+                        color: done ? '#6db86d' : 'var(--color-text-muted)',
+                        cursor: 'pointer', fontWeight: 700, fontSize: 'var(--text-base)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
+                        transition: 'all 0.2s ease', marginBottom: 'var(--space-4)',
+                    }}
+                >
+                    {done ? (
+                        <><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1" stroke="#6db86d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> Done{time && fields.showTime ? ` at ${time}` : ''}</>
+                    ) : (
+                        <>✓ Mark Done</>
+                    )}
+                </button>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     {fields.showTime && (
                         <div>
                             <span style={label}>Time</span>
-                            <input style={input} type="text" placeholder={fields.timePlaceholder ?? 'HH:MM'} value={time} onChange={e => setTime(e.target.value)} />
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                <input
+                                    style={{ ...input, flex: 1 }}
+                                    type="time"
+                                    value={time}
+                                    onChange={e => setTime(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setTime(getMelbourneTime())}
+                                    style={{
+                                        padding: 'var(--space-2) var(--space-3)',
+                                        borderRadius: 'var(--radius)',
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg)',
+                                        color: 'var(--accent-400)',
+                                        cursor: 'pointer', fontSize: 'var(--text-xs)',
+                                        fontWeight: 600, whiteSpace: 'nowrap',
+                                    }}
+                                >Now</button>
+                            </div>
                         </div>
                     )}
                     {fields.showNotes && (
@@ -377,7 +433,7 @@ function ProgressRing({ done, total, size = 72 }: { done: number; total: number;
 }
 
 // ─── Weekly Heatmap ──────────────────────────────────────────────────────────
-function WeeklyHeatmap({ history }: { history: DashboardData['hard75History'] }) {
+function WeeklyHeatmap({ history }: { history: DashboardData['habitHistory'] }) {
     const last7 = history.slice(-7);
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return (
@@ -400,8 +456,8 @@ function WeeklyHeatmap({ history }: { history: DashboardData['hard75History'] })
 }
 
 // ─── Habits Widget ──────────────────────────────────────────────────────────
-function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][0] | null; history?: DashboardData['hard75History'] }) {
-    const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({});
+function HabitsWidget({ data, history }: { data: DashboardData['habitHistory'][0] | null; history?: DashboardData['habitHistory'] }) {
+    const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({})
     const [modal, setModal] = useState<ModalState | null>(null);
 
     if (!data) return <EmptyWidget icon="◈" title="Habits" message="No habit data found for this day." />;
@@ -426,30 +482,23 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         setOverrides(o => ({ ...o, [key]: { done, time: value } }));
     };
 
-    const hard75Keys = new Set(['workout1', 'workout2', 'water', 'diet', 'reading']);
-    const isChallenge = data.day != null;
-    const activeDefs = isChallenge ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-
-    const doneCount = activeDefs.filter(c => getCheck(c.key).done).length;
-    const pct = activeDefs.length > 0 ? Math.round((doneCount / activeDefs.length) * 100) : 0;
+    const doneCount = checkDefs.filter(c => getCheck(c.key).done).length;
+    const pct = checkDefs.length > 0 ? Math.round((doneCount / checkDefs.length) * 100) : 0;
 
     // Calculate overall streak — skip today (not yet complete), count from yesterday back
-    // Only use the `done` flag — having a value just means data was tracked, not the target was met
     const streak = (() => {
         if (!history?.length || history.length < 2) return 0;
         let count = 0;
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
-            const dayHabits = d.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const allDone = dayHabits.length > 0 && dayHabits.every(c => d.checks?.[c.key]?.done);
+            const allDone = checkDefs.length > 0 && checkDefs.every(c => d.checks?.[c.key]?.done);
             if (allDone) count++;
             else break;
         }
         // If today is also fully done, add it too
         const todayData = history[history.length - 1];
         if (todayData && count > 0) {
-            const todayHabits = todayData.day != null ? checkDefs : checkDefs.filter(c => !hard75Keys.has(c.key));
-            const todayAllDone = todayHabits.length > 0 && todayHabits.every(c => getCheck(c.key).done);
+            const todayAllDone = checkDefs.length > 0 && checkDefs.every(c => getCheck(c.key).done);
             if (todayAllDone) count++;
         }
         return count;
@@ -461,8 +510,6 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         let count = 0;
         for (let i = history.length - 2; i >= 0; i--) {
             const d = history[i];
-            // Skip days where this habit wasn't applicable (75 Hard habits on non-challenge days)
-            if (d.day == null && hard75Keys.has(key)) continue;
             if (d.checks?.[key]?.done) count++;
             else break;
         }
@@ -470,9 +517,6 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
         if (count > 0 && getCheck(key).done) count++;
         return count;
     };
-
-    const hard75Defs = checkDefs.filter(c => hard75Keys.has(c.key));
-    const generalDefs = checkDefs.filter(c => !hard75Keys.has(c.key));
 
     // Current hour in AEST for urgency emojis
     const melbourneHour = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false });
@@ -520,11 +564,11 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
             <div className={styles.widget}>
                 {/* Header: progress ring + title + streak */}
                 <div className={styles.kanbanHeader}>
-                    <ProgressRing done={doneCount} total={activeDefs.length} />
+                    <ProgressRing done={doneCount} total={checkDefs.length} />
                     <div style={{ flex: 1 }}>
                         <div className={styles.widgetTitle}><span className={styles.widgetIcon}>◈</span>Habits</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                            {isChallenge ? `Day ${data.day} of 75 Hard` : 'Daily tracking'}
+                            Daily tracking
                         </div>
                     </div>
                     {streak > 0 && (
@@ -541,18 +585,9 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
                     <div className={styles.habitBar} style={{ width: `${pct}%`, background: pct === 100 ? '#5a9a5a' : undefined }} />
                 </div>
 
-                {/* 75 Hard section — only if challenge day */}
-                {isChallenge && (
-                    <div>
-                        <div className={styles.sectionLabel}>75 Hard</div>
-                        <ul className={styles.habitList}>{hard75Defs.map(renderItem)}</ul>
-                    </div>
-                )}
-
-                {/* General section */}
+                {/* Habits */}
                 <div>
-                    <div className={styles.sectionLabel}>{isChallenge ? 'General' : 'Habits'}</div>
-                    <ul className={styles.habitList}>{generalDefs.map(renderItem)}</ul>
+                    <ul className={styles.habitList}>{checkDefs.map(renderItem)}</ul>
                 </div>
 
                 {/* Weekly heatmap */}
@@ -560,10 +595,7 @@ function HabitsWidget({ data, history }: { data: DashboardData['hard75History'][
 
                 {/* Footer */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    <span>{doneCount}/{activeDefs.length} complete</span>
-                    {isChallenge && data.finish_confidence != null && (
-                        <span>Confidence: <strong style={{ color: data.finish_confidence >= 80 ? '#6db86d' : '#c9a84c' }}>{data.finish_confidence}%</strong></span>
-                    )}
+                    <span>{doneCount}/{checkDefs.length} complete</span>
                 </div>
             </div>
         </>
@@ -760,12 +792,12 @@ function CalendarWidget() {
 
     // Habit keyword matching (mirrors calendar page logic)
     const WIDGET_HABITS = [
-        { icon: '🏃', label: 'Outdoor Workout', keywords: ['walk', 'outdoor', 'run', 'hike', 'park', 'jog'] },
-        { icon: '💪', label: '2nd Workout', keywords: ['workout', 'gym', 'muay', 'thai', 'mma', 'exercise', 'train', 'pt', 'mobility'] },
-        { icon: '🥗', label: 'Whole Foods', keywords: ['lunch', 'dinner', 'meal', 'food', 'eat'] },
-        { icon: '📖', label: '10 Pages', keywords: ['read', 'reading', 'book'] },
+        { icon: '🦷', label: 'Brush Teeth', keywords: ['teeth', 'brush', 'floss'] },
         { icon: '😴', label: 'Bedtime', keywords: ['sleep', 'bed', 'chamomile', 'wind'] },
         { icon: '☀️', label: 'Wake', keywords: ['wake', 'morning'] },
+        { icon: '📱', label: 'Phone Down', keywords: ['phone'] },
+        { icon: '🧘', label: 'Meditation', keywords: ['meditat', 'mindful', 'breathe', 'calm'] },
+        { icon: '💧', label: 'Hydration', keywords: ['water', 'hydrat', 'drink'] },
     ];
     const matchHabits = (title: string) => {
         const lower = title.toLowerCase();
@@ -834,6 +866,91 @@ function CalendarWidget() {
         </div>
     );
 }
+
+// ─── Morning Brief Widget ────────────────────────────────────────────────────
+function MorningBriefWidget({ data }: { data: DashboardData }) {
+    const todayHabits = data.habitHistory?.[data.habitHistory.length - 1];
+    const whoop = data.whoop;
+    const tasks = data.tasks;
+    const history = data.habitHistory ?? [];
+
+    // Recovery context
+    const recovery = whoop?.recovery ?? null;
+    const recoveryLevel = recovery !== null ? (recovery >= 67 ? 'green' : recovery >= 34 ? 'yellow' : 'red') : null;
+    const recoveryAdvice: Record<string, string> = {
+        green: 'High recovery — great day for intense work & training',
+        yellow: 'Moderate recovery — pace yourself today',
+        red: 'Low recovery — prioritize rest and light activity',
+    };
+
+    // Overdue tasks
+    const overdueTasks = tasks?.overdue_tasks?.slice(0, 3) ?? [];
+    const overdueCount = tasks?.overdue_tasks?.length ?? 0;
+
+    // Streaks at risk: habits with active streak but not yet done today
+    const streaksAtRisk: { label: string; icon: string; streak: number }[] = [];
+    if (todayHabits && history.length >= 2) {
+        for (const c of checkDefs) {
+            if (todayHabits.checks?.[c.key]?.done) continue;
+            let count = 0;
+            for (let i = history.length - 2; i >= 0; i--) {
+                if (history[i].checks?.[c.key]?.done) count++;
+                else break;
+            }
+            if (count > 0) streaksAtRisk.push({ label: c.label, icon: c.icon, streak: count });
+        }
+    }
+
+    // Today's habit progress
+    const todayDone = todayHabits ? checkDefs.filter(c => todayHabits.checks?.[c.key]?.done).length : 0;
+    const todayTotal = checkDefs.length;
+
+    // Time-aware icon
+    const melbourneHour = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false });
+    const hour = parseInt(melbourneHour, 10);
+    const timeIcon = hour < 12 ? '☀️' : hour < 17 ? '⛅' : '🌙';
+
+    const items: { icon: string; text: string; color?: string }[] = [];
+
+    if (recoveryLevel) {
+        const colors: Record<string, string> = { green: '#6db86d', yellow: '#c9a84c', red: '#c07070' };
+        items.push({ icon: '❤️', text: `Recovery ${recovery}% — ${recoveryAdvice[recoveryLevel]}`, color: colors[recoveryLevel] });
+    }
+
+    if (overdueCount > 0) {
+        const names = overdueTasks.map(t => t.name).join(', ');
+        items.push({ icon: '⚠️', text: `${overdueCount} overdue: ${names}`, color: '#c07070' });
+    }
+
+    if (streaksAtRisk.length > 0) {
+        const riskText = streaksAtRisk.map(s => `${s.icon} ${s.label} (🔥${s.streak})`).join(', ');
+        items.push({ icon: '💀', text: `Streaks at risk: ${riskText}`, color: '#e8973a' });
+    }
+
+    if (tasks) {
+        items.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
+    }
+
+    items.push({ icon: '✅', text: `Habits: ${todayDone}/${todayTotal} done today` });
+
+    return (
+        <div className={styles.widget}>
+            <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>{timeIcon}</span>Daily Brief</div>
+                <span className={styles.widgetBadge}>{data.todayAEST}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {items.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 'var(--text-sm)', lineHeight: 1.4 }}>
+                        <span style={{ flexShrink: 0, width: 20, textAlign: 'center' }}>{item.icon}</span>
+                        <span style={{ color: item.color ?? 'var(--color-text)' }}>{item.text}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // ─── Empty state ──────────────────────────────────────────────────────────────
 function EmptyWidget({ icon, title, message }: { icon: string; title: string; message: string }) {
     return (
@@ -854,7 +971,7 @@ export default function DashboardClient({ user }: Props) {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
-    // null = not yet loaded; number = index into hard75History
+    // null = not yet loaded; number = index into habitHistory
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
     useEffect(() => {
@@ -863,14 +980,35 @@ export default function DashboardClient({ user }: Props) {
             .then(r => r.json())
             .then(d => {
                 setData(d);
+                // Override checkDefs with dynamic habit definitions from API
+                if (d.habitDefinitions?.length) {
+                    checkDefs = buildCheckDefs(d.habitDefinitions);
+                }
                 setLoading(false);
                 // Default to most recent day
-                if (d.hard75History?.length) {
-                    setSelectedIdx(d.hard75History.length - 1);
+                if (d.habitHistory?.length) {
+                    setSelectedIdx(prev => prev ?? d.habitHistory.length - 1);
                 }
             })
             .catch(() => setLoading(false));
     }, []);
+
+    // ── Live polling: refresh every 60s ──
+    useEffect(() => {
+        if (!mounted) return;
+        const interval = setInterval(() => {
+            fetch('/api/dashboard')
+                .then(r => r.json())
+                .then(d => {
+                    setData(d);
+                    if (d.habitHistory?.length) {
+                        setSelectedIdx(prev => prev ?? d.habitHistory.length - 1);
+                    }
+                })
+                .catch(() => { });
+        }, 60_000);
+        return () => clearInterval(interval);
+    }, [mounted]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -895,7 +1033,6 @@ export default function DashboardClient({ user }: Props) {
         { icon: '◈', label: 'Habits', href: '/dashboard/habits' },
         { icon: '◇', label: 'Tasks', href: '/dashboard/tasks' },
         { icon: '▦', label: 'Calendar', href: '/dashboard/calendar' },
-        { icon: '⬡', label: '75 Hard', href: '/dashboard/75-hard' },
     ];
 
     return (
@@ -965,7 +1102,7 @@ export default function DashboardClient({ user }: Props) {
                         </p>
                     </div>
 
-                    {!loading && data && (data.hard75History?.length ?? 0) > 0 && selectedIdx !== null && (
+                    {!loading && data && (data.habitHistory?.length ?? 0) > 0 && selectedIdx !== null && (
                         <div className={styles.dayNav} style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', margin: '0 var(--space-4)' }}>
                             <button
                                 className={styles.dayNavBtn}
@@ -974,16 +1111,16 @@ export default function DashboardClient({ user }: Props) {
                             >‹</button>
                             <div style={{ textAlign: 'center', minWidth: 140 }}>
                                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
-                                    {shortDate(data.hard75History[selectedIdx].date)}
+                                    {shortDate(data.habitHistory[selectedIdx].date)}
                                 </div>
                                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
-                                    {data.hard75History[selectedIdx].day != null ? `Day ${data.hard75History[selectedIdx].day}` : 'Pre-challenge'} · {data.hard75History[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
+                                    {data.habitHistory[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
                                 </div>
                             </div>
                             <button
                                 className={styles.dayNavBtn}
-                                onClick={() => setSelectedIdx(i => Math.min(data.hard75History.length - 1, (i ?? 0) + 1))}
-                                disabled={selectedIdx === data.hard75History.length - 1}
+                                onClick={() => setSelectedIdx(i => Math.min(data.habitHistory.length - 1, (i ?? 0) + 1))}
+                                disabled={selectedIdx === data.habitHistory.length - 1}
                             >›</button>
                         </div>
                     )}
@@ -1003,20 +1140,25 @@ export default function DashboardClient({ user }: Props) {
                         🔗 Not yet synced — data will appear after the next sync.
                     </div>
                 ) : (
-                    // selectedIdx may still be null if hard75History is empty
+                    // selectedIdx may still be null if habitHistory is empty
                     <div className={styles.grid}>
+                        {/* Morning Brief — full width */}
+                        <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
+                            <MorningBriefWidget data={data} />
+                        </div>
+
                         {/* Whoop Status for selected day */}
                         <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
                             <WhoopWidget
-                                data={selectedIdx !== null ? (data.whoopHistory.find(h => h.date === data.hard75History[selectedIdx].date) || null) : (data.whoopHistory[data.whoopHistory.length - 1] || null)}
+                                data={selectedIdx !== null ? (data.whoopHistory.find(h => h.date === data.habitHistory[selectedIdx].date) || null) : (data.whoopHistory[data.whoopHistory.length - 1] || null)}
                                 todayAEST={data.todayAEST}
-                                selectedDate={selectedIdx !== null ? data.hard75History[selectedIdx].date : data.todayAEST}
+                                selectedDate={selectedIdx !== null ? data.habitHistory[selectedIdx].date : data.todayAEST}
                             />
                         </div>
 
                         {/* Habits for selected day */}
                         <div className={styles.gridItem}>
-                            <HabitsWidget data={selectedIdx !== null ? data.hard75History[selectedIdx] : null} history={data.hard75History} />
+                            <HabitsWidget data={selectedIdx !== null ? data.habitHistory[selectedIdx] : null} history={data.habitHistory} />
                         </div>
 
                         {/* Recent Tasks Snapshot */}
@@ -1036,7 +1178,7 @@ export default function DashboardClient({ user }: Props) {
 
                         {/* Tasks Over Time */}
                         <div className={styles.gridItem}>
-                            <PileTrajectoryWidget data={data.tasks} selectedDate={selectedIdx !== null ? data.hard75History[selectedIdx].date : data.todayAEST} />
+                            <PileTrajectoryWidget data={data.tasks} selectedDate={selectedIdx !== null ? data.habitHistory[selectedIdx].date : data.todayAEST} />
                         </div>
                     </div>
                 )}

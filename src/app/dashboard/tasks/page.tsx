@@ -13,6 +13,8 @@ interface TasksData {
 }
 
 interface TaskMeta {
+    clickup_id?: string;
+    clickup_status?: string;
     priority: string | null;
     due_date: string | null;
     waiting_on: string | null;
@@ -20,7 +22,16 @@ interface TaskMeta {
     context: string | null;
     parent_task: string | null;
     location: string | null;
+    url?: string;
 }
+
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+    'to do': { label: 'To Do', color: '#5a7a8a', bg: 'rgba(90,122,138,0.12)' },
+    'in progress': { label: 'In Progress', color: '#c9a84c', bg: 'rgba(201,168,76,0.12)' },
+    'review': { label: 'Review', color: '#7a5a8a', bg: 'rgba(122,90,138,0.12)' },
+    'complete': { label: 'Complete', color: '#5a9a5a', bg: 'rgba(90,154,90,0.12)' },
+    'closed': { label: 'Closed', color: 'var(--color-text-muted)', bg: 'rgba(100,100,100,0.08)' },
+};
 
 const catColors: Record<string, string> = {
     Wedding: '#a07040', THA: '#7a5030', Home: '#8a7a5a',
@@ -29,10 +40,9 @@ const catColors: Record<string, string> = {
 
 const priorityConfig: Record<string, { label: string; icon: string; color: string; score: number }> = {
     urgent: { label: 'Urgent', icon: '🔴', color: '#c07070', score: 900 },
-    this_week: { label: 'This Week', icon: '🟡', color: '#c9a84c', score: 700 },
-    this_month: { label: 'This Month', icon: '🔵', color: '#5a7a8a', score: 400 },
-    ongoing: { label: 'Ongoing', icon: '🟢', color: '#5a9a5a', score: 300 },
-    someday: { label: 'Someday', icon: '⚪', color: 'var(--color-text-muted)', score: 50 },
+    high: { label: 'High', icon: '🟠', color: '#c9a84c', score: 700 },
+    normal: { label: 'Normal', icon: '🔵', color: '#5a7a8a', score: 400 },
+    low: { label: 'Low', icon: '⚪', color: 'var(--color-text-muted)', score: 50 },
 };
 
 function shortDate(d: string) {
@@ -43,6 +53,8 @@ function shortDate(d: string) {
 interface ScoredTask {
     name: string;
     category: string;
+    clickup_id: string | null;
+    url: string | null;
     due: string | null;
     overdueDays: number;
     urgency: string;
@@ -107,7 +119,7 @@ function buildPriorityStack(
                 score = 1000 + overdueDays;
             }
 
-            allTasks.push({ name: taskName, category: cat, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta, completion: completionMap.get(taskName) ?? null, children: [] });
+            allTasks.push({ name: taskName, category: cat, clickup_id: meta?.clickup_id ?? null, url: meta?.url ?? null, due: dueStr, overdueDays, urgency, score, completed: isCompleted, meta, completion: completionMap.get(taskName) ?? null, children: [] });
         }
     }
 
@@ -118,8 +130,10 @@ function buildPriorityStack(
         if (!taskNames.has(name)) {
             const meta = metaMap.get(name) ?? null;
             allTasks.push({
-                name,
+                name: name,
                 category: comp.completed_by === 'abandoned' ? 'Abandoned' : 'Completed',
+                clickup_id: meta?.clickup_id ?? null,
+                url: meta?.url ?? null,
                 due: null,
                 overdueDays: 0,
                 urgency: 'completed',
@@ -132,18 +146,20 @@ function buildPriorityStack(
         }
     }
 
-    // Build parent-child relationships
-    const taskByName = new Map(allTasks.map(t => [t.name, t]));
-    const childNames = new Set<string>();
-
-    for (const task of allTasks) {
-        if (task.meta?.parent_task) {
-            const parent = taskByName.get(task.meta.parent_task);
-            if (parent) {
-                parent.children.push(task);
-                childNames.add(task.name);
-            }
+    // Build parent→children tree
+    const parentMap = new Map<string, ScoredTask[]>();
+    for (const t of allTasks) {
+        if (t.meta?.parent_task) {
+            if (!parentMap.has(t.meta.parent_task)) parentMap.set(t.meta.parent_task, []);
+            parentMap.get(t.meta.parent_task)!.push(t);
         }
+    }
+    allTasks.forEach(t => t.children = (parentMap.get(t.name) ?? []).sort((a, b) => b.score - a.score));
+
+    // Build set of child names to filter from top level
+    const childNames = new Set<string>();
+    for (const t of allTasks) {
+        if (t.meta?.parent_task) childNames.add(t.name);
     }
 
     // Filter out children from top-level (they'll be nested under parents)
@@ -175,6 +191,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
     const [context, setContext] = useState(task.meta?.context ?? '');
     const [parentTask, setParentTask] = useState(task.meta?.parent_task ?? '');
     const [location, setLocation] = useState(task.meta?.location ?? '');
+    const [clickupStatus, setClickupStatus] = useState(task.meta?.clickup_status ?? 'to do');
     const [completedAt, setCompletedAt] = useState(() => {
         // Format completed_at date for the input (YYYY-MM-DD)
         if (task.completion?.completed_at) {
@@ -301,6 +318,43 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                             >
                                 {icon} {label}
                             </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ClickUp Status */}
+                <div className={styles.modalField}>
+                    <label className={styles.modalLabel}>Status</label>
+                    <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                        {Object.entries(statusConfig).map(([key, { label, color, bg }]) => (
+                            <button
+                                key={key}
+                                style={{
+                                    padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+                                    border: clickupStatus === key ? `2px solid ${color}` : '1px solid var(--color-border)',
+                                    background: clickupStatus === key ? bg : 'transparent',
+                                    color: clickupStatus === key ? color : 'var(--color-text-muted)',
+                                    fontWeight: clickupStatus === key ? 700 : 500,
+                                    fontSize: 'var(--text-xs)', cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                                onClick={async () => {
+                                    setClickupStatus(key);
+                                    // Immediately sync status to ClickUp
+                                    try {
+                                        await fetch('/api/dashboard/tasks', {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                task_name: task.name,
+                                                action: 'set_status',
+                                                clickup_status: key,
+                                                clickup_id: task.clickup_id,
+                                            }),
+                                        });
+                                    } catch { /* non-critical */ }
+                                }}
+                            >{label}</button>
                         ))}
                     </div>
                 </div>
@@ -445,6 +499,15 @@ export default function TasksPage() {
     const [showCompleted, setShowCompleted] = useState(false);
     const [editingTask, setEditingTask] = useState<ScoredTask | null>(null);
     const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+    const [searchQuery, setSearchQuery] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'done' | 'overdue' | 'waiting'>('all');
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    }, []);
 
     useEffect(() => {
         Promise.all([
@@ -455,14 +518,14 @@ export default function TasksPage() {
             setCompletions(new Set((taskData.completions ?? []).map((c: { task_name: string }) => c.task_name)));
             setCompletionMap(new Map((taskData.completions ?? []).map((c: { task_name: string; completed_at: string; completed_by: string }) => [c.task_name, { completed_at: c.completed_at, completed_by: c.completed_by }])));
             const metaEntries = (taskData.metadata ?? []).map((m: TaskMeta & { task_name: string }) =>
-                [m.task_name, { priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task, location: m.location ?? null }] as [string, TaskMeta]
+                [m.task_name, { clickup_id: m.clickup_id, clickup_status: m.clickup_status, priority: m.priority, due_date: m.due_date, waiting_on: m.waiting_on, notes: m.notes, context: m.context, parent_task: m.parent_task, location: m.location ?? null, url: m.url }] as [string, TaskMeta]
             );
             setMetaMap(new Map(metaEntries));
             setLoading(false);
         }).catch(() => setLoading(false));
     }, []);
 
-    const toggleTask = useCallback(async (taskName: string, category: string, currentlyDone: boolean) => {
+    const toggleTask = useCallback(async (taskName: string, category: string, currentlyDone: boolean, clickupId?: string | null) => {
         setSaving(taskName);
         const action = currentlyDone ? 'uncomplete' : 'complete';
         setCompletions(prev => {
@@ -475,9 +538,10 @@ export default function TasksPage() {
             const res = await fetch('/api/dashboard/tasks', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_name: taskName, category, action }),
+                body: JSON.stringify({ task_name: taskName, category, action, clickup_id: clickupId }),
             });
             if (!res.ok) {
+                showToast(`Failed to ${action}: ${taskName}`, 'error');
                 setCompletions(prev => {
                     const next = new Set(prev);
                     if (currentlyDone) next.add(taskName);
@@ -486,6 +550,7 @@ export default function TasksPage() {
                 });
             }
         } catch {
+            showToast(`Network error — ${action} failed`, 'error');
             setCompletions(prev => {
                 const next = new Set(prev);
                 if (currentlyDone) next.add(taskName);
@@ -494,15 +559,36 @@ export default function TasksPage() {
             });
         }
         setSaving(null);
-    }, []);
+    }, [showToast]);
+
+    const cyclePriority = useCallback(async (t: ScoredTask) => {
+        const priorities = ['urgent', 'high', 'normal', 'low'];
+        const currentIdx = priorities.indexOf(t.meta?.priority ?? '');
+        const nextPriority = priorities[(currentIdx + 1) % priorities.length];
+        // Optimistic update
+        setMetaMap(prev => {
+            const next = new Map(prev);
+            const existing = prev.get(t.name);
+            if (existing) next.set(t.name, { ...existing, priority: nextPriority });
+            return next;
+        });
+        try {
+            const res = await fetch('/api/dashboard/tasks', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_name: t.name, action: 'update_metadata', priority: nextPriority, clickup_id: t.clickup_id }),
+            });
+            if (!res.ok) showToast('Priority update failed', 'error');
+        } catch {
+            showToast('Network error — priority update failed', 'error');
+        }
+    }, [showToast]);
 
     const handleMetaSave = useCallback((taskName: string, meta: TaskMeta) => {
         setMetaMap(prev => {
             const next = new Map(prev);
-            // If renamed, remove old key and move completions
             if (editingTask && editingTask.name !== taskName) {
                 next.delete(editingTask.name);
-                // Update completions set
                 setCompletions(cp => {
                     if (cp.has(editingTask.name)) {
                         const nc = new Set(cp);
@@ -512,7 +598,6 @@ export default function TasksPage() {
                     }
                     return cp;
                 });
-                // Update task categories in local state
                 setTasks(prev => {
                     if (!prev) return prev;
                     const cats = { ...prev.categories };
@@ -527,7 +612,9 @@ export default function TasksPage() {
                     return { ...prev, categories: cats };
                 });
             }
-            next.set(taskName, meta);
+            // Preserve clickup_id and url from the existing meta
+            const existing = prev.get(editingTask?.name ?? taskName);
+            next.set(taskName, { ...meta, clickup_id: existing?.clickup_id ?? meta.clickup_id, url: existing?.url ?? meta.url });
             return next;
         });
     }, [editingTask]);
@@ -564,18 +651,32 @@ export default function TasksPage() {
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
     const stack = buildPriorityStack(tasks, todayStr, completions, metaMap, completionMap);
 
-    const openTasks = stack.filter(t => t.urgency !== 'completed');
-    const completedTasks = stack.filter(t => t.urgency === 'completed');
+    // Apply search and category filters
+    const searchLower = searchQuery.toLowerCase();
+    const filterTask = (t: ScoredTask): boolean => {
+        if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+        if (searchQuery && !t.name.toLowerCase().includes(searchLower)) return false;
+        // Status filter
+        if (statusFilter === 'open' && t.completed) return false;
+        if (statusFilter === 'done' && !t.completed) return false;
+        if (statusFilter === 'overdue' && t.urgency !== 'overdue') return false;
+        if (statusFilter === 'waiting' && t.urgency !== 'waiting') return false;
+        return true;
+    };
+
+    const filteredStack = stack.filter(filterTask);
+    const openTasks = filteredStack.filter(t => t.urgency !== 'completed');
+    const completedTasks = filteredStack.filter(t => t.urgency === 'completed');
+    const categories = Object.keys(tasks.categories ?? {}).sort();
 
     // Group by urgency
     const overdue = openTasks.filter(t => t.urgency === 'overdue');
     const urgent = openTasks.filter(t => t.urgency === 'urgent');
-    const thisWeek = openTasks.filter(t => t.urgency === 'this_week');
-    const thisMonth = openTasks.filter(t => t.urgency === 'this_month');
-    const ongoing = openTasks.filter(t => t.urgency === 'ongoing');
+    const high = openTasks.filter(t => t.urgency === 'high');
+    const normal = openTasks.filter(t => t.urgency === 'normal');
     const waiting = openTasks.filter(t => t.urgency === 'waiting');
     const backlog = openTasks.filter(t => t.urgency === 'backlog');
-    const someday = openTasks.filter(t => t.urgency === 'someday');
+    const low = openTasks.filter(t => t.urgency === 'low');
 
     const history = tasks.history ?? [];
     const chartData = history.map(h => ({
@@ -615,7 +716,7 @@ export default function TasksPage() {
                     {/* Checkbox */}
                     <button
                         className={`${styles.taskCheck} ${t.completed ? styles.taskCheckDone : ''}`}
-                        onClick={(e) => { e.stopPropagation(); toggleTask(t.name, t.category, t.completed); }}
+                        onClick={(e) => { e.stopPropagation(); toggleTask(t.name, t.category, t.completed, t.clickup_id); }}
                         disabled={saving === t.name}
                         title={t.completed ? 'Mark as incomplete' : 'Mark as complete'}
                     >
@@ -625,6 +726,14 @@ export default function TasksPage() {
                     {/* Name + metadata */}
                     <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setEditingTask(t)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                            {/* Inline priority dot — click to cycle */}
+                            {priCfg && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); cyclePriority(t); }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}
+                                    title={`Priority: ${priCfg.label} — click to cycle`}
+                                >{priCfg.icon}</button>
+                            )}
                             <span className={`${styles.priorityName} ${t.completed ? styles.priorityNameDone : ''}`}>
                                 {t.name}
                             </span>
@@ -666,11 +775,37 @@ export default function TasksPage() {
                         )}
                     </div>
 
-                    {/* Category label */}
-                    <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+                    {/* Category label + Status badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
+                        {(() => {
+                            const st = meta?.clickup_status ?? 'to do';
+                            const cfg = statusConfig[st];
+                            return cfg ? (
+                                <span style={{
+                                    fontSize: 9, padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                                    background: cfg.bg, color: cfg.color, fontWeight: 600,
+                                    textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap',
+                                }}>{cfg.label}</span>
+                            ) : null;
+                        })()}
+                        <span className={styles.priorityCat} style={{ color: catColors[t.category] ?? 'var(--color-text-muted)' }}>{t.category}</span>
+                    </div>
 
                     {/* Urgency indicator */}
                     {t.urgency === 'overdue' && !t.completed && <span className={styles.priorityDue} style={{ color: '#c07070' }}>{t.overdueDays}d late</span>}
+
+                    {/* ClickUp link */}
+                    {t.url && (
+                        <a
+                            href={t.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className={styles.taskTag}
+                            style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: 11, opacity: 0.6 }}
+                            title="Open in ClickUp"
+                        >↗</a>
+                    )}
 
                     {/* Edit button */}
                     <span className={styles.kanbanEdit} onClick={() => setEditingTask(t)} style={{ cursor: 'pointer' }}>✎</span>
@@ -735,8 +870,59 @@ export default function TasksPage() {
                 <div>
                     <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.04em', marginBottom: 'var(--space-1)' }}>The Pile</h2>
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0, maxWidth: 'none' }}>
-                        {openTasks.length} open · {completedTasks.length} done · Last synced {shortDate(tasks.updated_at)}
+                        {openTasks.length} open · {completedTasks.length} done · <span style={{ color: '#5a9a5a' }}>● Live</span>
                     </p>
+                </div>
+
+                {/* Status + Category filter tabs */}
+                <div style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-1)' }}>
+                    {(['all', 'open', 'done', 'overdue', 'waiting'] as const).map(f => {
+                        const labels: Record<string, { label: string; color: string }> = {
+                            all: { label: 'All', color: 'var(--color-text)' },
+                            open: { label: 'Open', color: '#c17f3a' },
+                            done: { label: 'Done', color: '#6db86d' },
+                            overdue: { label: 'Overdue', color: '#c07070' },
+                            waiting: { label: 'Waiting', color: '#c9a84c' },
+                        };
+                        const { label, color } = labels[f];
+                        const isActive = statusFilter === f;
+                        return (
+                            <button
+                                key={f}
+                                onClick={() => setStatusFilter(f)}
+                                style={{
+                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                    border: isActive ? `2px solid ${color}` : '1px solid var(--color-border)',
+                                    background: isActive ? `${color}15` : 'transparent',
+                                    color: isActive ? color : 'var(--color-text-muted)',
+                                    fontWeight: isActive ? 700 : 500,
+                                    fontSize: 'var(--text-xs)', cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >{label}</button>
+                        );
+                    })}
+                </div>
+
+                {/* Search + Category Filter */}
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                        type="text"
+                        className={styles.modalInput}
+                        placeholder="🔍 Search tasks…"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        style={{ flex: 1, minWidth: 180, fontSize: 'var(--text-sm)', padding: '6px 10px' }}
+                    />
+                    <select
+                        className={styles.modalInput}
+                        value={categoryFilter}
+                        onChange={e => setCategoryFilter(e.target.value)}
+                        style={{ width: 'auto', fontSize: 'var(--text-sm)', padding: '6px 8px' }}
+                    >
+                        <option value="all">All Categories</option>
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                 </div>
 
                 {/* Add Task */}
@@ -839,12 +1025,11 @@ export default function TasksPage() {
 
                     {renderSection(overdue, 'Overdue', '#c07070', 'rgba(192,112,112,0.4)', '#c07070')}
                     {renderSection(urgent, 'Urgent', '#c07070', 'rgba(192,112,112,0.3)', '#c07070')}
-                    {renderSection(thisWeek, 'This Week', '#c9a84c', 'rgba(201,168,76,0.4)', '#c9a84c')}
-                    {renderSection(thisMonth, 'This Month', '#5a7a8a', 'rgba(90,122,138,0.4)', '#5a7a8a')}
-                    {renderSection(ongoing, 'Ongoing', '#5a9a5a', 'rgba(90,154,90,0.4)', '#5a9a5a')}
+                    {renderSection(high, 'High', '#c9a84c', 'rgba(201,168,76,0.4)', '#c9a84c')}
+                    {renderSection(normal, 'Normal', '#5a7a8a', 'rgba(90,122,138,0.4)', '#5a7a8a')}
                     {renderSection(waiting, 'Waiting On', '#c9a84c', 'rgba(201,168,76,0.3)', '#c9a84c')}
                     {renderSection(backlog, 'Backlog', 'var(--color-border-strong)', 'var(--color-border)')}
-                    {renderSection(someday, 'Someday', 'var(--color-text-muted)', 'var(--color-border)', 'var(--color-text-muted)')}
+                    {renderSection(low, 'Low', 'var(--color-text-muted)', 'var(--color-border)', 'var(--color-text-muted)')}
 
                     {/* Completed */}
                     {completedTasks.length > 0 && (
@@ -864,6 +1049,18 @@ export default function TasksPage() {
                     )}
                 </div>
             </div>
+            {/* Toast notification */}
+            {toast && (
+                <div style={{
+                    position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+                    padding: '10px 20px', borderRadius: 'var(--radius-md)',
+                    background: toast.type === 'error' ? 'rgba(192,112,112,0.95)' : 'rgba(90,154,90,0.95)',
+                    color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 600,
+                    zIndex: 9999, backdropFilter: 'blur(8px)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    animation: 'fadeIn 0.2s ease',
+                }}>{toast.type === 'error' ? '✗ ' : '✓ '}{toast.message}</div>
+            )}
         </DashboardShell>
     );
 }

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextResponse } from 'next/server';
+import { getAccessToken, getAllTasks, mapClickUpTask } from '@/lib/clickup';
 
 export async function GET() {
     const { error: authError } = await requireAuth();
@@ -8,114 +9,101 @@ export async function GET() {
 
     const supabase = createAdminClient();
 
-    const [sleepRes, habitRes, challengeRes, taskRes] = await Promise.all([
-        // NEW: 14-day sleep + recovery from daily_sleep
+    const [sleepRes, habitRes, habitDefRes] = await Promise.all([
         supabase
             .from('daily_sleep')
             .select('date,recovery,hrv,rhr,strain,spo2,sleep_performance,sleep_hours,deep_hours,rem_hours,light_hours,bedtime_aest,wake_aest')
-            .order('date', { ascending: true })
-            .limit(14),
+            .gte('date', '2026-02-28')
+            .order('date', { ascending: true }),
 
-        // NEW: all habits from last 90 days, joined to definitions for label/icon/category
         supabase
             .from('daily_habits')
             .select('date,habit_id,done,value,notes,source')
             .gte('date', new Date(Date.now() - 90 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' }))
             .order('date', { ascending: true }),
 
-        // NEW: challenge days from active challenge
         supabase
-            .from('challenge_days')
-            .select('date,day_number,completed,notes,challenge_id')
-            .order('date', { ascending: true }),
-
-        // NEW: task snapshots
-        supabase
-            .from('task_snapshots')
+            .from('habit_definitions')
             .select('*')
-            .order('date', { ascending: false })
-            .limit(30),
+            .eq('active', true)
+            .order('sort_order', { ascending: true }),
     ]);
 
     const sleepRows = sleepRes.data ?? [];
     const habitRows = habitRes.data ?? [];
-    const challengeDays = challengeRes.data ?? [];
-    const taskRows = taskRes.data ?? [];
+
+    // Habit definitions — dynamic from Supabase, with hardcoded fallback
+    const FALLBACK_DEFS = [
+        { habit_id: 'teeth', label: 'Brush Teeth', icon: '🦷', tracking_start: '2026-03-01', show_time: false, show_notes: false, default_to_now: false, sort_order: 10 },
+        { habit_id: 'bedtime', label: 'In Bed by 11pm', icon: '🌙', tracking_start: '2026-03-01', show_time: true, show_notes: false, default_to_now: false, sort_order: 20 },
+        { habit_id: 'wake', label: 'Up by 7am', icon: '🌅', tracking_start: '2026-03-01', show_time: true, show_notes: false, default_to_now: false, sort_order: 30 },
+        { habit_id: 'phone_down', label: 'Phone Down', icon: '📱', tracking_start: '2026-03-01', show_time: true, show_notes: false, default_to_now: true, sort_order: 40 },
+        { habit_id: 'meditation', label: 'Meditation', icon: '🧘', tracking_start: '2026-03-01', show_time: true, show_notes: true, default_to_now: true, sort_order: 50 },
+        { habit_id: 'hydration', label: 'Hydration', icon: '💧', tracking_start: '2026-03-01', show_time: false, show_notes: true, default_to_now: false, sort_order: 60 },
+    ];
+    const habitDefs = (habitDefRes.data && habitDefRes.data.length > 0) ? habitDefRes.data : FALLBACK_DEFS;
+    const habitIds = habitDefs.map((d: any) => d.habit_id);
 
     // ── Build per-day habit lookup ──
-    // { 'YYYY-MM-DD': { workout_outdoor: { done, value, notes }, ... } }
     const habitsByDate: Record<string, Record<string, { done: boolean; value: string | null; notes: string | null; source: string }>> = {};
     habitRows.forEach(r => {
         if (!habitsByDate[r.date]) habitsByDate[r.date] = {};
         habitsByDate[r.date][r.habit_id] = { done: r.done, value: r.value, notes: r.notes, source: r.source };
     });
 
-    // ── Build hard75History shape (compatible with existing dashboard widgets) ──
-    // Merge challenge_days + habitat data into the shape the dashboard expects
-    const hard75History = challengeDays.map((cd, i, arr) => {
-        const checks = habitsByDate[cd.date] ?? {};
-        // Map new habit_ids back to the legacy check keys the UI uses
-        const checksMapped: Record<string, { done: boolean; time: string | null }> = {
-            workout1: { done: checks['workout_outdoor']?.done ?? false, time: checks['workout_outdoor']?.value ?? null },
-            workout2: { done: checks['workout_2']?.done ?? false, time: checks['workout_2']?.value ?? null },
-            water: { done: checks['water']?.done ?? false, time: checks['water']?.value ?? null },
-            diet: { done: checks['diet']?.done ?? false, time: checks['diet']?.value ?? null },
-            reading: { done: checks['reading']?.done ?? false, time: checks['reading']?.value ?? null },
-            teeth: { done: checks['teeth']?.done ?? false, time: checks['teeth']?.value ?? null },
-            bedtime: { done: checks['bedtime']?.done ?? false, time: checks['bedtime']?.value ?? null },
-            wake: { done: checks['wake']?.done ?? false, time: checks['wake']?.value ?? null },
-            phone_down: { done: checks['phone_down']?.done ?? false, time: checks['phone_down']?.value ?? null },
-        };
-        const doneCount = Object.values(checksMapped).filter(c => c.done).length;
-        return {
-            date: cd.date,
-            day: cd.day_number ?? null,
-            today_complete: cd.completed ?? false,
-            checks: checksMapped,
-            discipline_score: Math.round((doneCount / 9) * 100),
-            finish_confidence: null,
-        };
-    });
-
-    // Also include dates that have habits but aren't challenge days (pre-challenge habit tracking)
-    const challengeDates = new Set(challengeDays.map(d => d.date));
-    const preChallengeDates = Object.keys(habitsByDate).filter(d => !challengeDates.has(d)).sort();
-    preChallengeDates.forEach(date => {
+    // ── Build habitHistory shape — dynamic from habit definitions ──
+    const allDates = [...new Set(habitRows.map(r => r.date))].sort();
+    const habitHistory = allDates.map(date => {
         const checks = habitsByDate[date] ?? {};
-        const checksMapped: Record<string, { done: boolean; time: string | null }> = {
-            workout1: { done: checks['workout_outdoor']?.done ?? false, time: checks['workout_outdoor']?.value ?? null },
-            workout2: { done: checks['workout_2']?.done ?? false, time: checks['workout_2']?.value ?? null },
-            water: { done: checks['water']?.done ?? false, time: checks['water']?.value ?? null },
-            diet: { done: checks['diet']?.done ?? false, time: checks['diet']?.value ?? null },
-            reading: { done: checks['reading']?.done ?? false, time: checks['reading']?.value ?? null },
-            teeth: { done: checks['teeth']?.done ?? false, time: checks['teeth']?.value ?? null },
-            bedtime: { done: checks['bedtime']?.done ?? false, time: checks['bedtime']?.value ?? null },
-            wake: { done: checks['wake']?.done ?? false, time: checks['wake']?.value ?? null },
-            phone_down: { done: checks['phone_down']?.done ?? false, time: checks['phone_down']?.value ?? null },
+        // Build checks dynamically from habit definitions
+        const checksMapped: Record<string, { done: boolean; time: string | null }> = {};
+        for (const hid of habitIds) {
+            checksMapped[hid] = {
+                done: checks[hid]?.done ?? false,
+                time: checks[hid]?.value ?? null,
+            };
+        }
+        const activeForDate = habitDefs.filter((d: any) => d.tracking_start <= date);
+        const activeIds = activeForDate.map((d: any) => d.habit_id);
+        const doneCount = activeIds.filter((id: string) => checksMapped[id]?.done).length;
+        const total = activeIds.length;
+
+        // Time-weighted bonus: +5% per habit done before its natural deadline
+        let timeBonus = 0;
+        const parseTime = (t: string | null): number | null => {
+            if (!t) return null;
+            const m = t.match(/(\d{1,2}):(\d{2})/);
+            if (!m) return null;
+            return parseInt(m[1]) * 60 + parseInt(m[2]);
         };
-        hard75History.unshift({
-            date, day: null, today_complete: false,
+        if (checksMapped.bedtime?.done) {
+            const mins = parseTime(checksMapped.bedtime.time);
+            if (mins !== null && ((mins >= 720 && mins <= 1380) || mins <= 60)) timeBonus += 5;
+        }
+        if (checksMapped.wake?.done) {
+            const mins = parseTime(checksMapped.wake.time);
+            if (mins !== null && mins <= 420 && mins >= 300) timeBonus += 5;
+        }
+        if (checksMapped.phone_down?.done) {
+            const mins = parseTime(checksMapped.phone_down.time);
+            if (mins !== null && ((mins >= 720 && mins <= 1410) || mins <= 60)) timeBonus += 5;
+        }
+
+        const baseScore = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+        return {
+            date,
             checks: checksMapped,
-            discipline_score: 0,
-            finish_confidence: null,
-        });
+            discipline_score: Math.min(100, baseScore + timeBonus),
+        };
     });
 
-    // Sort by date ascending
-    hard75History.sort((a, b) => a.date.localeCompare(b.date));
-
-    // ── Whoop history for charts (from daily_sleep) ──
+    // ── Whoop history ──
     const whoopHistory = sleepRows.map(s => ({
-        date: s.date,
-        recovery: s.recovery,
-        hrv: s.hrv,
-        strain: s.strain,
-        sleep_hours: s.sleep_hours,
-        sleep_performance: s.sleep_performance,
+        date: s.date, recovery: s.recovery, hrv: s.hrv, strain: s.strain,
+        sleep_hours: s.sleep_hours, sleep_performance: s.sleep_performance,
     }));
 
-    // ── Sleep chart data — map daily_sleep column names → widget-expected names ──
-    // SleepChartWidget uses: .performance, .deep, .rem, .light, .date
+    // ── Sleep chart data ──
     const sleepChartData = sleepRows.map(s => ({
         date: s.date,
         performance: s.sleep_performance ?? null,
@@ -125,49 +113,111 @@ export async function GET() {
         hours: s.sleep_hours ?? null,
     }));
 
-    // ── Task data — use task_snapshots as single source of truth ──
-    // task_snapshots are written by openclaw-supabase-sync.js from parse-tasks.js output
-    const latestTask = taskRows[0] ?? null;
-    // Sort oldest→newest for the chart
-    const taskHistory = [...taskRows].reverse().map(t => ({
-        date: t.date,
-        open: t.open_count,
-        done: t.done_count,
-        completed: t.completed_delta ?? 0,
-        added: t.added_delta ?? 0,
-        removed: 0,
-    }));
-
-    const tasks = latestTask ? {
-        updated_at: latestTask.updated_at,
-        total_open: latestTask.open_count,
-        total_done: latestTask.done_count,
-        overdue_count: latestTask.overdue_count,
-        categories: latestTask.categories ?? {},
-        overdue_tasks: latestTask.overdue_tasks ?? [],
-        history: taskHistory,
-    } : null;
-
-    // ── Today in AEST ──
+    // ── Task data — fetched directly from ClickUp ──
+    let tasks = null;
     const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
 
+    try {
+        await getAccessToken();
+        const { tasks: clickupTasks } = await getAllTasks();
+
+        // Build categories + counts from live ClickUp data
+        const categories: Record<string, { tasks: string[]; open: number; done: number; overdue: { name: string; due: string }[] }> = {};
+        const overdueTasks: { name: string; due: string; category: string }[] = [];
+        let totalOpen = 0;
+        let totalDone = 0;
+
+        for (const cuTask of clickupTasks) {
+            const mapped = mapClickUpTask(cuTask);
+            const cat = mapped.category;
+
+            if (!categories[cat]) {
+                categories[cat] = { tasks: [], open: 0, done: 0, overdue: [] };
+            }
+            categories[cat].tasks.push(mapped.name);
+
+            if (mapped.status === 'open') {
+                categories[cat].open++;
+                totalOpen++;
+
+                // Overdue check
+                if (mapped.due_date && mapped.due_date < todayAEST) {
+                    overdueTasks.push({ name: mapped.name, due: mapped.due_date, category: cat });
+                    categories[cat].overdue.push({ name: mapped.name, due: mapped.due_date });
+                }
+            } else {
+                categories[cat].done++;
+                totalDone++;
+            }
+        }
+
+        // ── Build historical trajectory from task timestamps ──
+        const MIGRATION_DATE = '2026-03-09';
+        const history: { date: string; open: number; completed: number; added: number; removed: number }[] = [];
+
+        const createdByDate: Record<string, number> = {};
+        const closedByDate: Record<string, number> = {};
+
+        for (const cuTask of clickupTasks) {
+            const createdDate = new Date(Number(cuTask.date_created)).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+            createdByDate[createdDate] = (createdByDate[createdDate] ?? 0) + 1;
+
+            if (cuTask.date_closed) {
+                const closedDate = new Date(Number(cuTask.date_closed)).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+                closedByDate[closedDate] = (closedByDate[closedDate] ?? 0) + 1;
+            }
+        }
+
+        let cumulativeCreated = 0;
+        let cumulativeClosed = 0;
+
+        for (const [date, count] of Object.entries(createdByDate)) {
+            if (date < MIGRATION_DATE) cumulativeCreated += count;
+        }
+        for (const [date, count] of Object.entries(closedByDate)) {
+            if (date < MIGRATION_DATE) cumulativeClosed += count;
+        }
+
+        const startDate = new Date(MIGRATION_DATE + 'T00:00:00+11:00');
+        const now = new Date();
+        for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+
+            const added = createdByDate[dateStr] ?? 0;
+            const completed = closedByDate[dateStr] ?? 0;
+            cumulativeCreated += added;
+            cumulativeClosed += completed;
+
+            history.push({
+                date: dateStr,
+                open: cumulativeCreated - cumulativeClosed,
+                completed,
+                added,
+                removed: 0,
+            });
+        }
+
+        tasks = {
+            updated_at: new Date().toISOString(),
+            total_open: totalOpen,
+            total_done: totalDone,
+            overdue_count: overdueTasks.length,
+            categories,
+            overdue_tasks: overdueTasks,
+            history,
+        };
+    } catch (e) {
+        console.error('[dashboard] ClickUp task fetch error:', e);
+    }
+
     return NextResponse.json({
-        // Sleep chart (widget-compatible shape)
         sleep: sleepChartData,
-        // Whoop history for recovery/strain charts
         whoopHistory,
-        // Today's whoop snapshot (most recent day)
         whoop: sleepRows.length ? sleepRows[sleepRows.length - 1] : null,
-
-        // Habits (unified)
-        hard75History,
-        hard75: hard75History.length ? hard75History[hard75History.length - 1] : null,
-
-        // Tasks
+        habitHistory,
+        habitDefinitions: habitDefs,
         tasks,
-
-        // Meta
-        lastSynced: latestTask?.updated_at ?? null,
+        lastSynced: tasks?.updated_at ?? null,
         todayAEST,
     });
 }
