@@ -47,9 +47,13 @@ const FALLBACK_CHECK_DEFS = [
 ];
 
 // Build checkDefs from API habitDefinitions (with fallback)
-function buildCheckDefs(defs?: HabitDefinition[]) {
+// Filters by tracking_start <= date so old habits (like 75 Hard) don't show on current days
+function buildCheckDefs(defs?: HabitDefinition[], forDate?: string) {
     if (!defs?.length) return FALLBACK_CHECK_DEFS;
-    return defs.map(d => ({ key: d.habit_id, icon: d.icon, label: d.label }));
+    const today = forDate ?? new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+    return defs
+        .filter(d => d.tracking_start <= today)
+        .map(d => ({ key: d.habit_id, icon: d.icon, label: d.label }));
 }
 
 // Default export for components that use checkDefs outside DashboardClient
@@ -869,6 +873,7 @@ function CalendarWidget() {
 
 // ─── Morning Brief Widget ────────────────────────────────────────────────────
 function MorningBriefWidget({ data }: { data: DashboardData }) {
+    const [expanded, setExpanded] = useState(false);
     const todayHabits = data.habitHistory?.[data.habitHistory.length - 1];
     const whoop = data.whoop;
     const tasks = data.tasks;
@@ -882,12 +887,17 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
         yellow: 'Moderate recovery — pace yourself today',
         red: 'Low recovery — prioritize rest and light activity',
     };
+    const recoveryColors: Record<string, { bg: string; border: string; text: string }> = {
+        green: { bg: 'rgba(90,154,90,0.08)', border: 'rgba(90,154,90,0.25)', text: '#6db86d' },
+        yellow: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.25)', text: '#c9a84c' },
+        red: { bg: 'rgba(192,112,112,0.08)', border: 'rgba(192,112,112,0.25)', text: '#c07070' },
+    };
 
     // Overdue tasks
     const overdueTasks = tasks?.overdue_tasks?.slice(0, 3) ?? [];
     const overdueCount = tasks?.overdue_tasks?.length ?? 0;
 
-    // Streaks at risk: habits with active streak but not yet done today
+    // Streaks at risk
     const streaksAtRisk: { label: string; icon: string; streak: number }[] = [];
     if (todayHabits && history.length >= 2) {
         for (const c of checkDefs) {
@@ -901,51 +911,96 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
         }
     }
 
-    // Today's habit progress
     const todayDone = todayHabits ? checkDefs.filter(c => todayHabits.checks?.[c.key]?.done).length : 0;
     const todayTotal = checkDefs.length;
 
-    // Time-aware icon
     const melbourneHour = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false });
     const hour = parseInt(melbourneHour, 10);
     const timeIcon = hour < 12 ? '☀️' : hour < 17 ? '⛅' : '🌙';
 
-    const items: { icon: string; text: string; color?: string }[] = [];
+    // Build items — primary items always visible, secondary toggled
+    const primaryItems: { icon: string; text: string; color?: string; accent?: boolean }[] = [];
+    const secondaryItems: { icon: string; text: string; color?: string }[] = [];
 
     if (recoveryLevel) {
-        const colors: Record<string, string> = { green: '#6db86d', yellow: '#c9a84c', red: '#c07070' };
-        items.push({ icon: '❤️', text: `Recovery ${recovery}% — ${recoveryAdvice[recoveryLevel]}`, color: colors[recoveryLevel] });
+        primaryItems.push({ icon: '❤️', text: `Recovery ${recovery}% — ${recoveryAdvice[recoveryLevel]}`, color: recoveryColors[recoveryLevel].text, accent: true });
     }
+
+    primaryItems.push({ icon: '✅', text: `${todayDone}/${todayTotal} habits done today` });
 
     if (overdueCount > 0) {
         const names = overdueTasks.map(t => t.name).join(', ');
-        items.push({ icon: '⚠️', text: `${overdueCount} overdue: ${names}`, color: '#c07070' });
+        secondaryItems.push({ icon: '⚠️', text: `${overdueCount} overdue: ${names}`, color: '#c07070' });
     }
 
     if (streaksAtRisk.length > 0) {
         const riskText = streaksAtRisk.map(s => `${s.icon} ${s.label} (🔥${s.streak})`).join(', ');
-        items.push({ icon: '💀', text: `Streaks at risk: ${riskText}`, color: '#e8973a' });
+        secondaryItems.push({ icon: '💀', text: `Streaks at risk: ${riskText}`, color: '#e8973a' });
     }
 
     if (tasks) {
-        items.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
+        secondaryItems.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
     }
 
-    items.push({ icon: '✅', text: `Habits: ${todayDone}/${todayTotal} done today` });
+    const hasMore = secondaryItems.length > 0;
+
+    const renderItem = (item: { icon: string; text: string; color?: string; accent?: boolean }, i: number) => {
+        const isAccent = item.accent && recoveryLevel;
+        const accentStyle = isAccent ? recoveryColors[recoveryLevel!] : null;
+        return (
+            <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)',
+                fontSize: 'var(--text-sm)', lineHeight: 1.5,
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius)',
+                background: accentStyle?.bg ?? 'transparent',
+                borderLeft: accentStyle ? `3px solid ${accentStyle.border}` : '3px solid transparent',
+                transition: 'all 0.2s ease',
+            }}>
+                <span style={{ flexShrink: 0, width: 22, textAlign: 'center', fontSize: 15 }}>{item.icon}</span>
+                <span style={{ color: item.color ?? 'var(--color-text)', fontWeight: isAccent ? 600 : 400 }}>{item.text}</span>
+            </div>
+        );
+    };
 
     return (
-        <div className={styles.widget}>
+        <div className={styles.widget} style={{ cursor: hasMore ? 'pointer' : undefined }} onClick={() => hasMore && setExpanded(e => !e)}>
             <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}><span className={styles.widgetIcon}>{timeIcon}</span>Daily Brief</div>
-                <span className={styles.widgetBadge}>{data.todayAEST}</span>
+                <div className={styles.widgetTitle}>
+                    <span className={styles.widgetIcon}>{timeIcon}</span>
+                    Daily Brief
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span className={styles.widgetBadge}>{data.todayAEST}</span>
+                    {hasMore && (
+                        <span style={{
+                            fontSize: 12, color: 'var(--color-text-muted)',
+                            transition: 'transform 0.3s ease',
+                            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            display: 'inline-block',
+                        }}>▾</span>
+                    )}
+                </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {items.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 'var(--text-sm)', lineHeight: 1.4 }}>
-                        <span style={{ flexShrink: 0, width: 20, textAlign: 'center' }}>{item.icon}</span>
-                        <span style={{ color: item.color ?? 'var(--color-text)' }}>{item.text}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                {primaryItems.map(renderItem)}
+                <div style={{
+                    maxHeight: expanded ? `${secondaryItems.length * 60}px` : '0px',
+                    overflow: 'hidden',
+                    transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+                    opacity: expanded ? 1 : 0,
+                    display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',
+                }}>
+                    {secondaryItems.map((item, i) => renderItem(item, i + primaryItems.length))}
+                </div>
+                {hasMore && !expanded && (
+                    <div style={{
+                        fontSize: 'var(--text-xs)', color: 'var(--accent-400)',
+                        textAlign: 'center', paddingTop: 'var(--space-1)', fontWeight: 500,
+                    }}>
+                        Tap for more • {secondaryItems.length} more items
                     </div>
-                ))}
+                )}
             </div>
         </div>
     );
@@ -986,19 +1041,19 @@ function WeatherHeader() {
 
     const isDay = weather.is_day;
     const gradientBg = isDay
-        ? 'linear-gradient(135deg, rgba(70,130,180,0.18) 0%, rgba(135,206,235,0.10) 50%, rgba(255,200,100,0.08) 100%)'
-        : 'linear-gradient(135deg, rgba(25,25,60,0.35) 0%, rgba(50,50,100,0.20) 50%, rgba(80,60,120,0.12) 100%)';
+        ? 'linear-gradient(135deg, rgba(40,90,140,0.35) 0%, rgba(70,140,200,0.20) 50%, rgba(200,160,60,0.12) 100%)'
+        : 'linear-gradient(135deg, rgba(15,15,50,0.50) 0%, rgba(35,35,80,0.35) 50%, rgba(60,40,100,0.20) 100%)';
 
     const StatPill = ({ icon, label, value }: { icon: string; label: string; value: string }) => (
         <div style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-            borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)', fontSize: 'var(--text-xs)',
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+            borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.15)',
+            border: '1px solid rgba(255,255,255,0.10)', fontSize: 'var(--text-xs)',
         }}>
             <span style={{ fontSize: 14 }}>{icon}</span>
             <div>
-                <div style={{ color: 'var(--color-text-muted)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                <div style={{ color: 'var(--color-text)', fontWeight: 600 }}>{value}</div>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                <div style={{ color: '#fff', fontWeight: 600 }}>{value}</div>
             </div>
         </div>
     );
@@ -1006,41 +1061,40 @@ function WeatherHeader() {
     return (
         <div style={{
             background: gradientBg, borderRadius: 'var(--radius-xl)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.12)',
             padding: 'var(--space-5) var(--space-6)',
             backdropFilter: 'blur(12px)', position: 'relative', overflow: 'hidden',
         }}>
             {/* Subtle decorative circle */}
             <div style={{
                 position: 'absolute', top: -40, right: -40, width: 180, height: 180,
-                borderRadius: '50%', background: isDay ? 'rgba(255,200,80,0.06)' : 'rgba(120,120,200,0.06)',
+                borderRadius: '50%', background: isDay ? 'rgba(255,200,80,0.08)' : 'rgba(120,120,200,0.08)',
                 pointerEvents: 'none',
             }} />
 
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)', position: 'relative' }}>
                 {/* Left: Temperature + Conditions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                    <span style={{ fontSize: 52, lineHeight: 1, filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}>
+                    <span style={{ fontSize: 52, lineHeight: 1, filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.3))' }}>
                         {weather.emoji}
                     </span>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)' }}>
                             <span style={{
                                 fontSize: 42, fontWeight: 800, letterSpacing: '-0.04em',
-                                fontFamily: 'var(--font-heading)',
-                                background: isDay ? 'linear-gradient(135deg, #fff 30%, #ffd080)' : 'linear-gradient(135deg, #e0e0ff 30%, #a0a0d0)',
-                                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                                fontFamily: 'var(--font-heading)', color: '#fff',
+                                textShadow: '0 2px 8px rgba(0,0,0,0.3)',
                             }}>
                                 {Math.round(weather.temp_c)}°
                             </span>
-                            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                            <span style={{ fontSize: 'var(--text-sm)', color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>
                                 Feels {Math.round(weather.feels_like_c)}°
                             </span>
                         </div>
-                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 600 }}>
+                        <div style={{ fontSize: 'var(--text-sm)', color: '#fff', fontWeight: 600, textShadow: '0 1px 4px rgba(0,0,0,0.2)' }}>
                             {weather.description}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
                             {weather.location} · H:{Math.round(weather.high_c)}° L:{Math.round(weather.low_c)}°
                             {weather.cached && <span style={{ marginLeft: 8, opacity: 0.6 }}>(cached)</span>}
                         </div>
@@ -1101,7 +1155,7 @@ export default function DashboardClient({ user }: Props) {
                 setData(d);
                 // Override checkDefs with dynamic habit definitions from API
                 if (d.habitDefinitions?.length) {
-                    checkDefs = buildCheckDefs(d.habitDefinitions);
+                    checkDefs = buildCheckDefs(d.habitDefinitions, d.todayAEST);
                 }
                 setLoading(false);
                 // Default to most recent day
