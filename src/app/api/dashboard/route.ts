@@ -52,7 +52,15 @@ export async function GET() {
     });
 
     // ── Build habitHistory shape — dynamic from habit definitions ──
-    const allDates = [...new Set(habitRows.map(r => r.date))].sort();
+    // Always include today + next 3 days for forward navigation
+    const todayDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).toISOString().slice(0, 10);
+    const futureDates: string[] = [];
+    for (let i = 0; i <= 3; i++) {
+        const d = new Date(todayDate + 'T00:00:00');
+        d.setDate(d.getDate() + i);
+        futureDates.push(d.toISOString().slice(0, 10));
+    }
+    const allDates = [...new Set([...habitRows.map(r => r.date), ...futureDates])].sort();
     const habitHistory = allDates.map(date => {
         const checks = habitsByDate[date] ?? {};
         // Build checks dynamically from habit definitions

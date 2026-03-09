@@ -874,10 +874,19 @@ function CalendarWidget() {
 // ─── Morning Brief Widget ────────────────────────────────────────────────────
 function MorningBriefWidget({ data }: { data: DashboardData }) {
     const [expanded, setExpanded] = useState(false);
+    const [emails, setEmails] = useState<{ subject: string; from: string; url: string; unread: boolean }[]>([]);
     const todayHabits = data.habitHistory?.[data.habitHistory.length - 1];
     const whoop = data.whoop;
     const tasks = data.tasks;
     const history = data.habitHistory ?? [];
+
+    // Fetch emails on mount
+    useEffect(() => {
+        fetch('/api/dashboard/emails')
+            .then(r => r.json())
+            .then(d => { if (d.emails?.length) setEmails(d.emails.slice(0, 3)); })
+            .catch(() => { });
+    }, []);
 
     // Recovery context
     const recovery = whoop?.recovery ?? null;
@@ -942,6 +951,11 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
         secondaryItems.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
     }
 
+    // Email items
+    if (emails.length > 0) {
+        secondaryItems.push({ icon: '📧', text: `${emails.length} important email${emails.length > 1 ? 's' : ''}:`, color: '#7a9ec9' });
+    }
+
     const hasMore = secondaryItems.length > 0;
 
     const renderItem = (item: { icon: string; text: string; color?: string; accent?: boolean }, i: number) => {
@@ -985,13 +999,42 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                 {primaryItems.map(renderItem)}
                 <div style={{
-                    maxHeight: expanded ? `${secondaryItems.length * 60}px` : '0px',
+                    maxHeight: expanded ? `${(secondaryItems.length * 60) + (emails.length * 50)}px` : '0px',
                     overflow: 'hidden',
                     transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
                     opacity: expanded ? 1 : 0,
                     display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',
                 }}>
                     {secondaryItems.map((item, i) => renderItem(item, i + primaryItems.length))}
+                    {/* Email cards */}
+                    {emails.length > 0 && emails.map((email, i) => (
+                        <a
+                            key={i}
+                            href={email.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+                                padding: 'var(--space-2) var(--space-3)',
+                                borderRadius: 'var(--radius)',
+                                background: 'rgba(122,158,201,0.06)',
+                                borderLeft: '3px solid rgba(122,158,201,0.25)',
+                                textDecoration: 'none', color: 'inherit',
+                                transition: 'background 0.15s ease',
+                                fontSize: 'var(--text-sm)',
+                            }}
+                        >
+                            <span style={{ flexShrink: 0, width: 22, textAlign: 'center', fontSize: 15, opacity: email.unread ? 1 : 0.5 }}>
+                                {email.unread ? '📬' : '📭'}
+                            </span>
+                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontWeight: 600, color: '#7a9ec9', marginRight: 6 }}>{email.from}</span>
+                                <span style={{ color: 'var(--color-text-muted)' }}>{email.subject}</span>
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0, opacity: 0.6 }}>↗</span>
+                        </a>
+                    ))}
                 </div>
                 {hasMore && !expanded && (
                     <div style={{
@@ -1287,7 +1330,17 @@ export default function DashboardClient({ user }: Props) {
                                     {shortDate(data.habitHistory[selectedIdx].date)}
                                 </div>
                                 <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
-                                    {data.habitHistory[selectedIdx].date === data.todayAEST ? 'Today' : 'Historical'}
+                                    {(() => {
+                                        const d = data.habitHistory[selectedIdx].date;
+                                        if (d === data.todayAEST) return 'Today';
+                                        const dateObj = new Date(d + 'T00:00:00');
+                                        const todayObj = new Date(data.todayAEST + 'T00:00:00');
+                                        const diffDays = Math.round((dateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
+                                        if (diffDays === 1) return 'Tomorrow';
+                                        if (diffDays > 1) return dateObj.toLocaleDateString('en-AU', { weekday: 'long' });
+                                        if (diffDays === -1) return 'Yesterday';
+                                        return 'Past';
+                                    })()}
                                 </div>
                             </div>
                             <button

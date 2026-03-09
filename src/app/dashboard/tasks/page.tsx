@@ -700,7 +700,7 @@ export default function TasksPage() {
                     className={`${styles.priorityItem} ${t.completed ? styles.priorityItemDone : ''}`}
                     style={{ paddingLeft: `calc(var(--space-2) + ${indent * 24}px)` }}
                 >
-                    {/* Expand toggle for parents */}
+                    {/* Expand toggle for parents / spacer for alignment */}
                     {hasChildren ? (
                         <button
                             className={styles.subtaskToggle}
@@ -711,7 +711,9 @@ export default function TasksPage() {
                         </button>
                     ) : indent > 0 ? (
                         <span className={styles.subtaskLine}>└</span>
-                    ) : null}
+                    ) : (
+                        <span style={{ width: 20, flexShrink: 0 }} />
+                    )}
 
                     {/* Checkbox */}
                     <button
@@ -891,35 +893,7 @@ export default function TasksPage() {
                     </p>
                 </div>
 
-                {/* Status + Category filter tabs */}
-                <div style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-1)' }}>
-                    {(['all', 'open', 'done', 'overdue', 'waiting'] as const).map(f => {
-                        const labels: Record<string, { label: string; color: string }> = {
-                            all: { label: 'All', color: 'var(--color-text)' },
-                            open: { label: 'Open', color: '#c17f3a' },
-                            done: { label: 'Done', color: '#6db86d' },
-                            overdue: { label: 'Overdue', color: '#c07070' },
-                            waiting: { label: 'Waiting', color: '#c9a84c' },
-                        };
-                        const { label, color } = labels[f];
-                        const isActive = statusFilter === f;
-                        return (
-                            <button
-                                key={f}
-                                onClick={() => setStatusFilter(f)}
-                                style={{
-                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                                    border: isActive ? `2px solid ${color}` : '1px solid var(--color-border)',
-                                    background: isActive ? `${color}15` : 'transparent',
-                                    color: isActive ? color : 'var(--color-text-muted)',
-                                    fontWeight: isActive ? 700 : 500,
-                                    fontSize: 'var(--text-xs)', cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                }}
-                            >{label}</button>
-                        );
-                    })}
-                </div>
+
 
                 {/* Search + Category Filter */}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1004,16 +978,29 @@ export default function TasksPage() {
                 {/* Stats */}
                 <div className={styles.statsStrip}>
                     {[
-                        { label: 'Open', value: openTasks.length, color: '#c17f3a' },
-                        { label: 'Done', value: completedTasks.length, color: '#6db86d' },
-                        { label: 'Overdue', value: overdue.length, color: '#c07070' },
-                        { label: 'Waiting', value: waiting.length, color: '#c9a84c' },
-                    ].map(({ label, value, color }) => (
-                        <div key={label} className={styles.statCard}>
-                            <span className={styles.statValue} style={{ color }}>{value}</span>
-                            <span className={styles.statLabel}>{label}</span>
-                        </div>
-                    ))}
+                        { label: 'Open', value: openTasks.length, color: '#c17f3a', filter: 'open' as const },
+                        { label: 'Done', value: completedTasks.length, color: '#6db86d', filter: 'done' as const },
+                        { label: 'Overdue', value: overdue.length, color: '#c07070', filter: 'overdue' as const },
+                        { label: 'Waiting', value: waiting.length, color: '#c9a84c', filter: 'waiting' as const },
+                    ].map(({ label, value, color, filter }) => {
+                        const isActive = statusFilter === filter;
+                        return (
+                            <div
+                                key={label}
+                                className={styles.statCard}
+                                onClick={() => setStatusFilter(isActive ? 'all' : filter)}
+                                style={{
+                                    cursor: 'pointer',
+                                    border: isActive ? `2px solid ${color}` : undefined,
+                                    background: isActive ? `${color}12` : undefined,
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                <span className={styles.statValue} style={{ color }}>{value}</span>
+                                <span className={styles.statLabel}>{label}</span>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Chart */}
