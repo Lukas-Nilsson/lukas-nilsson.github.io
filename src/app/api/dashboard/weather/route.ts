@@ -178,10 +178,44 @@ export async function GET(req: Request) {
     const dateParam = url.searchParams.get('date');
 
     try {
-        const weather = dateParam ? await fetchDayWeather(dateParam) : await fetchLiveWeather();
+        let weather: WeatherData;
 
-        // Cache current weather to Supabase for OpenClaw (only if no date param = today)
-        if (!dateParam) {
+        if (dateParam) {
+            // Check Supabase cache first for dated weather
+            try {
+                const supabase = createAdminClient();
+                const { data: cached } = await supabase
+                    .from('weather_cache')
+                    .select('data,updated_at')
+                    .eq('id', `day_${dateParam}`)
+                    .single();
+
+                const todayAEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).toISOString().slice(0, 10);
+                const isPastDate = dateParam < todayAEST;
+                const cacheAge = cached?.updated_at ? Date.now() - new Date(cached.updated_at).getTime() : Infinity;
+                const FORECAST_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+                // Past weather: cached permanently. Forecast: cached 6 hours.
+                if (cached?.data && (isPastDate || cacheAge < FORECAST_CACHE_TTL)) {
+                    return NextResponse.json({ ...cached.data, cached: true, forecast: true });
+                }
+            } catch { /* cache miss — fetch fresh */ }
+
+            weather = await fetchDayWeather(dateParam);
+
+            // Cache the result to Supabase
+            try {
+                const supabase = createAdminClient();
+                await supabase.from('weather_cache').upsert({
+                    id: `day_${dateParam}`,
+                    data: weather,
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'id' });
+            } catch { /* non-critical */ }
+        } else {
+            weather = await fetchLiveWeather();
+
+            // Cache current weather to Supabase for OpenClaw
             try {
                 const supabase = createAdminClient();
                 await supabase.from('weather_cache').upsert({

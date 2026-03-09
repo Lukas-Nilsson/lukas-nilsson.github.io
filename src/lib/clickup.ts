@@ -203,10 +203,21 @@ export async function getTasksFromList(listId: string, includeSubtasks = true): 
     return tasks;
 }
 
+// ─── In-memory cache for getAllTasks (60s TTL) ──────────────────────────────
+let _taskCache: { tasks: ClickUpTask[]; lists: ClickUpList[]; fetchedAt: number } | null = null;
+const TASK_CACHE_TTL_MS = 60_000; // 60 seconds
+
 /**
  * Get all tasks across all lists in the space.
+ * Results are cached in-memory for 60s to avoid redundant ClickUp API calls
+ * when multiple API routes (dashboard, calendar, tasks) load simultaneously.
  */
-export async function getAllTasks(): Promise<{ tasks: ClickUpTask[]; lists: ClickUpList[] }> {
+export async function getAllTasks(opts?: { bustCache?: boolean }): Promise<{ tasks: ClickUpTask[]; lists: ClickUpList[] }> {
+    // Return cached data if fresh
+    if (!opts?.bustCache && _taskCache && (Date.now() - _taskCache.fetchedAt) < TASK_CACHE_TTL_MS) {
+        return { tasks: _taskCache.tasks, lists: _taskCache.lists };
+    }
+
     const lists = await getLists();
     const allTasks: ClickUpTask[] = [];
 
@@ -214,6 +225,9 @@ export async function getAllTasks(): Promise<{ tasks: ClickUpTask[]; lists: Clic
         const tasks = await getTasksFromList(list.id);
         allTasks.push(...tasks);
     }
+
+    // Store in cache
+    _taskCache = { tasks: allTasks, lists, fetchedAt: Date.now() };
 
     return { tasks: allTasks, lists };
 }
