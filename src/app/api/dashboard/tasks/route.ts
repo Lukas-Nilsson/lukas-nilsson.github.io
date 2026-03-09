@@ -127,7 +127,8 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
 
         } else if (action === 'abandon') {
-            // Don't change ClickUp status — just record locally as abandoned
+            // Set ClickUp status to 'abandoned' and record locally
+            await clickupUpdateTask(clickupId!, { status: 'abandoned' });
             const supabase = createAdminClient();
             await supabase.from('task_completions').upsert({
                 task_name,
