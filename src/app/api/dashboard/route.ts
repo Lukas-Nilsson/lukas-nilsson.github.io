@@ -135,33 +135,42 @@ export async function GET() {
         let totalOpen = 0;
         let totalDone = 0;
 
-        // Only count top-level tasks (not subtasks) for the pile
-        const topLevelTasks = clickupTasks.filter(t => !t.parent);
-        let subtaskCount = clickupTasks.length - topLevelTasks.length;
+        // Track top-level vs subtask for pile counts
+        const subtaskIds = new Set(clickupTasks.filter(t => t.parent).map(t => t.id));
+        let subtaskCount = subtaskIds.size;
 
-        for (const cuTask of topLevelTasks) {
+        // Include ALL tasks in categories (needed for task page hierarchy)
+        // but only count top-level tasks for pile metrics
+        for (const cuTask of clickupTasks) {
             const mapped = mapClickUpTask(cuTask);
             const cat = mapped.category;
+            const isSubtask = !!cuTask.parent;
 
             if (!categories[cat]) {
                 categories[cat] = { tasks: [], open: 0, done: 0, overdue: [] };
             }
             categories[cat].tasks.push(mapped.name);
 
-            if (mapped.status === 'open') {
-                categories[cat].open++;
-                totalOpen++;
+            // Only count top-level tasks for pile metrics
+            if (!isSubtask) {
+                if (mapped.status === 'open') {
+                    categories[cat].open++;
+                    totalOpen++;
 
-                // Overdue check
-                if (mapped.due_date && mapped.due_date < todayAEST) {
-                    overdueTasks.push({ name: mapped.name, due: mapped.due_date, category: cat });
-                    categories[cat].overdue.push({ name: mapped.name, due: mapped.due_date });
+                    // Overdue check
+                    if (mapped.due_date && mapped.due_date < todayAEST) {
+                        overdueTasks.push({ name: mapped.name, due: mapped.due_date, category: cat });
+                        categories[cat].overdue.push({ name: mapped.name, due: mapped.due_date });
+                    }
+                } else {
+                    categories[cat].done++;
+                    totalDone++;
                 }
-            } else {
-                categories[cat].done++;
-                totalDone++;
             }
         }
+
+        // Filter to top-level only for trajectory calculation
+        const topLevelTasks = clickupTasks.filter(t => !t.parent);
 
         // ── Build historical trajectory from task timestamps (top-level only) ──
         const MIGRATION_DATE = '2026-03-09';

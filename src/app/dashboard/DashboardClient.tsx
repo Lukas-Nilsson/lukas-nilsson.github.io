@@ -872,21 +872,43 @@ function CalendarWidget() {
 }
 
 // ─── Morning Brief Widget ────────────────────────────────────────────────────
-function MorningBriefWidget({ data }: { data: DashboardData }) {
+interface SavedBriefItem { icon: string; text: string; color?: string; accent?: boolean; type: string }
+
+function MorningBriefWidget({ data, selectedDate }: { data: DashboardData; selectedDate?: string }) {
     const [expanded, setExpanded] = useState(false);
     const [emails, setEmails] = useState<{ subject: string; from: string; url: string; unread: boolean }[]>([]);
+    const [savedBrief, setSavedBrief] = useState<{ items: SavedBriefItem[]; emails: { subject: string; from: string; url: string }[] } | null>(null);
+    const [briefSaved, setBriefSaved] = useState(false);
+
+    const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+    const isToday = !selectedDate || selectedDate === todayAEST;
+    const isPast = selectedDate && selectedDate < todayAEST;
+
     const todayHabits = data.habitHistory?.[data.habitHistory.length - 1];
     const whoop = data.whoop;
     const tasks = data.tasks;
     const history = data.habitHistory ?? [];
 
-    // Fetch emails on mount
+    // For past dates: load saved brief
     useEffect(() => {
+        if (isPast && selectedDate) {
+            fetch(`/api/dashboard/brief?date=${selectedDate}`)
+                .then(r => r.json())
+                .then(d => { if (d.brief) setSavedBrief(d.brief); else setSavedBrief(null); })
+                .catch(() => setSavedBrief(null));
+        } else {
+            setSavedBrief(null);
+        }
+    }, [isPast, selectedDate]);
+
+    // Fetch emails on mount (only for today)
+    useEffect(() => {
+        if (!isToday) return;
         fetch('/api/dashboard/emails')
             .then(r => r.json())
             .then(d => { if (d.emails?.length) setEmails(d.emails.slice(0, 3)); })
             .catch(() => { });
-    }, []);
+    }, [isToday]);
 
     // Recovery context
     const recovery = whoop?.recovery ?? null;
@@ -956,7 +978,30 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
         secondaryItems.push({ icon: '📧', text: `${emails.length} important email${emails.length > 1 ? 's' : ''}:`, color: '#7a9ec9' });
     }
 
-    const hasMore = secondaryItems.length > 0;
+    // Auto-save today's brief
+    const allItems = [...primaryItems.map(i => ({ ...i, type: 'primary' })), ...secondaryItems.map(i => ({ ...i, type: 'secondary' }))];
+    useEffect(() => {
+        if (!isToday || allItems.length === 0 || briefSaved) return;
+        const timeout = setTimeout(() => {
+            fetch('/api/dashboard/brief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: todayAEST,
+                    items: allItems,
+                    emails: emails.map(e => ({ subject: e.subject, from: e.from, url: e.url })),
+                }),
+            }).then(() => setBriefSaved(true)).catch(() => { });
+        }, 2000); // Debounce 2s to let data settle
+        return () => clearTimeout(timeout);
+    }, [isToday, allItems.length, briefSaved, todayAEST, emails]);
+
+    // For past dates with saved brief, use saved data
+    const displayPrimary = isPast && savedBrief ? savedBrief.items.filter(i => i.type === 'primary') : primaryItems;
+    const displaySecondary = isPast && savedBrief ? savedBrief.items.filter(i => i.type === 'secondary') : secondaryItems;
+    const displayEmails = isPast && savedBrief ? savedBrief.emails ?? [] : emails;
+
+    const hasMore = displaySecondary.length > 0 || displayEmails.length > 0;
 
     const renderItem = (item: { icon: string; text: string; color?: string; accent?: boolean }, i: number) => {
         const isAccent = item.accent && recoveryLevel;
@@ -985,7 +1030,9 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
                     Daily Brief
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span className={styles.widgetBadge}>{data.todayAEST}</span>
+                    <span className={styles.widgetBadge}>{selectedDate ?? data.todayAEST}</span>
+                    {isPast && savedBrief && <span style={{ fontSize: 9, color: 'var(--color-text-muted)', opacity: 0.6 }}>(saved)</span>}
+                    {isPast && !savedBrief && <span style={{ fontSize: 9, color: 'var(--color-text-muted)', opacity: 0.6 }}>(no data)</span>}
                     {hasMore && (
                         <span style={{
                             fontSize: 12, color: 'var(--color-text-muted)',
@@ -997,20 +1044,20 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
                 </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-                {primaryItems.map(renderItem)}
+                {displayPrimary.map(renderItem)}
                 <div style={{
-                    maxHeight: expanded ? `${(secondaryItems.length * 60) + (emails.length * 50)}px` : '0px',
+                    maxHeight: expanded ? `${(displaySecondary.length * 60) + (displayEmails.length * 50)}px` : '0px',
                     overflow: 'hidden',
                     transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
                     opacity: expanded ? 1 : 0,
                     display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',
                 }}>
-                    {secondaryItems.map((item, i) => renderItem(item, i + primaryItems.length))}
+                    {displaySecondary.map((item, i) => renderItem(item, i + displayPrimary.length))}
                     {/* Email cards */}
-                    {emails.length > 0 && emails.map((email, i) => (
+                    {displayEmails.length > 0 && displayEmails.map((email, i) => (
                         <a
                             key={i}
-                            href={email.url}
+                            href={(email as { url: string }).url}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -1025,12 +1072,10 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
                                 fontSize: 'var(--text-sm)',
                             }}
                         >
-                            <span style={{ flexShrink: 0, width: 22, textAlign: 'center', fontSize: 15, opacity: email.unread ? 1 : 0.5 }}>
-                                {email.unread ? '📬' : '📭'}
-                            </span>
+                            <span style={{ flexShrink: 0, width: 22, textAlign: 'center', fontSize: 15 }}>📧</span>
                             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                <span style={{ fontWeight: 600, color: '#7a9ec9', marginRight: 6 }}>{email.from}</span>
-                                <span style={{ color: 'var(--color-text-muted)' }}>{email.subject}</span>
+                                <span style={{ fontWeight: 600, color: '#7a9ec9', marginRight: 6 }}>{(email as { from: string }).from}</span>
+                                <span style={{ color: 'var(--color-text-muted)' }}>{(email as { subject: string }).subject}</span>
                             </span>
                             <span style={{ fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0, opacity: 0.6 }}>↗</span>
                         </a>
@@ -1041,7 +1086,7 @@ function MorningBriefWidget({ data }: { data: DashboardData }) {
                         fontSize: 'var(--text-xs)', color: 'var(--accent-400)',
                         textAlign: 'center', paddingTop: 'var(--space-1)', fontWeight: 500,
                     }}>
-                        Tap for more • {secondaryItems.length} more items
+                        Tap for more • {displaySecondary.length} more items
                     </div>
                 )}
             </div>
@@ -1376,7 +1421,7 @@ export default function DashboardClient({ user }: Props) {
 
                         {/* Morning Brief — full width */}
                         <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
-                            <MorningBriefWidget data={data} />
+                            <MorningBriefWidget data={data} selectedDate={selectedIdx !== null ? data.habitHistory[selectedIdx].date : undefined} />
                         </div>
 
                         {/* Whoop Status for selected day */}
