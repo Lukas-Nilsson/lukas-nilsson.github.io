@@ -737,11 +737,28 @@ export default function TasksPage() {
                             <span className={`${styles.priorityName} ${t.completed ? styles.priorityNameDone : ''}`}>
                                 {t.name}
                             </span>
-                            {hasChildren && (
-                                <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)', fontSize: 9 }}>
-                                    {t.children.length} sub
-                                </span>
-                            )}
+                            {hasChildren && (() => {
+                                const doneCount = t.children.filter(c => c.completed).length;
+                                const totalCount = t.children.length;
+                                const pct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+                                return (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                        <span className={styles.taskTag} style={{ color: 'var(--color-text-muted)', fontSize: 9 }}>
+                                            {doneCount}/{totalCount}
+                                        </span>
+                                        <span style={{
+                                            width: 36, height: 4, borderRadius: 2,
+                                            background: 'rgba(255,255,255,0.06)', overflow: 'hidden', display: 'inline-block',
+                                        }}>
+                                            <span style={{
+                                                width: `${pct}%`, height: '100%', display: 'block',
+                                                borderRadius: 2, background: pct === 100 ? '#5a9a5a' : 'var(--accent-400)',
+                                                transition: 'width 0.3s ease',
+                                            }} />
+                                        </span>
+                                    </span>
+                                );
+                            })()}
                         </div>
                         {/* Tags row */}
                         {(meta?.waiting_on || meta?.due_date || meta?.parent_task || meta?.context || meta?.location || priCfg) && (
