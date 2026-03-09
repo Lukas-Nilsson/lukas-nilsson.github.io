@@ -127,7 +127,7 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
 
         } else if (action === 'abandon') {
-            await clickupUpdateTask(clickupId!, { status: 'closed' });
+            await clickupUpdateTask(clickupId!, { status: 'complete' });
             return NextResponse.json({ ok: true, task_name, action: 'abandon' });
 
         } else if (action === 'add') {
