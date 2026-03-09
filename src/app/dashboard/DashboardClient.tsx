@@ -804,7 +804,9 @@ function CalendarWidget() {
         { icon: '🧘', label: 'Meditation', keywords: ['meditat', 'mindful', 'breathe', 'calm'] },
         { icon: '💧', label: 'Hydration', keywords: ['water', 'hydrat', 'drink'] },
     ];
-    const matchHabits = (title: string) => {
+    // Only match habits for events explicitly marked as habit-source
+    const matchHabits = (title: string, source?: string) => {
+        if (source !== 'habit') return [];
         const lower = title.toLowerCase();
         return WIDGET_HABITS.filter(h => h.keywords.some(k => lower.includes(k)));
     };
@@ -828,7 +830,7 @@ function CalendarWidget() {
                     const isPast = endMins < currentMins;
                     const isNow = startMins <= currentMins && currentMins < endMins;
                     const taskNames = ev.source_id ? ev.source_id.split(',').map(s => s.trim()).filter(Boolean) : [];
-                    const matchedHabits = matchHabits(ev.title);
+                    const matchedHabits = matchHabits(ev.title, ev.source);
                     return (
                         <div key={ev.id} style={{
                             display: 'flex', alignItems: 'center', gap: 'var(--space-2)',

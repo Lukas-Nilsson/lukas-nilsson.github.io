@@ -141,46 +141,72 @@ function HoverTip({ children, label }: { children: React.ReactNode; label: strin
 
 // ─── Task Matching ───────────────────────────────────────────────────────────
 
+// Common words that appear in many events but carry no task-specific meaning
+const STOP_WORDS = new Set([
+    'meeting', 'call', 'review', 'update', 'check', 'team', 'chat', 'sync',
+    'daily', 'weekly', 'monthly', 'standup', 'catchup', 'catch', 'session',
+    'prep', 'time', 'follow', 'get', 'set', 'run', 'plan', 'work', 'task',
+    'new', 'old', 'the', 'and', 'for', 'with', 'from', 'this', 'that',
+    'lunch', 'dinner', 'breakfast', 'coffee', 'break', 'out', 'off',
+]);
+
 function tokenize(text: string): string[] {
-    return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+        .filter(w => w.length > 2 && !STOP_WORDS.has(w));
 }
 
 function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
     if (!tasks.length) return [];
-    // Direct link via source_id (supports comma-separated multi-task links)
+
+    // 1. Direct link via source_id (explicit association — always trust)
     if (ev.source_id) {
         const ids = ev.source_id.split(',').map(s => s.trim()).filter(Boolean);
         const direct = tasks.filter(t => ids.includes(t.task_name));
         if (direct.length) return direct;
     }
-    // Keyword matching
-    const evTokens = tokenize(ev.title + ' ' + (ev.description ?? ''));
-    if (evTokens.length === 0) return [];
+
+    // 2. Near-exact name match (high confidence)
+    const evTitle = ev.title.toLowerCase().trim();
+    const nearExact = tasks.filter(t => {
+        const taskName = t.task_name.toLowerCase().trim();
+        // Full name contained in title or vice-versa, but require ≥60% length overlap
+        if (evTitle.includes(taskName) && taskName.length >= evTitle.length * 0.5) return true;
+        if (taskName.includes(evTitle) && evTitle.length >= taskName.length * 0.5) return true;
+        return false;
+    });
+    if (nearExact.length) return nearExact;
+
+    // 3. Strict keyword overlap (title only, no description noise)
+    const evTokens = tokenize(ev.title);
+    if (evTokens.length < 2) return []; // Too few meaningful words to match
+
     const matches: { task: TaskInfo; score: number }[] = [];
     for (const task of tasks) {
         const tTokens = tokenize(task.task_name);
-        if (tTokens.length === 0) continue;
-        // Check exact substring match
-        const evLower = (ev.title + ' ' + (ev.description ?? '')).toLowerCase();
-        const taskLower = task.task_name.toLowerCase();
-        if (evLower.includes(taskLower) || taskLower.includes(ev.title.toLowerCase())) {
-            matches.push({ task, score: 10 });
-            continue;
-        }
-        // Keyword overlap
+        if (tTokens.length < 2) continue; // Task name too short to match reliably
+
         const overlap = tTokens.filter(w => evTokens.includes(w)).length;
-        const ratio = overlap / Math.max(tTokens.length, 1);
-        if (overlap >= 2 || ratio >= 0.5) {
+        const ratio = overlap / tTokens.length;
+
+        // Require ≥3 overlapping meaningful words AND ≥70% coverage of the task name
+        if (overlap >= 3 && ratio >= 0.7) {
             matches.push({ task, score: overlap + ratio * 5 });
         }
     }
-    return matches.sort((a, b) => b.score - a.score).map(m => m.task);
+    return matches.sort((a, b) => b.score - a.score).slice(0, 2).map(m => m.task);
 }
 
 function matchHabitsToEvent(ev: CalendarEvent): HabitDef[] {
-    const evTokens = tokenize(ev.title + ' ' + (ev.description ?? ''));
-    if (evTokens.length === 0) return [];
-    return HABITS.filter(h => h.keywords.length > 0 && h.keywords.some(kw => evTokens.includes(kw)));
+    // Disabled auto-matching — habit keywords (water, morning, phone, etc.) are too
+    // generic and produce false positives on most events. Habits should only be
+    // associated with events explicitly (source: 'habit' or manual association).
+    // The UI shows habit icons on events that have source === 'habit'.
+    if (ev.source === 'habit') {
+        // Match based on the event title for source:'habit' events
+        const lower = ev.title.toLowerCase();
+        return HABITS.filter(h => h.keywords.some(kw => lower.includes(kw)));
+    }
+    return [];
 }
 
 // ─── Cache Helpers ───────────────────────────────────────────────────────────
@@ -444,6 +470,11 @@ export default function CalendarPage() {
         await handleUpdate(eventId, { source_id: newSourceId });
     };
 
+    // Update source_id for manual link/unlink from EventDetail
+    const handleUpdateSourceId = async (eventId: string, sourceId: string) => {
+        await handleUpdate(eventId, { source_id: sourceId || undefined });
+    };
+
     // Drag an existing event to a new time slot
     const handleEventMove = async (eventId: string, newStart: string, newEnd: string) => {
         await handleUpdate(eventId, { start_time: newStart, end_time: newEnd });
@@ -645,7 +676,7 @@ export default function CalendarPage() {
                 {!isMobile && (
                     <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--color-border)', padding: 'var(--space-3)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                         {selectedEvent ? (
-                            <EventDetail event={selectedEvent} tasks={selectedTasks} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} />
+                            <EventDetail event={selectedEvent} tasks={selectedTasks} allTasks={tasks} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} onUpdateSourceId={handleUpdateSourceId} />
                         ) : (
                             <TaskSidebar tasks={unscheduledTasks} />
                         )}
@@ -679,9 +710,11 @@ export default function CalendarPage() {
                             <EventDetail
                                 event={selectedEvent}
                                 tasks={selectedTasks}
+                                allTasks={tasks}
                                 onClose={() => { setSelectedEvent(null); setBottomSheet('peek'); }}
                                 onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); setBottomSheet('hidden'); }}
                                 onDelete={() => { handleDelete(selectedEvent.id); setBottomSheet('peek'); }}
+                                onUpdateSourceId={handleUpdateSourceId}
                             />
                         ) : (
                             <TaskSidebar tasks={unscheduledTasks} />
@@ -1150,12 +1183,38 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
 
 // ─── Event Detail Panel ──────────────────────────────────────────────────────
 
-function EventDetail({ event, tasks, onClose, onEdit, onDelete }: {
-    event: CalendarEvent; tasks?: TaskInfo[]; onClose: () => void; onEdit: () => void; onDelete: () => void;
+function EventDetail({ event, tasks, allTasks, onClose, onEdit, onDelete, onUpdateSourceId }: {
+    event: CalendarEvent; tasks?: TaskInfo[]; allTasks?: TaskInfo[];
+    onClose: () => void; onEdit: () => void; onDelete: () => void;
+    onUpdateSourceId?: (eventId: string, sourceId: string) => void;
 }) {
+    const [showLinkDropdown, setShowLinkDropdown] = useState(false);
+    const [linkFilter, setLinkFilter] = useState('');
+
     const c = eventColor(event);
     const start = new Date(event.start_time), end = new Date(event.end_time);
     const durMins = Math.round((end.getTime() - start.getTime()) / 60000);
+
+    const linkedTaskNames = new Set(
+        event.source_id ? event.source_id.split(',').map(s => s.trim()).filter(Boolean) : []
+    );
+
+    const unlinkTask = (taskName: string) => {
+        const updated = [...linkedTaskNames].filter(n => n !== taskName).join(',');
+        onUpdateSourceId?.(event.id, updated);
+    };
+
+    const linkTask = (taskName: string) => {
+        const updated = [...linkedTaskNames, taskName].join(',');
+        onUpdateSourceId?.(event.id, updated);
+        setShowLinkDropdown(false);
+        setLinkFilter('');
+    };
+
+    const availableTasks = (allTasks ?? []).filter(t =>
+        !linkedTaskNames.has(t.task_name) &&
+        (linkFilter === '' || t.task_name.toLowerCase().includes(linkFilter.toLowerCase()))
+    );
 
     return (
         <div>
@@ -1183,17 +1242,79 @@ function EventDetail({ event, tasks, onClose, onEdit, onDelete }: {
                 <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', marginBottom: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{event.description}</div>
             )}
 
-            {tasks && tasks.length > 0 && (
-                <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(193,127,58,0.2)', background: 'rgba(193,127,58,0.05)', marginBottom: 'var(--space-2)' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.task.text, textTransform: 'uppercase', marginBottom: 4 }}>📋 Linked Task{tasks.length > 1 ? 's' : ''}</div>
-                    {tasks.map(task => (
-                        <div key={task.task_name} style={{ marginBottom: tasks.length > 1 ? 4 : 0 }}>
+            {/* Linked Tasks — with unlink buttons */}
+            <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(193,127,58,0.2)', background: 'rgba(193,127,58,0.05)', marginBottom: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: accountColors.task.text, textTransform: 'uppercase' }}>📋 Linked Tasks</span>
+                    <button
+                        onClick={() => setShowLinkDropdown(!showLinkDropdown)}
+                        style={{
+                            background: 'rgba(193,127,58,0.12)', border: '1px solid rgba(193,127,58,0.25)',
+                            borderRadius: 'var(--radius-sm)', color: accountColors.task.text,
+                            fontSize: 9, fontWeight: 700, padding: '2px 6px', cursor: 'pointer',
+                        }}
+                    >
+                        {showLinkDropdown ? '✕ Cancel' : '🔗 Link Task'}
+                    </button>
+                </div>
+
+                {tasks && tasks.length > 0 ? tasks.map(task => (
+                    <div key={task.task_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tasks.length > 1 ? 4 : 0 }}>
+                        <div>
                             <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{task.task_name}</div>
                             {task.estimated_duration && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>{formatDuration(task.estimated_duration)} estimated</div>}
                         </div>
-                    ))}
-                </div>
-            )}
+                        {onUpdateSourceId && (
+                            <button
+                                onClick={() => unlinkTask(task.task_name)}
+                                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 12, padding: '0 4px', opacity: 0.5 }}
+                                title="Remove link"
+                            >×</button>
+                        )}
+                    </div>
+                )) : !showLinkDropdown && (
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No tasks linked</div>
+                )}
+
+                {/* Link Task dropdown */}
+                {showLinkDropdown && (
+                    <div style={{ marginTop: 'var(--space-2)' }}>
+                        <input
+                            type="text"
+                            placeholder="Search tasks…"
+                            value={linkFilter}
+                            onChange={e => setLinkFilter(e.target.value)}
+                            autoFocus
+                            style={{
+                                width: '100%', padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+                                color: 'var(--color-text)', fontSize: 'var(--text-xs)', marginBottom: 4,
+                                outline: 'none',
+                            }}
+                        />
+                        <div style={{ maxHeight: 150, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {availableTasks.slice(0, 10).map(t => (
+                                <button
+                                    key={t.task_name}
+                                    onClick={() => linkTask(t.task_name)}
+                                    style={{
+                                        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer',
+                                        fontSize: 'var(--text-xs)', color: 'var(--color-text)', textAlign: 'left',
+                                        display: 'flex', alignItems: 'center', gap: 4,
+                                    }}
+                                >
+                                    <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.task_name}</span>
+                                    {t.category && <span style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>{t.category}</span>}
+                                </button>
+                            ))}
+                            {availableTasks.length === 0 && (
+                                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', padding: 4 }}>No matching tasks</div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
                 <button onClick={onEdit} style={{ flex: 1, padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>✏️ Edit</button>
