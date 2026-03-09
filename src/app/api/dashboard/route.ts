@@ -135,7 +135,11 @@ export async function GET() {
         let totalOpen = 0;
         let totalDone = 0;
 
-        for (const cuTask of clickupTasks) {
+        // Only count top-level tasks (not subtasks) for the pile
+        const topLevelTasks = clickupTasks.filter(t => !t.parent);
+        let subtaskCount = clickupTasks.length - topLevelTasks.length;
+
+        for (const cuTask of topLevelTasks) {
             const mapped = mapClickUpTask(cuTask);
             const cat = mapped.category;
 
@@ -159,31 +163,41 @@ export async function GET() {
             }
         }
 
-        // ── Build historical trajectory from task timestamps ──
+        // ── Build historical trajectory from task timestamps (top-level only) ──
         const MIGRATION_DATE = '2026-03-09';
         const history: { date: string; open: number; completed: number; added: number; removed: number }[] = [];
 
         const createdByDate: Record<string, number> = {};
         const closedByDate: Record<string, number> = {};
+        const abandonedByDate: Record<string, number> = {};
 
-        for (const cuTask of clickupTasks) {
+        for (const cuTask of topLevelTasks) {
             const createdDate = new Date(Number(cuTask.date_created)).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
             createdByDate[createdDate] = (createdByDate[createdDate] ?? 0) + 1;
 
             if (cuTask.date_closed) {
                 const closedDate = new Date(Number(cuTask.date_closed)).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
-                closedByDate[closedDate] = (closedByDate[closedDate] ?? 0) + 1;
+                const isAbandoned = cuTask.status?.status?.toLowerCase() === 'abandoned';
+                if (isAbandoned) {
+                    abandonedByDate[closedDate] = (abandonedByDate[closedDate] ?? 0) + 1;
+                } else {
+                    closedByDate[closedDate] = (closedByDate[closedDate] ?? 0) + 1;
+                }
             }
         }
 
         let cumulativeCreated = 0;
         let cumulativeClosed = 0;
+        let cumulativeAbandoned = 0;
 
         for (const [date, count] of Object.entries(createdByDate)) {
             if (date < MIGRATION_DATE) cumulativeCreated += count;
         }
         for (const [date, count] of Object.entries(closedByDate)) {
             if (date < MIGRATION_DATE) cumulativeClosed += count;
+        }
+        for (const [date, count] of Object.entries(abandonedByDate)) {
+            if (date < MIGRATION_DATE) cumulativeAbandoned += count;
         }
 
         const startDate = new Date(MIGRATION_DATE + 'T00:00:00+11:00');
@@ -193,15 +207,17 @@ export async function GET() {
 
             const added = createdByDate[dateStr] ?? 0;
             const completed = closedByDate[dateStr] ?? 0;
+            const removed = abandonedByDate[dateStr] ?? 0;
             cumulativeCreated += added;
             cumulativeClosed += completed;
+            cumulativeAbandoned += removed;
 
             history.push({
                 date: dateStr,
-                open: cumulativeCreated - cumulativeClosed,
+                open: cumulativeCreated - cumulativeClosed - cumulativeAbandoned,
                 completed,
                 added,
-                removed: 0,
+                removed,
             });
         }
 

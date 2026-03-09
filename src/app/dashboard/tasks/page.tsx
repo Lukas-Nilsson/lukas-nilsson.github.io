@@ -38,11 +38,11 @@ const catColors: Record<string, string> = {
     Fitness: '#5a8a5a', Finance: '#5a7a8a', Personal: '#7a5a8a', Dev: '#8a5a5a',
 };
 
-const priorityConfig: Record<string, { label: string; icon: string; color: string; score: number }> = {
-    urgent: { label: 'Urgent', icon: '🔴', color: '#c07070', score: 900 },
-    high: { label: 'High', icon: '🟠', color: '#c9a84c', score: 700 },
-    normal: { label: 'Normal', icon: '🔵', color: '#5a7a8a', score: 400 },
-    low: { label: 'Low', icon: '⚪', color: 'var(--color-text-muted)', score: 50 },
+const priorityConfig: Record<string, { label: string; color: string; bg: string; score: number }> = {
+    urgent: { label: 'Urgent', color: '#c07070', bg: 'rgba(192,112,112,0.12)', score: 900 },
+    high: { label: 'High', color: '#c9a84c', bg: 'rgba(201,168,76,0.12)', score: 700 },
+    normal: { label: 'Normal', color: '#5a7a8a', bg: 'rgba(90,122,138,0.12)', score: 400 },
+    low: { label: 'Low', color: 'var(--color-text-muted)', bg: 'rgba(100,100,100,0.08)', score: 50 },
 };
 
 function shortDate(d: string) {
@@ -306,17 +306,17 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                 <div className={styles.modalField}>
                     <label className={styles.modalLabel}>Priority</label>
                     <div className={styles.priorityPicker}>
-                        {Object.entries(priorityConfig).map(([key, { label, icon, color }]) => (
+                        {Object.entries(priorityConfig).map(([key, { label, color, bg }]) => (
                             <button
                                 key={key}
                                 className={`${styles.priorityChip} ${priority === key ? styles.priorityChipActive : ''}`}
                                 style={{
                                     borderColor: priority === key ? color : undefined,
-                                    background: priority === key ? `${color}15` : undefined,
+                                    background: priority === key ? bg : undefined,
                                 }}
                                 onClick={() => setPriority(priority === key ? '' : key)}
                             >
-                                {icon} {label}
+                                ⚑ {label}
                             </button>
                         ))}
                     </div>
@@ -728,14 +728,6 @@ export default function TasksPage() {
                     {/* Name + metadata */}
                     <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setEditingTask(t)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                            {/* Inline priority dot — click to cycle */}
-                            {priCfg && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); cyclePriority(t); }}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}
-                                    title={`Priority: ${priCfg.label} — click to cycle`}
-                                >{priCfg.icon}</button>
-                            )}
                             <span className={`${styles.priorityName} ${t.completed ? styles.priorityNameDone : ''}`}>
                                 {t.name}
                             </span>
@@ -765,6 +757,23 @@ export default function TasksPage() {
                         {/* Tags row */}
                         {(meta?.waiting_on || meta?.due_date || meta?.parent_task || meta?.context || meta?.location || priCfg) && (
                             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {/* ClickUp-style priority flag */}
+                                {priCfg && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); cyclePriority(t); }}
+                                        style={{
+                                            background: priCfg.bg, border: 'none', cursor: 'pointer',
+                                            padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                                            fontSize: 9, fontWeight: 600, color: priCfg.color,
+                                            textTransform: 'uppercase', letterSpacing: '0.03em',
+                                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                                            transition: 'opacity 0.15s ease',
+                                        }}
+                                        title={`Priority: ${priCfg.label} — click to cycle`}
+                                    >
+                                        <span style={{ fontSize: 10 }}>⚑</span> {priCfg.label}
+                                    </button>
+                                )}
                                 {meta?.waiting_on && (
                                     <span className={styles.taskTag} style={{ color: '#c9a84c', borderColor: 'rgba(201,168,76,0.3)' }}>
                                         ⏳ {meta.waiting_on}

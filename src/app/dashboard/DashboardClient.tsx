@@ -1070,15 +1070,16 @@ interface WeatherData {
     location: string; fetched_at: string; cached?: boolean;
 }
 
-function WeatherHeader() {
+function WeatherHeader({ selectedDate }: { selectedDate?: string }) {
     const [weather, setWeather] = useState<WeatherData | null>(null);
 
     useEffect(() => {
-        fetch('/api/dashboard/weather')
+        const dateParam = selectedDate ? `?date=${selectedDate}` : '';
+        fetch(`/api/dashboard/weather${dateParam}`)
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d && !d.error) setWeather(d); })
             .catch(() => { });
-    }, []);
+    }, [selectedDate]);
 
     if (!weather) return null;
 
@@ -1370,7 +1371,7 @@ export default function DashboardClient({ user }: Props) {
                     <div className={styles.grid}>
                         {/* Weather Header — full width */}
                         <div className={`${styles.gridItem} ${styles.gridItemFull}`}>
-                            <WeatherHeader />
+                            <WeatherHeader selectedDate={selectedIdx !== null ? data.habitHistory[selectedIdx].date : undefined} />
                         </div>
 
                         {/* Morning Brief — full width */}
