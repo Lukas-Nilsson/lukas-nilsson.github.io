@@ -3,11 +3,11 @@ import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
+import { getAccessToken as getClickUpToken, getAllTasks, mapClickUpTask } from '@/lib/clickup';
 
 /**
  * GET /api/dashboard/calendar?start=ISO&end=ISO
- * Returns cached events from Supabase — always fast.
- * Google sync is handled by POST /api/dashboard/calendar/sync.
+ * Returns cached events from Supabase + ClickUp tasks with due dates.
  */
 export async function GET(req: NextRequest) {
     const { error: authError } = await requireAuth();
@@ -36,8 +36,55 @@ export async function GET(req: NextRequest) {
             .from('calendar_tokens')
             .select('account,email');
 
+        // ── ClickUp tasks with due dates → calendar items ──
+        let clickupTaskEvents: Record<string, unknown>[] = [];
+        try {
+            await getClickUpToken();
+            const { tasks: clickupTasks } = await getAllTasks();
+
+            const priorityLabels: Record<number, string> = { 1: 'urgent', 2: 'high', 3: 'normal', 4: 'low' };
+
+            clickupTaskEvents = clickupTasks
+                .filter(t => t.due_date && t.status?.status?.toLowerCase() !== 'complete' && t.status?.status?.toLowerCase() !== 'abandoned')
+                .map(t => {
+                    const mapped = mapClickUpTask(t);
+                    const dueDate = new Date(Number(t.due_date));
+                    const dueStr = dueDate.toISOString();
+                    const priorityId = t.priority?.id ? Number(t.priority.id) : 3;
+                    const rawDesc = typeof t.description === 'string' ? t.description : null;
+                    return {
+                        id: `clickup_${t.id}`,
+                        google_event_id: null,
+                        account: null,
+                        title: `⚑ ${mapped.name}`,
+                        description: rawDesc,
+                        location: null,
+                        start_time: dueStr,
+                        end_time: dueStr,
+                        all_day: true,
+                        color: null,
+                        source: 'clickup_task',
+                        source_id: t.id,
+                        status: 'confirmed',
+                        is_flexible: false,
+                        clickup_priority: priorityLabels[priorityId] ?? 'normal',
+                        clickup_status: t.status?.status ?? 'to do',
+                        clickup_category: mapped.category,
+                        clickup_url: t.url,
+                    };
+                })
+                // Filter by date range if provided
+                .filter(t => {
+                    if (start && new Date(t.start_time as string) < new Date(start)) return false;
+                    if (end && new Date(t.start_time as string) > new Date(end)) return false;
+                    return true;
+                });
+        } catch (e) {
+            console.error('[calendar] ClickUp task fetch failed:', e);
+        }
+
         return NextResponse.json({
-            events: events ?? [],
+            events: [...(events ?? []), ...clickupTaskEvents],
             connectedAccounts: (tokens ?? []).map(t => ({ account: t.account, email: t.email })),
         });
     } catch (e) {

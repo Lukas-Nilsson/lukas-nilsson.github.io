@@ -71,6 +71,7 @@ const accountColors: Record<string, { bg: string; border: string; text: string }
     business: { bg: 'rgba(90,170,120,0.18)', border: '#5aaa78', text: '#7ac89a' },
     task: { bg: 'rgba(193,127,58,0.18)', border: '#c17f3a', text: '#d4a05a' },
     habit: { bg: 'rgba(154,90,170,0.18)', border: '#9a5aaa', text: '#b87ac8' },
+    clickup_task: { bg: 'rgba(193,127,58,0.15)', border: '#c9a84c', text: '#d4b65a' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ function formatDuration(mins: number): string { const h = Math.floor(mins / 60);
 function isSameDay(a: Date, b: Date): boolean { return toAESTDate(a) === toAESTDate(b); }
 function eventColor(ev: CalendarEvent) {
     if (ev.color) return { bg: `${ev.color}25`, border: ev.color, text: ev.color };
+    if (ev.source === 'clickup_task') return accountColors.clickup_task;
     return accountColors[ev.source === 'task' ? 'task' : ev.source === 'habit' ? 'habit' : ev.account ?? 'personal'] ?? accountColors.personal;
 }
 
@@ -213,7 +215,7 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
-    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google']));
+    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google', 'clickup_task']));
     const syncInFlight = useRef(false);
 
     // Responsive
@@ -228,6 +230,8 @@ export default function CalendarPage() {
     const filteredEvents = useMemo(() => events.filter(ev => {
         // Google/calendar events: filter by account (personal/business)
         if (ev.source === 'google' || ev.source === 'calendar') return visibleSources.has(ev.account ?? 'personal');
+        // ClickUp tasks: filter by clickup_task source
+        if (ev.source === 'clickup_task') return visibleSources.has('clickup_task');
         // Task/habit-only events (created from OpenClaw, not synced from Google)
         return visibleSources.has(ev.source);
     }), [events, visibleSources]);
@@ -574,7 +578,7 @@ export default function CalendarPage() {
                                             <button key={v} onClick={() => setView(v)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: view === v ? 'var(--color-accent)' : 'transparent', color: view === v ? 'white' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', minHeight: 32 }}>{v}</button>
                                         ))}
                                     </div>
-                                    {[{ k: 'personal', l: 'P' }, { k: 'business', l: 'B' }, { k: 'task', l: 'T' }, { k: 'habit', l: 'H' }].map(({ k, l }) => {
+                                    {[{ k: 'personal', l: 'P' }, { k: 'business', l: 'B' }, { k: 'task', l: 'T' }, { k: 'habit', l: 'H' }, { k: 'clickup_task', l: 'CU' }].map(({ k, l }) => {
                                         const c = accountColors[k], on = visibleSources.has(k);
                                         return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, minHeight: 32 }}>{on ? '●' : '○'} {l}</button>;
                                     })}
@@ -607,7 +611,7 @@ export default function CalendarPage() {
                             </div>
                             <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-                                {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }].map(({ k, l }) => {
+                                {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }, { k: 'clickup_task', l: 'ClickUp' }].map(({ k, l }) => {
                                     const c = accountColors[k], on = visibleSources.has(k);
                                     return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, transition: 'all 0.15s' }}>{on ? '●' : '○'} {l}</button>;
                                 })}
