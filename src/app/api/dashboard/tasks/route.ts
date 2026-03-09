@@ -127,7 +127,14 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ ok: true, task_name, action: 'delete' });
 
         } else if (action === 'abandon') {
-            await clickupUpdateTask(clickupId!, { status: 'complete' });
+            // Don't change ClickUp status — just record locally as abandoned
+            const supabase = createAdminClient();
+            await supabase.from('task_completions').upsert({
+                task_name,
+                category: category ?? 'Uncategorized',
+                completed_at: new Date().toISOString(),
+                completed_by: 'abandoned',
+            }, { onConflict: 'task_name' });
             return NextResponse.json({ ok: true, task_name, action: 'abandon' });
 
         } else if (action === 'add') {
