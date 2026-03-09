@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
-import { getAccessToken as getClickUpToken, getAllTasks, mapClickUpTask } from '@/lib/clickup';
+import { getAllTasks, mapClickUpTask } from '@/lib/clickup';
 
 /**
  * GET /api/dashboard/calendar?start=ISO&end=ISO
@@ -39,7 +39,6 @@ export async function GET(req: NextRequest) {
         // ── ClickUp tasks with due dates → calendar items ──
         let clickupTaskEvents: Record<string, unknown>[] = [];
         try {
-            await getClickUpToken();
             const { tasks: clickupTasks } = await getAllTasks();
 
             const priorityLabels: Record<number, string> = { 1: 'urgent', 2: 'high', 3: 'normal', 4: 'low' };

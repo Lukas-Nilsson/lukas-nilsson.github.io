@@ -1135,9 +1135,10 @@ export default function DashboardClient({ user }: Props) {
                     checkDefs = buildCheckDefs(d.habitDefinitions, d.todayAEST);
                 }
                 setLoading(false);
-                // Default to most recent day
+                // Default to today (not most recent / furthest future)
                 if (d.habitHistory?.length) {
-                    setSelectedIdx(prev => prev ?? d.habitHistory.length - 1);
+                    const todayIdx = d.habitHistory.findIndex((h: { date: string }) => h.date === d.todayAEST);
+                    setSelectedIdx(prev => prev ?? (todayIdx >= 0 ? todayIdx : d.habitHistory.length - 1));
                 }
             })
             .catch(() => setLoading(false));

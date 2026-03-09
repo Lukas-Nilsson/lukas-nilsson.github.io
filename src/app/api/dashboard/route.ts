@@ -42,7 +42,7 @@ export async function GET() {
         { habit_id: 'hydration', label: 'Hydration', icon: '💧', tracking_start: '2026-03-01', show_time: false, show_notes: true, default_to_now: false, sort_order: 60 },
     ];
     const habitDefs = (habitDefRes.data && habitDefRes.data.length > 0) ? habitDefRes.data : FALLBACK_DEFS;
-    const habitIds = habitDefs.map((d: any) => d.habit_id);
+    const habitIds = habitDefs.map((d: { habit_id: string }) => d.habit_id);
 
     // ── Build per-day habit lookup ──
     const habitsByDate: Record<string, Record<string, { done: boolean; value: string | null; notes: string | null; source: string }>> = {};
@@ -71,8 +71,8 @@ export async function GET() {
                 time: checks[hid]?.value ?? null,
             };
         }
-        const activeForDate = habitDefs.filter((d: any) => d.tracking_start <= date);
-        const activeIds = activeForDate.map((d: any) => d.habit_id);
+        const activeForDate = habitDefs.filter((d: { tracking_start: string }) => d.tracking_start <= date);
+        const activeIds = activeForDate.map((d: { habit_id: string }) => d.habit_id);
         const doneCount = activeIds.filter((id: string) => checksMapped[id]?.done).length;
         const total = activeIds.length;
 
