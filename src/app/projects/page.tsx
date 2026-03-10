@@ -19,14 +19,14 @@ const projects = [
         tech: ['Next.js', 'Supabase', 'OpenAI'],
     },
     {
-        name: 'Personal OS / Dashboard',
+        name: 'OpenClaw — Personal OS',
         url: '/dashboard',
         status: 'In progress',
         year: '2025–present',
-        tags: ['Personal data', 'Health', 'Productivity'],
+        tags: ['AI', 'Productivity', 'Health', 'Integrations'],
         description:
-            'A unified personal data dashboard aggregating health data (Whoop), habits, tasks, and Google Calendar into a single command centre. This site is its dashboard.',
-        tech: ['Next.js', 'Supabase', 'Whoop API', 'Google Calendar API'],
+            'A unified personal operating system that aggregates health data, habits, tasks, calendar, and email into a single AI-powered command centre. Features deep ClickUp integration (native time tracking, task scheduling via drag-drop, bi-directional sync), Google Calendar multi-account sync, Whoop biometrics, AI-generated daily briefs, and an intelligent habit tracking system. Calendar events are mapped to ClickUp time entries for native work-session tracking.',
+        tech: ['Next.js 15', 'Supabase', 'ClickUp API', 'Google Calendar API', 'Whoop API', 'OpenAI GPT-4o', 'Vercel'],
     },
     {
         name: 'lukasnilsson.com',
