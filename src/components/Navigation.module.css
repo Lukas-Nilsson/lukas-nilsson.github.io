@@ -4,7 +4,9 @@
     left: 0;
     right: 0;
     z-index: 100;
-    height: var(--nav-height);
+    height: calc(var(--nav-height) + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--color-bg);
     transition: background var(--duration) var(--ease),
         border-color var(--duration) var(--ease),
         backdrop-filter var(--duration) var(--ease);
@@ -19,13 +21,17 @@
 }
 
 @media (prefers-color-scheme: light) {
+    .header {
+        background: var(--color-bg);
+    }
+
     .header.scrolled {
         background: rgba(250, 251, 252, 0.85);
     }
 }
 
 .nav {
-    height: 100%;
+    height: var(--nav-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -159,22 +165,23 @@
 
     .links {
         position: fixed;
-        top: var(--nav-height);
+        top: calc(var(--nav-height) + env(safe-area-inset-top, 0px));
         left: 0;
         right: 0;
-        background: rgba(0, 0, 0, 0.95);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.97);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
         flex-direction: column;
         align-items: stretch;
-        gap: var(--space-1);
-        padding: var(--space-4) var(--space-6);
-        border-bottom: 1px solid var(--color-border);
+        gap: var(--space-2);
+        padding: var(--space-6) var(--space-6);
         transform: translateY(-110%);
         opacity: 0;
-        transition: transform var(--duration) var(--ease),
-            opacity var(--duration) var(--ease);
+        transition: transform 0.35s var(--ease),
+            opacity 0.25s var(--ease);
         pointer-events: none;
+        overflow-y: auto;
     }
 
     .links.open {
@@ -184,13 +191,35 @@
     }
 
     .link {
-        padding: var(--space-3) var(--space-4);
+        padding: var(--space-4) var(--space-4);
         border-radius: var(--radius);
+        font-size: var(--text-base);
+        font-weight: 600;
+        border-bottom: 1px solid var(--color-border);
+        border-radius: 0;
+    }
+
+    .link:last-child {
+        border-bottom: none;
+    }
+
+    .link:hover,
+    .link:active {
+        background: var(--color-surface);
+    }
+
+    .dashboardLink {
+        margin-top: var(--space-4);
+        border-radius: var(--radius);
+        border: 1px solid rgba(14, 165, 233, 0.3);
+        text-align: center;
+        padding: var(--space-4);
+        border-bottom: 1px solid rgba(14, 165, 233, 0.3);
     }
 }
 
 @media (max-width: 768px) and (prefers-color-scheme: light) {
     .links {
-        background: rgba(250, 251, 252, 0.95);
+        background: rgba(250, 251, 252, 0.97);
     }
 }
