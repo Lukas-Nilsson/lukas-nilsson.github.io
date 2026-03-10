@@ -478,7 +478,7 @@ export default function CalendarPage() {
             try {
                 const res = await fetch('/api/dashboard/tasks/schedule', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ clickup_id: clickupId, start_time: start.toISOString(), end_time: end.toISOString() }),
+                    body: JSON.stringify({ clickup_id: clickupId, start_time: start.toISOString(), end_time: end.toISOString(), task_name: taskName }),
                 });
                 if (res.ok) {
                     const data = await res.json();
