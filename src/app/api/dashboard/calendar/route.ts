@@ -3,11 +3,11 @@ import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken, createEvent, updateEvent, deleteEvent } from '@/lib/google-calendar';
 import type { CalendarToken } from '@/lib/google-calendar';
-import { getAllTasks, mapClickUpTask } from '@/lib/clickup';
+import { getAllTasks, mapClickUpTask, getTimeEntries } from '@/lib/clickup';
 
 /**
  * GET /api/dashboard/calendar?start=ISO&end=ISO
- * Returns cached events from Supabase + ClickUp tasks with due dates.
+ * Returns cached events from Supabase + ClickUp tasks with due dates + ClickUp time entries.
  */
 export async function GET(req: NextRequest) {
     const { error: authError } = await requireAuth();
@@ -36,13 +36,18 @@ export async function GET(req: NextRequest) {
             .from('calendar_tokens')
             .select('account,email');
 
-        // ── ClickUp tasks with due dates → calendar items ──
+        // ── ClickUp tasks with due dates → all-day deadline markers ──
         let clickupTaskEvents: Record<string, unknown>[] = [];
+        // ── ClickUp time entries → timed work session events ──
+        let timeEntryEvents: Record<string, unknown>[] = [];
+
         try {
             const { tasks: clickupTasks } = await getAllTasks();
+            const taskNameById = new Map(clickupTasks.map(t => [t.id, t.name]));
 
             const priorityLabels: Record<number, string> = { 1: 'urgent', 2: 'high', 3: 'normal', 4: 'low' };
 
+            // Due-date events (all-day deadline markers)
             clickupTaskEvents = clickupTasks
                 .filter(t => t.due_date && t.status?.status?.toLowerCase() !== 'complete' && t.status?.status?.toLowerCase() !== 'abandoned')
                 .map(t => {
@@ -72,18 +77,49 @@ export async function GET(req: NextRequest) {
                         clickup_url: t.url,
                     };
                 })
-                // Filter by date range if provided
                 .filter(t => {
                     if (start && new Date(t.start_time as string) < new Date(start)) return false;
                     if (end && new Date(t.start_time as string) > new Date(end)) return false;
                     return true;
                 });
+
+            // Time entries (timed work sessions)
+            if (start && end) {
+                try {
+                    const entries = await getTimeEntries(
+                        new Date(start).getTime(),
+                        new Date(end).getTime()
+                    );
+                    timeEntryEvents = entries
+                        .filter(e => e.task && Number(e.duration) > 0) // Skip running timers and unlinked entries
+                        .map(e => ({
+                            id: `time_${e.id}`,
+                            google_event_id: null,
+                            account: null,
+                            title: e.task ? (taskNameById.get(e.task.id) ?? e.task.name) : 'Work Session',
+                            description: e.description || null,
+                            location: null,
+                            start_time: new Date(Number(e.start)).toISOString(),
+                            end_time: new Date(Number(e.end)).toISOString(),
+                            all_day: false,
+                            color: null,
+                            source: 'clickup_time',
+                            source_id: e.task?.id ?? null,
+                            status: 'confirmed',
+                            is_flexible: false,
+                            time_entry_id: e.id, // For update/delete operations
+                            clickup_task_id: e.task?.id ?? null,
+                        }));
+                } catch (te) {
+                    console.error('[calendar] ClickUp time entries fetch failed:', te);
+                }
+            }
         } catch (e) {
             console.error('[calendar] ClickUp task fetch failed:', e);
         }
 
         return NextResponse.json({
-            events: [...(events ?? []), ...clickupTaskEvents],
+            events: [...(events ?? []), ...clickupTaskEvents, ...timeEntryEvents],
             connectedAccounts: (tokens ?? []).map(t => ({ account: t.account, email: t.email })),
         });
     } catch (e) {

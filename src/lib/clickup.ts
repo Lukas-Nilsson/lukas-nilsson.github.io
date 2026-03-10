@@ -308,6 +308,82 @@ export async function setCustomField(taskId: string, fieldId: string, value: unk
     }
 }
 
+// ─── Time Tracking ───────────────────────────────────────────────────────────
+
+export interface ClickUpTimeEntry {
+    id: string;
+    task: { id: string; name: string; status: { status: string } } | null;
+    wid: string; // workspace ID
+    start: string; // Unix ms (string)
+    end: string;   // Unix ms (string)
+    duration: string; // ms (string, negative = timer running)
+    description: string;
+    at: string; // created timestamp
+}
+
+function getTeamId(): string {
+    const id = process.env.CLICKUP_TEAM_ID;
+    if (!id) throw new Error('Missing CLICKUP_TEAM_ID in environment');
+    return id;
+}
+
+/**
+ * Create a time entry (work session) for a task.
+ * This is what shows up in ClickUp's time tracking and represents
+ * a scheduled block of work on the calendar.
+ */
+export async function createTimeEntry(taskId: string, startMs: number, endMs: number, description?: string): Promise<ClickUpTimeEntry> {
+    const teamId = getTeamId();
+    return clickupFetch<{ data: ClickUpTimeEntry }>(`/team/${teamId}/time_entries`, {
+        method: 'POST',
+        body: JSON.stringify({
+            tid: taskId,
+            start: startMs,
+            end: endMs,
+            duration: endMs - startMs,
+            description: description ?? '',
+        }),
+    }).then(r => r.data);
+}
+
+/**
+ * Get time entries for a date range. Used to populate the calendar
+ * with scheduled work sessions.
+ */
+export async function getTimeEntries(startMs: number, endMs: number): Promise<ClickUpTimeEntry[]> {
+    const teamId = getTeamId();
+    return clickupFetch<{ data: ClickUpTimeEntry[] }>(
+        `/team/${teamId}/time_entries?start_date=${startMs}&end_date=${endMs}`
+    ).then(r => r.data ?? []);
+}
+
+/**
+ * Update a time entry (e.g. when moving an event on the calendar).
+ */
+export async function updateTimeEntry(entryId: string, data: { start?: number; end?: number; duration?: number; description?: string }): Promise<ClickUpTimeEntry> {
+    const teamId = getTeamId();
+    return clickupFetch<{ data: ClickUpTimeEntry }>(`/team/${teamId}/time_entries/${entryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    }).then(r => r.data);
+}
+
+/**
+ * Delete a time entry.
+ */
+export async function deleteTimeEntry(entryId: string): Promise<void> {
+    const teamId = getTeamId();
+    const token = await getAccessToken();
+    const res = await fetch(`${CLICKUP_API}/team/${teamId}/time_entries/${entryId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': token },
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`ClickUp DELETE time entry error [${res.status}]: ${text}`);
+    }
+}
+
 // ─── OAuth Connect URL ───────────────────────────────────────────────────────
 
 /**

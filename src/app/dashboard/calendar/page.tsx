@@ -22,15 +22,19 @@ interface CalendarEvent {
     source_id: string | null;
     status: string;
     is_flexible: boolean;
+    time_entry_id?: string;    // ClickUp time entry ID (for update/delete)
+    clickup_task_id?: string;  // ClickUp task ID (for linking)
 }
 
 interface ConnectedAccount { account: string; email: string; }
 
 interface TaskInfo {
     task_name: string;
+    clickup_id: string | null;
     status: string;
     priority: string | null;
     category: string | null;
+    due_date: string | null;
     estimated_duration: number | null;
 }
 
@@ -72,6 +76,7 @@ const accountColors: Record<string, { bg: string; border: string; text: string }
     task: { bg: 'rgba(193,127,58,0.18)', border: '#c17f3a', text: '#d4a05a' },
     habit: { bg: 'rgba(154,90,170,0.18)', border: '#9a5aaa', text: '#b87ac8' },
     clickup_task: { bg: 'rgba(193,127,58,0.15)', border: '#c9a84c', text: '#d4b65a' },
+    clickup_time: { bg: 'rgba(58,150,193,0.18)', border: '#3a96c1', text: '#5ab4d4' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -84,6 +89,7 @@ function isSameDay(a: Date, b: Date): boolean { return toAESTDate(a) === toAESTD
 function eventColor(ev: CalendarEvent) {
     if (ev.color) return { bg: `${ev.color}25`, border: ev.color, text: ev.color };
     if (ev.source === 'clickup_task') return accountColors.clickup_task;
+    if (ev.source === 'clickup_time') return accountColors.clickup_time;
     return accountColors[ev.source === 'task' ? 'task' : ev.source === 'habit' ? 'habit' : ev.account ?? 'personal'] ?? accountColors.personal;
 }
 
@@ -236,7 +242,7 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
-    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google', 'clickup_task']));
+    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google', 'clickup_task', 'clickup_time']));
     const syncInFlight = useRef(false);
 
     // Responsive
@@ -352,9 +358,11 @@ export default function CalendarPage() {
                 if (!res.ok) return;
                 const td = await res.json();
                 const done = new Set((td.completions ?? []).map((c: { task_name: string }) => c.task_name));
-                setTasks((td.metadata ?? []).map((m: { task_name: string; priority?: number; context?: string; estimated_duration?: number }) => ({
-                    task_name: m.task_name, status: done.has(m.task_name) ? 'done' : 'open',
+                setTasks((td.metadata ?? []).map((m: { task_name: string; clickup_id?: string; priority?: number; context?: string; due_date?: string; estimated_duration?: number }) => ({
+                    task_name: m.task_name, clickup_id: m.clickup_id ?? null,
+                    status: done.has(m.task_name) ? 'done' : 'open',
                     priority: m.priority ?? null, category: m.context ?? null,
+                    due_date: m.due_date ?? null,
                     estimated_duration: (m as Record<string, unknown>).estimated_duration as number | null ?? null,
                 })));
             } catch (e) { console.error('Failed to load tasks:', e); }
@@ -448,11 +456,49 @@ export default function CalendarPage() {
 
     // ─── Drag & Drop ─────────────────────────────────────────────────────────
 
-    const handleDrop = async (taskName: string, date: Date, hour: number, duration: number) => {
+    const handleDrop = async (taskName: string, date: Date, hour: number, duration: number, clickupId?: string) => {
         const start = new Date(date);
         start.setHours(hour, 0, 0, 0);
         const end = new Date(start.getTime() + duration * 60000);
-        await handleCreate(taskName, start.toISOString(), end.toISOString(), '', 'task', taskName);
+
+        if (clickupId) {
+            // ClickUp-native scheduling: create a time entry (work session)
+            // This does NOT modify start_date/due_date — those are the work window.
+            const tempId = `temp-time-${Date.now()}`;
+            const optimistic: CalendarEvent = {
+                id: tempId, google_event_id: null, account: null,
+                title: taskName, description: null, location: null,
+                start_time: start.toISOString(), end_time: end.toISOString(),
+                all_day: false, color: null, source: 'clickup_time',
+                source_id: clickupId, status: 'confirmed', is_flexible: false,
+                clickup_task_id: clickupId,
+            };
+            setEvents(prev => [...prev, optimistic]);
+
+            try {
+                const res = await fetch('/api/dashboard/tasks/schedule', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clickup_id: clickupId, start_time: start.toISOString(), end_time: end.toISOString() }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    // Replace temp with real event using time_entry_id
+                    setEvents(prev => prev.map(ev => ev.id === tempId ? {
+                        ...optimistic,
+                        id: `time_${data.time_entry.id}`,
+                        time_entry_id: data.time_entry.id,
+                    } : ev));
+                } else {
+                    setEvents(prev => prev.filter(ev => ev.id !== tempId));
+                }
+            } catch (e) {
+                console.error('Schedule failed:', e);
+                setEvents(prev => prev.filter(ev => ev.id !== tempId));
+            }
+        } else {
+            // Non-ClickUp task: create a local calendar event
+            await handleCreate(taskName, start.toISOString(), end.toISOString(), '', 'task', taskName);
+        }
     };
 
     // Drop a task onto an existing event to link them
@@ -472,7 +518,24 @@ export default function CalendarPage() {
 
     // Drag an existing event to a new time slot
     const handleEventMove = async (eventId: string, newStart: string, newEnd: string) => {
-        await handleUpdate(eventId, { start_time: newStart, end_time: newEnd });
+        const ev = events.find(e => e.id === eventId);
+        // ClickUp time entry events: update via schedule PATCH API
+        if (ev?.source === 'clickup_time' && ev.time_entry_id) {
+            const rollback = events;
+            setEvents(prev => prev.map(e => e.id === eventId ? { ...e, start_time: newStart, end_time: newEnd } : e));
+            try {
+                const res = await fetch('/api/dashboard/tasks/schedule', {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entry_id: ev.time_entry_id, start_time: newStart, end_time: newEnd }),
+                });
+                if (!res.ok) setEvents(rollback);
+            } catch (e) {
+                console.error('Move time entry failed:', e);
+                setEvents(rollback);
+            }
+        } else {
+            await handleUpdate(eventId, { start_time: newStart, end_time: newEnd });
+        }
     };
 
     // Tasks that are linked to any event via source_id are 'scheduled'
@@ -735,7 +798,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     showHabitUI: boolean;
     onSlotClick: (start: string, end: string) => void;
     onEventClick: (ev: CalendarEvent) => void;
-    onDrop: (taskName: string, date: Date, hour: number, duration: number) => void;
+    onDrop: (taskName: string, date: Date, hour: number, duration: number, clickupId?: string) => void;
     onLinkToEvent: (eventId: string, taskName: string) => void;
     onEventMove: (eventId: string, newStart: string, newEnd: string) => void;
     onEventResize?: (eventId: string, newStart: string, newEnd: string) => void;
@@ -847,7 +910,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                                 onEventMove(parsed.eventId, newStart.toISOString(), newEnd.toISOString());
                                             } else if (parsed.taskName) {
                                                 // Task drag from sidebar
-                                                onDrop(parsed.taskName, date, h, parsed.duration ?? 30);
+                                                onDrop(parsed.taskName, date, h, parsed.duration ?? 30, parsed.clickupId);
                                             }
                                         } catch { /* ignore */ }
                                     }}
@@ -1354,7 +1417,7 @@ function TaskSidebar({ tasks }: { tasks: TaskInfo[] }) {
                                 key={task.task_name}
                                 draggable
                                 onDragStart={(e) => {
-                                    e.dataTransfer.setData('text/plain', JSON.stringify({ taskName: task.task_name, duration: task.estimated_duration ?? 30 }));
+                                    e.dataTransfer.setData('text/plain', JSON.stringify({ taskName: task.task_name, duration: task.estimated_duration ?? 30, clickupId: task.clickup_id }));
                                     e.dataTransfer.effectAllowed = 'copy';
                                 }}
                                 style={{
