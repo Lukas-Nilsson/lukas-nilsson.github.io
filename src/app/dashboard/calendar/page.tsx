@@ -838,7 +838,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const wasDragging = useRef(false);
-    const [statusPopup, setStatusPopup] = useState<string | null>(null); // event ID when popup is open
+    const [statusPopup, setStatusPopup] = useState<{ id: string; top: number; left: number } | null>(null); // event ID + position when popup is open
 
     // Resize state
     const [resizingId, setResizingId] = useState<string | null>(null);
@@ -1034,7 +1034,12 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     {ev.source === 'clickup_time' && ev.time_entry_id && ev.clickup_task_id && onFinishEvent && !isMulti && (
                                         <div style={{ position: 'absolute', top: 2, right: 2, zIndex: 10 }}>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setStatusPopup(statusPopup === ev.id ? null : ev.id); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (statusPopup?.id === ev.id) { setStatusPopup(null); return; }
+                                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                    setStatusPopup({ id: ev.id, top: rect.bottom + 4, left: Math.min(rect.right - 140, window.innerWidth - 150) });
+                                                }}
                                                 style={{
                                                     background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
                                                     borderRadius: 'var(--radius-sm)', padding: '1px 6px', cursor: 'pointer',
@@ -1045,41 +1050,46 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                                 onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
                                                 title="Finish event & set task status"
                                             >✓</button>
-                                            {statusPopup === ev.id && (
-                                                <div
-                                                    style={{
-                                                        position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                                                        background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)',
-                                                        borderRadius: 'var(--radius)', padding: 4, zIndex: 50,
-                                                        boxShadow: 'var(--shadow-md)', minWidth: 130, display: 'flex', flexDirection: 'column', gap: 2,
-                                                    }}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    {[
-                                                        { status: 'complete', label: '✅ Complete', color: 'var(--green-400)' },
-                                                        { status: 'in progress', label: '🔄 In Progress', color: 'var(--yellow-400)' },
-                                                        { status: 'abandoned', label: '❌ Abandoned', color: 'var(--red-400)' },
-                                                    ].map(opt => (
-                                                        <button
-                                                            key={opt.status}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onFinishEvent(ev.id, opt.status);
-                                                                setStatusPopup(null);
-                                                            }}
-                                                            style={{
-                                                                background: 'none', border: 'none', padding: '6px 10px',
-                                                                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                                                                fontSize: 11, fontWeight: 600, color: 'var(--color-text)',
-                                                                textAlign: 'left', transition: 'background 0.1s',
-                                                            }}
-                                                            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--color-surface-hover)'; }}
-                                                            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none'; }}
-                                                        >
-                                                            {opt.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                            {statusPopup?.id === ev.id && createPortal(
+                                                <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }} onClick={() => setStatusPopup(null)}>
+                                                    <div
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: statusPopup.top,
+                                                            left: statusPopup.left,
+                                                            background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)',
+                                                            borderRadius: 'var(--radius)', padding: 4,
+                                                            boxShadow: 'var(--shadow-md)', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 2,
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {[
+                                                            { status: 'complete', label: '✅ Complete' },
+                                                            { status: 'in progress', label: '🔄 In Progress' },
+                                                            { status: 'abandoned', label: '❌ Abandoned' },
+                                                        ].map(opt => (
+                                                            <button
+                                                                key={opt.status}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onFinishEvent(ev.id, opt.status);
+                                                                    setStatusPopup(null);
+                                                                }}
+                                                                style={{
+                                                                    background: 'none', border: 'none', padding: '6px 10px',
+                                                                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                                                    fontSize: 12, fontWeight: 600, color: 'var(--color-text)',
+                                                                    textAlign: 'left', transition: 'background 0.1s',
+                                                                }}
+                                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--color-surface-hover)'; }}
+                                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none'; }}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>,
+                                                document.body
                                             )}
                                         </div>
                                     )}
