@@ -538,6 +538,31 @@ export default function CalendarPage() {
         }
     };
 
+    // Finish an event: truncate end_time to now + update ClickUp task status
+    const handleFinishEvent = async (eventId: string, status: string) => {
+        const ev = events.find(e => e.id === eventId);
+        if (!ev?.time_entry_id || !ev?.clickup_task_id) return;
+        const now = new Date().toISOString();
+        // Optimistically truncate the event to now
+        const rollback = events;
+        setEvents(prev => prev.map(e => e.id === eventId ? { ...e, end_time: now } : e));
+        try {
+            const res = await fetch('/api/dashboard/tasks/schedule', {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    entry_id: ev.time_entry_id,
+                    end_time: now,
+                    clickup_task_id: ev.clickup_task_id,
+                    task_status: status,
+                }),
+            });
+            if (!res.ok) setEvents(rollback);
+        } catch (e) {
+            console.error('Finish event failed:', e);
+            setEvents(rollback);
+        }
+    };
+
     // Tasks that are linked to any event via source_id are 'scheduled'
     const linkedTaskNames = useMemo(() => {
         const names = new Set<string>();
@@ -632,9 +657,9 @@ export default function CalendarPage() {
     const calendarBody = loading && events.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
     ) : view === 'day' ? (
-        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} isMobile={isMobile} hourHeight={zoomHeight} />
+        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : view === 'week' ? (
-        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} isMobile={isMobile} hourHeight={zoomHeight} />
+        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : (
         <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
     );
@@ -790,7 +815,7 @@ export default function CalendarPage() {
 
 // ─── TimeGrid (shared day/week) ──────────────────────────────────────────────
 
-function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove, onEventResize, isMobile = false, hourHeight = HOUR_HEIGHT }: {
+function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, onEventClick, onDrop, onLinkToEvent, onEventMove, onEventResize, onFinishEvent, isMobile = false, hourHeight = HOUR_HEIGHT }: {
     events: CalendarEvent[];
     dates: Date[];
     tasks: TaskInfo[];
@@ -802,6 +827,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     onLinkToEvent: (eventId: string, taskName: string) => void;
     onEventMove: (eventId: string, newStart: string, newEnd: string) => void;
     onEventResize?: (eventId: string, newStart: string, newEnd: string) => void;
+    onFinishEvent?: (eventId: string, status: string) => void;
     isMobile?: boolean;
     hourHeight?: number;
 }) {
@@ -812,6 +838,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
     const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const wasDragging = useRef(false);
+    const [statusPopup, setStatusPopup] = useState<string | null>(null); // event ID when popup is open
 
     // Resize state
     const [resizingId, setResizingId] = useState<string | null>(null);
@@ -1001,6 +1028,59 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                                     {height > 28 && !isMulti && (
                                         <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                                             {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
+                                        </div>
+                                    )}
+                                    {/* Done button for ClickUp time entry events */}
+                                    {ev.source === 'clickup_time' && ev.time_entry_id && ev.clickup_task_id && onFinishEvent && !isMulti && (
+                                        <div style={{ position: 'absolute', top: 2, right: 2, zIndex: 10 }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setStatusPopup(statusPopup === ev.id ? null : ev.id); }}
+                                                style={{
+                                                    background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+                                                    borderRadius: 'var(--radius-sm)', padding: '1px 6px', cursor: 'pointer',
+                                                    fontSize: 10, fontWeight: 700, color: c.text, lineHeight: '1.4',
+                                                    transition: 'background 0.15s',
+                                                }}
+                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
+                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
+                                                title="Finish event & set task status"
+                                            >✓</button>
+                                            {statusPopup === ev.id && (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                                                        background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)',
+                                                        borderRadius: 'var(--radius)', padding: 4, zIndex: 50,
+                                                        boxShadow: 'var(--shadow-md)', minWidth: 130, display: 'flex', flexDirection: 'column', gap: 2,
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    {[
+                                                        { status: 'complete', label: '✅ Complete', color: 'var(--green-400)' },
+                                                        { status: 'in progress', label: '🔄 In Progress', color: 'var(--yellow-400)' },
+                                                        { status: 'abandoned', label: '❌ Abandoned', color: 'var(--red-400)' },
+                                                    ].map(opt => (
+                                                        <button
+                                                            key={opt.status}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onFinishEvent(ev.id, opt.status);
+                                                                setStatusPopup(null);
+                                                            }}
+                                                            style={{
+                                                                background: 'none', border: 'none', padding: '6px 10px',
+                                                                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                                                fontSize: 11, fontWeight: 600, color: 'var(--color-text)',
+                                                                textAlign: 'left', transition: 'background 0.1s',
+                                                            }}
+                                                            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--color-surface-hover)'; }}
+                                                            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none'; }}
+                                                        >
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                     {height > 42 && !isMulti && matchedTasks.length > 0 && (
