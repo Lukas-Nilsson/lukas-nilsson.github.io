@@ -23,6 +23,10 @@ export const metadata: Metadata = {
     title: "Lukas Nilsson",
     description: "Tech creative, founder, truth seeker.",
   },
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#fafbfc" },
+  ],
 };
 
 export default function RootLayout({
