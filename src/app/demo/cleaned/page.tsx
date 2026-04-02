@@ -18,13 +18,25 @@ export default async function CleanedDemoPage() {
     }
 
     return (
-        <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', background: '#0a0a0f' }}>
+        <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0a0a0f' }}>
             <style dangerouslySetInnerHTML={{ __html: `
-                html, body { background-color: #0a0a0f !important; overscroll-behavior: none; margin: 0; padding: 0; }
+                html, body { 
+                    background-color: #0a0a0f !important; 
+                    margin: 0; padding: 0; 
+                    overflow: hidden !important; 
+                    position: fixed !important; 
+                    width: 100% !important; 
+                    height: 100% !important;
+                    overscroll-behavior: none;
+                    -webkit-overflow-scrolling: none;
+                }
             ` }} />
             <iframe 
                 src="/demo/cleaned/index.html" 
                 style={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
                     width: '100%', 
                     height: '100%', 
                     border: 'none',
