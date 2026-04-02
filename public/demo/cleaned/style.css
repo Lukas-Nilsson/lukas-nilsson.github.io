@@ -53,12 +53,13 @@ body {
 .app {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    height: 100vh; /* fallback for older browsers */
+    height: 100svh;
     max-width: 720px;
     margin: 0 auto;
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    padding-bottom: 0;
+    overflow: hidden;
 }
 
 /* ===========================

@@ -163,17 +163,26 @@ const inputArea = document.getElementById("inputArea");
 // ===========================
 // Mobile Keyboard Handling
 // ===========================
+
+// Set exact height immediately to prevent any initial scroll
+if (appEl) {
+    appEl.style.height = window.innerHeight + "px";
+}
+
 if (window.visualViewport) {
     const vv = window.visualViewport;
     function adjustForKeyboard() {
-        // Resize .app to match the visible viewport so the flex layout
-        // naturally keeps the input pinned to the bottom of visible area
         if (appEl) {
             appEl.style.height = vv.height + "px";
         }
     }
     vv.addEventListener("resize", adjustForKeyboard);
     vv.addEventListener("scroll", adjustForKeyboard);
+} else {
+    // Fallback for browsers without visualViewport
+    window.addEventListener("resize", () => {
+        if (appEl) appEl.style.height = window.innerHeight + "px";
+    });
 }
 
 // Scroll chat to bottom when input is focused (mobile keyboard pushes content)
