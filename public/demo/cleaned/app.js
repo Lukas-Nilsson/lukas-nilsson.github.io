@@ -25,6 +25,7 @@ async function processSafariBlobs(wrapper) {
             const miniBase64 = miniCanvas.toDataURL("image/jpeg", 0.3);
             
             const oldSrc = img.src;
+            img.dataset._originalFullSrc = oldSrc;
             img.dataset.miniUrl = miniBase64;
             img.src = safeBase64;
             
@@ -38,96 +39,95 @@ function restoreSafariBlobs(list) {
     for (const item of list) {
         item.img.src = item.oldSrc;
         delete item.img.dataset.miniUrl;
+        delete item.img.dataset._originalFullSrc;
     }
 }
 
 async function generateSafeComposite(wrapper, rawImg, isExport = false) {
-    console.log(`\n[COMPOSITE] Starting ${isExport ? 'Lossless Export' : 'Internal'} generated composite...`);
+    console.log(`\n[COMPOSITE] Starting ${isExport ? 'LOSSLESS EXPORT' : 'Internal'} composite...`);
     const startTime = performance.now();
     
     const w = wrapper.offsetWidth;
     const h = wrapper.offsetHeight;
+    const aspect = w / h;
     
-    let targetW = Math.round(w * 2);
-    let targetH = Math.round(h * 2);
-    let targetDpr = 2;
-
+    // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it)
+    const originalFullSrc = rawImg ? (rawImg.dataset._originalFullSrc || rawImg.src) : null;
+    
+    // For export: match the original image's native resolution
+    // For internal (approve flow): use 2x screen DPR
+    let targetW, targetH, overlayDpr;
     if (isExport && rawImg && rawImg.naturalWidth) {
         targetW = rawImg.naturalWidth;
         targetH = rawImg.naturalHeight;
-        targetDpr = targetW / w;
+        // Cap overlay DPR at 3x to keep the overlay crisp without OOM
+        overlayDpr = Math.min(targetW / w, 3);
+    } else {
+        overlayDpr = 2;
+        targetW = Math.round(w * overlayDpr);
+        targetH = Math.round(h * overlayDpr);
     }
 
-    console.log(`[COMPOSITE] Target layout area: ${w}x${h} (Canvas target: ${targetW}x${targetH}, DPR: ${targetDpr.toFixed(2)})`);
+    console.log(`[COMPOSITE] Layout: ${w}x${h} → Canvas: ${targetW}x${targetH}, Overlay DPR: ${overlayDpr.toFixed(2)}`);
     
+    // Step 1: Capture the UI overlay (everything EXCEPT the base image)
     const oldVis = rawImg ? rawImg.style.visibility : "";
-    if (rawImg) {
-        console.log(`[COMPOSITE] Hiding heavy raw image from DOM rasterizer.`);
-        rawImg.style.visibility = "hidden";
-    }
+    if (rawImg) rawImg.style.visibility = "hidden";
     
     const t0 = performance.now();
     const overlayDataUrl = await htmlToImage.toPng(wrapper, {
-        pixelRatio: targetDpr,
+        pixelRatio: overlayDpr,
         quality: 1.0,
         skipFonts: true,
         style: { width: w + "px", height: h + "px" }
     });
-    console.log(`[COMPOSITE] 🪄 html-to-image transparent overlay generated in ${(performance.now() - t0).toFixed(1)}ms. Buffer Size: ${(overlayDataUrl.length/1024).toFixed(1)}kb`);
+    console.log(`[COMPOSITE] Overlay captured in ${(performance.now() - t0).toFixed(0)}ms (${(overlayDataUrl.length/1024).toFixed(0)}kb)`);
     
     if (rawImg) rawImg.style.visibility = oldVis;
-    if (!rawImg) {
-        console.log(`[COMPOSITE] No base image found, returning overlay only.`);
-        return overlayDataUrl;
-    }
+    if (!rawImg) return overlayDataUrl;
 
-    console.log(`[COMPOSITE] Building native physical HTML5 canvas for GPU fusion...`);
+    // Step 2: Build the final canvas at full resolution
     const canvas = document.createElement("canvas");
     canvas.width = targetW;
     canvas.height = targetH;
     const ctx = canvas.getContext("2d");
     
+    // Step 3: Draw the ORIGINAL full-res base image (not the downgraded Safari-safe one)
     const base = new Image();
     base.crossOrigin = "anonymous";
     const t1 = performance.now();
     await new Promise((resolve) => {
         base.onload = resolve;
-        base.onerror = (e) => {
-            console.error("[COMPOSITE] ❌ Base image failed to load natively:", e);
-            resolve();
-        };
-        base.src = rawImg.src;
+        base.onerror = () => resolve();
+        base.src = originalFullSrc;
     });
     ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
-    console.log(`[COMPOSITE] 🖼️ Base image drawn natively to canvas in ${(performance.now() - t1).toFixed(1)}ms.`);
+    console.log(`[COMPOSITE] Base image (${base.naturalWidth}x${base.naturalHeight}) drawn in ${(performance.now() - t1).toFixed(0)}ms`);
     
+    // Step 4: Composite the overlay on top
     const overlay = new Image();
     const t2 = performance.now();
     await new Promise((resolve) => {
         overlay.onload = resolve;
-        overlay.onerror = (e) => {
-            console.error("[COMPOSITE] ❌ Overlay image failed to load natively:", e);
-            resolve();
-        };
+        overlay.onerror = () => resolve();
         overlay.src = overlayDataUrl;
     });
     ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
-    console.log(`[COMPOSITE] 🖌️ Overlay drawn directly over base in ${(performance.now() - t2).toFixed(1)}ms.`);
+    console.log(`[COMPOSITE] Overlay composited in ${(performance.now() - t2).toFixed(0)}ms`);
     
+    // Step 5: Output
     const t3 = performance.now();
     if (isExport) {
         return new Promise((resolve) => {
             canvas.toBlob((blob) => {
                 const finalUrl = URL.createObjectURL(blob);
-                console.log(`[COMPOSITE] 💾 PNG lossless blob fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(blob.size/1024/1024).toFixed(2)}MB`);
-                console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
+                console.log(`[COMPOSITE] PNG blob: ${(blob.size/1024/1024).toFixed(2)}MB in ${(performance.now() - t3).toFixed(0)}ms. Total: ${(performance.now() - startTime).toFixed(0)}ms`);
                 resolve(finalUrl);
             }, "image/png");
         });
     } else {
-        const finalJpeg = canvas.toDataURL("image/jpeg", 0.95);
-        console.log(`[COMPOSITE] 💾 JPEG fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(finalJpeg.length/1024/1024).toFixed(2)}MB`);
-        console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
+        const finalJpeg = canvas.toDataURL("image/jpeg", 0.92);
+        console.log(`[COMPOSITE] JPEG: ${(finalJpeg.length/1024/1024).toFixed(2)}MB in ${(performance.now() - t3).toFixed(0)}ms. Total: ${(performance.now() - startTime).toFixed(0)}ms`);
         return finalJpeg;
     }
 }
@@ -346,7 +346,7 @@ const dictateBtn = document.getElementById("dictateBtn");
 let recognition = null;
 let isRecording = false;
 
-if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+if (dictateBtn && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.continuous = false; 
@@ -357,8 +357,7 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
 
     recognition.onstart = function() {
         isRecording = true;
-        dictateBtn.classList.add("recording");
-        // Save current input value so we can append to it
+        if (dictateBtn) dictateBtn.classList.add("recording");
         finalTranscript = textInput.value;
         if (finalTranscript.length > 0 && !finalTranscript.endsWith(' ')) {
             finalTranscript += ' ';
@@ -381,10 +380,6 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
     recognition.onerror = function(event) {
         console.error("Speech recognition error:", event.error);
         stopDictation();
-        // If not-allowed, maybe alert user 
-        if (event.error === 'not-allowed') {
-            alert("Microphone permission denied. Please allow microphone access to use dictation.");
-        }
     };
 
     recognition.onend = function() {
@@ -402,14 +397,13 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
             }
         }
     });
-} else {
-    // Hide if unsupported browser
+} else if (dictateBtn) {
     dictateBtn.style.display = "none";
 }
 
 function stopDictation() {
     isRecording = false;
-    dictateBtn.classList.remove("recording");
+    if (dictateBtn) dictateBtn.classList.remove("recording");
     updateSendState();
 }
 
@@ -746,7 +740,7 @@ window.exportMergedImage = async function(btn) {
             fakeBg.style.left = "0";
             fakeBg.style.width = "100%";
             fakeBg.style.height = "100%";
-            fakeBg.style.backgroundImage = `url(${rawImg.dataset.miniUrl || rawImg.src})`;
+            fakeBg.style.backgroundImage = `url(${rawImg.dataset._originalFullSrc || rawImg.src})`;
             fakeBg.style.backgroundSize = `${wRect.width}px ${wRect.height}px`;
             fakeBg.style.backgroundPosition = `-${offsetX}px -${offsetY}px`;
             fakeBg.style.filter = "blur(28px)";
