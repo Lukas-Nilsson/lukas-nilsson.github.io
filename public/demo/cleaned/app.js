@@ -58,8 +58,8 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     const w = wrapper.offsetWidth;
     const h = wrapper.offsetHeight;
     
-    // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it)
-    const originalFullSrc = rawImg ? (rawImg.dataset._originalFullSrc || rawImg.src) : null;
+    // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it), using the clean user upload if possible.
+    const originalFullSrc = rawImg ? (rawImg.dataset.cleanUrl || rawImg.dataset._originalFullSrc || rawImg.src) : null;
     
     // Read ORIGINAL natural dimensions (stored before Safari downgrade mutated them)
     const origNatW = rawImg ? (parseInt(rawImg.dataset._origNatW) || rawImg.naturalWidth) : 0;
@@ -643,8 +643,19 @@ function addAIResponse(data) {
     const msg = document.createElement("div");
     msg.className = "message ai";
     
-    const imgSrc = `data:image/png;base64,${data.annotated_image}`;
-    const rawSrc = data.raw_image ? `data:image/png;base64,${data.raw_image}` : imgSrc;
+    // Fallback: server raw -> server annotated
+    let imgSrc = `data:image/png;base64,${data.annotated_image}`;
+    let rawSrc = data.raw_image ? `data:image/png;base64,${data.raw_image}` : imgSrc;
+    
+    // Best case: The actual file uploaded by the user, totally uncompressed and untouched.
+    // This absolutely guarantees zero OpenCV lines/polygons baked into the base image.
+    let cleanSrc = rawSrc;
+    if (window.globalActiveImageFile && window.globalActiveImageFile.type && window.globalActiveImageFile.type.startsWith("image/")) {
+        try {
+            cleanSrc = URL.createObjectURL(window.globalActiveImageFile);
+        } catch (e) { console.warn(e); }
+    }
+    
     const confidence = data.confidence || 0;
     const confLabel = confidence >= 0.8 ? "high" : confidence >= 0.5 ? "medium" : "low";
     const confText = `${Math.round(confidence * 100)}% confidence`;
@@ -671,7 +682,7 @@ function addAIResponse(data) {
                 </div>
             </div>
             <div class="image-wrapper" style="position: relative; display: inline-block; width: 100%; border-radius: 8px; overflow: hidden; line-height: 0;">
-                <img src="${rawSrc}" data-annotated="${rawSrc}" data-raw="${rawSrc}" data-is-clean="false" alt="Annotated inspection photo" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">
+                <img src="${cleanSrc}" data-annotated="${rawSrc}" data-raw="${rawSrc}" data-clean-url="${cleanSrc}" data-is-clean="false" alt="Annotated inspection photo" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">
             </div>
             <div class="dynamic-message-text" style="margin-top: 12px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">${window.buildTextSummary(data)}</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
