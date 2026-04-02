@@ -819,6 +819,8 @@ window.exportMergedImage = async function(btn) {
                 el.style.height = comp.height;
                 el.style.borderRadius = comp.borderRadius;
                 el.style.gap = comp.gap;
+                el.style.lineHeight = comp.lineHeight;
+                el.style.marginBottom = comp.marginBottom;
             }
         });
 
@@ -913,6 +915,8 @@ window.approveAndProceed = async function(btn) {
                 el.style.height = comp.height;
                 el.style.borderRadius = comp.borderRadius;
                 el.style.gap = comp.gap;
+                el.style.lineHeight = comp.lineHeight;
+                el.style.marginBottom = comp.marginBottom;
             }
         });
 
