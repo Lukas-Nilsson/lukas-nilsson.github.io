@@ -57,7 +57,6 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     
     const w = wrapper.offsetWidth;
     const h = wrapper.offsetHeight;
-    const aspect = w / h;
     
     // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it)
     const originalFullSrc = rawImg ? (rawImg.dataset._originalFullSrc || rawImg.src) : null;
@@ -67,13 +66,12 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     const origNatH = rawImg ? (parseInt(rawImg.dataset._origNatH) || rawImg.naturalHeight) : 0;
     
     // For export: match the original image's native resolution
-    // For internal (approve flow): use 2x screen DPR
+    // Overlay DPR capped at 5 for crisp text (rawImg hidden = mostly transparent = low memory)
     let targetW, targetH, overlayDpr;
     if (isExport && origNatW > 0) {
         targetW = origNatW;
         targetH = origNatH;
-        // Cap overlay DPR at 3x to keep the overlay crisp without OOM
-        overlayDpr = Math.min(targetW / w, 3);
+        overlayDpr = Math.min(targetW / w, 5);
     } else {
         overlayDpr = 2;
         targetW = Math.round(w * overlayDpr);
@@ -104,7 +102,7 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     canvas.height = targetH;
     const ctx = canvas.getContext("2d");
     
-    // Step 3: Draw the ORIGINAL full-res base image (not the downgraded Safari-safe one)
+    // Step 3: Draw the ORIGINAL full-res base image
     const base = new Image();
     base.crossOrigin = "anonymous";
     const t1 = performance.now();
@@ -116,7 +114,61 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
     console.log(`[COMPOSITE] Base image (${base.naturalWidth}x${base.naturalHeight}) drawn in ${(performance.now() - t1).toFixed(0)}ms`);
     
-    // Step 4: Composite the overlay on top
+    // Step 4: Draw glass panel blur regions directly on canvas
+    // CSS backdrop-filter CANNOT be captured by html-to-image (SVG foreignObject has no backdrop)
+    // So we manually simulate the frosted glass effect on the canvas
+    if (isExport) {
+        const scaleX = canvas.width / w;
+        const scaleY = canvas.height / h;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const panels = wrapper.querySelectorAll('.ai-panel');
+        
+        panels.forEach(panel => {
+            const pRect = panel.getBoundingClientRect();
+            const px = (pRect.left - wrapperRect.left) * scaleX;
+            const py = (pRect.top - wrapperRect.top) * scaleY;
+            const pw = pRect.width * scaleX;
+            const ph = pRect.height * scaleY;
+            const borderRadius = 16 * scaleX;
+            
+            if (pw <= 0 || ph <= 0) return;
+            
+            ctx.save();
+            
+            // Rounded rect clip matching the panel shape
+            ctx.beginPath();
+            ctx.moveTo(px + borderRadius, py);
+            ctx.lineTo(px + pw - borderRadius, py);
+            ctx.quadraticCurveTo(px + pw, py, px + pw, py + borderRadius);
+            ctx.lineTo(px + pw, py + ph - borderRadius);
+            ctx.quadraticCurveTo(px + pw, py + ph, px + pw - borderRadius, py + ph);
+            ctx.lineTo(px + borderRadius, py + ph);
+            ctx.quadraticCurveTo(px, py + ph, px, py + ph - borderRadius);
+            ctx.lineTo(px, py + borderRadius);
+            ctx.quadraticCurveTo(px, py, px + borderRadius, py);
+            ctx.closePath();
+            ctx.clip();
+            
+            // Draw blurred base image behind the panel
+            ctx.filter = "blur(28px)";
+            ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+            ctx.filter = "none";
+            
+            // Semi-transparent tint
+            ctx.fillStyle = "rgba(10, 10, 16, 0.55)";
+            ctx.fillRect(px, py, pw, ph);
+            
+            // Subtle border
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+            ctx.lineWidth = 1.5 * scaleX;
+            ctx.stroke();
+            
+            ctx.restore();
+            console.log(`[COMPOSITE] Glass panel blur at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}`);
+        });
+    }
+    
+    // Step 5: Composite the overlay on top (text, polygons, icons)
     const overlay = new Image();
     const t2 = performance.now();
     await new Promise((resolve) => {
@@ -127,7 +179,7 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
     console.log(`[COMPOSITE] Overlay composited in ${(performance.now() - t2).toFixed(0)}ms`);
     
-    // Step 5: Output
+    // Step 6: Output
     const t3 = performance.now();
     if (isExport) {
         return new Promise((resolve) => {
