@@ -41,14 +41,24 @@ function restoreSafariBlobs(list) {
     }
 }
 
-async function generateSafeComposite(wrapper, rawImg, lowRes = false) {
-    console.log(`\n[COMPOSITE] Starting ${lowRes ? 'Low-Res' : 'High-Res'} generated composite export...`);
+async function generateSafeComposite(wrapper, rawImg, isExport = false) {
+    console.log(`\n[COMPOSITE] Starting ${isExport ? 'Lossless Export' : 'Internal'} generated composite...`);
     const startTime = performance.now();
     
     const w = wrapper.offsetWidth;
     const h = wrapper.offsetHeight;
-    const dpr = lowRes ? 1 : 2;
-    console.log(`[COMPOSITE] Target layout area: ${w}x${h} (Canvas target: ${w * dpr}x${h * dpr}, DPR: ${dpr})`);
+    
+    let targetW = Math.round(w * 2);
+    let targetH = Math.round(h * 2);
+    let targetDpr = 2;
+
+    if (isExport && rawImg && rawImg.naturalWidth) {
+        targetW = rawImg.naturalWidth;
+        targetH = rawImg.naturalHeight;
+        targetDpr = targetW / w;
+    }
+
+    console.log(`[COMPOSITE] Target layout area: ${w}x${h} (Canvas target: ${targetW}x${targetH}, DPR: ${targetDpr.toFixed(2)})`);
     
     const oldVis = rawImg ? rawImg.style.visibility : "";
     if (rawImg) {
@@ -58,7 +68,7 @@ async function generateSafeComposite(wrapper, rawImg, lowRes = false) {
     
     const t0 = performance.now();
     const overlayDataUrl = await htmlToImage.toPng(wrapper, {
-        pixelRatio: dpr,
+        pixelRatio: targetDpr,
         quality: 1.0,
         skipFonts: true,
         style: { width: w + "px", height: h + "px" }
@@ -73,8 +83,8 @@ async function generateSafeComposite(wrapper, rawImg, lowRes = false) {
 
     console.log(`[COMPOSITE] Building native physical HTML5 canvas for GPU fusion...`);
     const canvas = document.createElement("canvas");
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext("2d");
     
     const base = new Image();
@@ -105,11 +115,21 @@ async function generateSafeComposite(wrapper, rawImg, lowRes = false) {
     console.log(`[COMPOSITE] 🖌️ Overlay drawn directly over base in ${(performance.now() - t2).toFixed(1)}ms.`);
     
     const t3 = performance.now();
-    const finalJpeg = canvas.toDataURL("image/jpeg", lowRes ? 0.8 : 0.95);
-    console.log(`[COMPOSITE] 💾 JPEG fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(finalJpeg.length/1024/1024).toFixed(2)}MB`);
-    
-    console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
-    return finalJpeg;
+    if (isExport) {
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                const finalUrl = URL.createObjectURL(blob);
+                console.log(`[COMPOSITE] 💾 PNG lossless blob fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(blob.size/1024/1024).toFixed(2)}MB`);
+                console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
+                resolve(finalUrl);
+            }, "image/png");
+        });
+    } else {
+        const finalJpeg = canvas.toDataURL("image/jpeg", 0.95);
+        console.log(`[COMPOSITE] 💾 JPEG fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(finalJpeg.length/1024/1024).toFixed(2)}MB`);
+        console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
+        return finalJpeg;
+    }
 }
 
 
@@ -746,10 +766,10 @@ window.exportMergedImage = async function(btn) {
 
         let dataUrl;
         try {
-            dataUrl = await generateSafeComposite(wrapper, rawImg, false);
-        } catch (memError) {
-            console.warn("High-res export failed, attempting lower resolution fallback...", memError);
             dataUrl = await generateSafeComposite(wrapper, rawImg, true);
+        } catch (memError) {
+            console.warn("High-res export failed, attempting internal resolution fallback...", memError);
+            dataUrl = await generateSafeComposite(wrapper, rawImg, false);
         }
         
         // RESTORE
