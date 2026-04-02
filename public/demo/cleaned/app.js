@@ -115,9 +115,9 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     console.log(`[COMPOSITE] Base image (${base.naturalWidth}x${base.naturalHeight}) drawn in ${(performance.now() - t1).toFixed(0)}ms`);
     
     // Step 4: Draw glass panel blur regions directly on canvas
-    // CSS backdrop-filter CANNOT be captured by html-to-image (SVG foreignObject has no backdrop)
-    // We manually simulate the exact frosted glass effect matching .ai-panel CSS
-    // CRITICAL: All pixel values must be scaled by (canvasWidth / cssWidth) to match visual effect
+    // CSS backdrop-filter CANNOT be captured by html-to-image (SVG foreignObject has no backdrop).
+    // We only simulate the underlying blur. 
+    // The panel's background color, borders, and box-shadow are natively captured by html-to-image.
     {
         const scaleX = canvas.width / w;
         const scaleY = canvas.height / h;
@@ -152,44 +152,19 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
                 ctx.closePath();
             }
             
-            // Match CSS: box-shadow: 0 8px 32px rgba(0,0,0,0.3)
-            ctx.save();
-            ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-            ctx.shadowBlur = 32 * scaleX;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 8 * scaleY;
-            // Draw the shadow shape outside the clip so it's visible
-            // Use a very dark fill that acts as the shadow caster
-            ctx.fillStyle = "rgba(10, 10, 16, 0.01)";
-            roundedRectPath(px, py, pw, ph, borderRadius);
-            ctx.fill();
-            ctx.restore();
-            
-            // Clip to rounded rect for blur + tint
+            // ONLY draw the blurred base image under the panel
+            // html-to-image handles the panel's tint, borders, and shadow.
             ctx.save();
             roundedRectPath(px, py, pw, ph, borderRadius);
             ctx.clip();
             
-            // Match CSS: backdrop-filter: blur(28px) — SCALED to canvas resolution
             ctx.filter = `blur(${blurRadius}px)`;
             ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
             ctx.filter = "none";
             
-            // Match CSS: background: rgba(10, 10, 16, 0.4)
-            ctx.fillStyle = "rgba(10, 10, 16, 0.4)";
-            ctx.fillRect(px, py, pw, ph);
-            
             ctx.restore();
             
-            // Match CSS: border: 1px solid rgba(255,255,255,0.15)
-            ctx.save();
-            roundedRectPath(px, py, pw, ph, borderRadius);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.lineWidth = Math.max(1, 1 * scaleX);
-            ctx.stroke();
-            ctx.restore();
-            
-            console.log(`[COMPOSITE] Glass panel at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}, blur=${blurRadius}px, scale=${scaleX.toFixed(1)}`);
+            console.log(`[COMPOSITE] Glass panel blur at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}, blur=${blurRadius}px`);
         });
     }
     
@@ -853,12 +828,10 @@ window.exportMergedImage = async function(btn) {
         if (mainPanel) {
             oldPanelStyles = {
                 backdropFilter: mainPanel.style.backdropFilter,
-                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter,
-                boxShadow: mainPanel.style.boxShadow
+                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter
             };
             mainPanel.style.backdropFilter = "none";
             mainPanel.style.webkitBackdropFilter = "none";
-            mainPanel.style.boxShadow = "none";
         }
 
         let dataUrl;
@@ -876,7 +849,6 @@ window.exportMergedImage = async function(btn) {
         if (mainPanel && oldPanelStyles) {
             mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
             mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
-            mainPanel.style.boxShadow = oldPanelStyles.boxShadow;
         }
 
         const link = document.createElement("a");
@@ -945,12 +917,10 @@ window.approveAndProceed = async function(btn) {
         if (mainPanel) {
             oldPanelStyles = {
                 backdropFilter: mainPanel.style.backdropFilter,
-                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter,
-                boxShadow: mainPanel.style.boxShadow
+                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter
             };
             mainPanel.style.backdropFilter = "none";
             mainPanel.style.webkitBackdropFilter = "none";
-            mainPanel.style.boxShadow = "none";
         }
 
         let dataUrl = await generateSafeComposite(wrapper, rawImg, false);
@@ -962,7 +932,6 @@ window.approveAndProceed = async function(btn) {
         if (mainPanel && oldPanelStyles) {
             mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
             mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
-            mainPanel.style.boxShadow = oldPanelStyles.boxShadow;
         }
         if (handles) handles.style.display = "";
         if (expandBtn) expandBtn.style.display = "";
