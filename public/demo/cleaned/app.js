@@ -117,7 +117,8 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     // Step 4: Draw glass panel blur regions directly on canvas
     // CSS backdrop-filter CANNOT be captured by html-to-image (SVG foreignObject has no backdrop)
     // We manually simulate the exact frosted glass effect matching .ai-panel CSS
-    if (isExport || true) { // Always draw glass for both export and approve flows
+    // CRITICAL: All pixel values must be scaled by (canvasWidth / cssWidth) to match visual effect
+    {
         const scaleX = canvas.width / w;
         const scaleY = canvas.height / h;
         const wrapperRect = wrapper.getBoundingClientRect();
@@ -131,19 +132,21 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
             const ph = pRect.height * scaleY;
             // Match CSS: border-radius: 12px (scaled to canvas resolution)
             const borderRadius = 12 * scaleX;
+            // Scale blur to canvas pixels (28 CSS px → 28 * scaleX canvas px)
+            const blurRadius = Math.round(28 * scaleX);
             
             if (pw <= 0 || ph <= 0) return;
             
             // Helper: draw rounded rect path
-            function roundedRectPath(x, y, w, h, r) {
+            function roundedRectPath(x, y, rw, rh, r) {
                 ctx.beginPath();
                 ctx.moveTo(x + r, y);
-                ctx.lineTo(x + w - r, y);
-                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-                ctx.lineTo(x + w, y + h - r);
-                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-                ctx.lineTo(x + r, y + h);
-                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x + rw - r, y);
+                ctx.quadraticCurveTo(x + rw, y, x + rw, y + r);
+                ctx.lineTo(x + rw, y + rh - r);
+                ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh);
+                ctx.lineTo(x + r, y + rh);
+                ctx.quadraticCurveTo(x, y + rh, x, y + rh - r);
                 ctx.lineTo(x, y + r);
                 ctx.quadraticCurveTo(x, y, x + r, y);
                 ctx.closePath();
@@ -151,11 +154,13 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
             
             // Match CSS: box-shadow: 0 8px 32px rgba(0,0,0,0.3)
             ctx.save();
-            ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
             ctx.shadowBlur = 32 * scaleX;
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 8 * scaleY;
-            ctx.fillStyle = "rgba(0,0,0,0)";
+            // Draw the shadow shape outside the clip so it's visible
+            // Use a very dark fill that acts as the shadow caster
+            ctx.fillStyle = "rgba(10, 10, 16, 0.01)";
             roundedRectPath(px, py, pw, ph, borderRadius);
             ctx.fill();
             ctx.restore();
@@ -165,8 +170,8 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
             roundedRectPath(px, py, pw, ph, borderRadius);
             ctx.clip();
             
-            // Match CSS: backdrop-filter: blur(28px) — draw blurred base image
-            ctx.filter = "blur(28px)";
+            // Match CSS: backdrop-filter: blur(28px) — SCALED to canvas resolution
+            ctx.filter = `blur(${blurRadius}px)`;
             ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
             ctx.filter = "none";
             
@@ -180,11 +185,11 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
             ctx.save();
             roundedRectPath(px, py, pw, ph, borderRadius);
             ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.lineWidth = 1 * scaleX;
+            ctx.lineWidth = Math.max(1, 1 * scaleX);
             ctx.stroke();
             ctx.restore();
             
-            console.log(`[COMPOSITE] Glass panel at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}`);
+            console.log(`[COMPOSITE] Glass panel at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}, blur=${blurRadius}px, scale=${scaleX.toFixed(1)}`);
         });
     }
     
