@@ -6,24 +6,40 @@ const API_URL = "https://cleaned-demo-backend-hpogfshfba-uc.a.run.app";
 
 async function processSafariBlobs(wrapper) {
     const list = [];
-    const imgs = wrapper.querySelectorAll('img[src^="data:"]');
+    const imgs = wrapper.querySelectorAll('img[data-raw], img[src^="data:"]');
     for (const img of imgs) {
         try {
-            const res = await fetch(img.src);
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            list.push({ img, oldSrc: img.src, blobUrl });
-            img.src = blobUrl;
-        } catch(e) {
-            console.error(e);
-        }
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = img.naturalWidth || img.width || wrapper.offsetWidth;
+            tempCanvas.height = img.naturalHeight || img.height || wrapper.offsetHeight;
+            const ctx = tempCanvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+            
+            const cs = window.getComputedStyle(img);
+            tempCanvas.style.cssText = cs.cssText;
+            tempCanvas.style.width = img.offsetWidth + "px";
+            tempCanvas.style.height = img.offsetHeight + "px";
+            
+            img.parentNode.insertBefore(tempCanvas, img);
+            const oldDisp = img.style.display || "";
+            img.style.display = "none";
+            
+            const miniCanvas = document.createElement("canvas");
+            miniCanvas.width = 120;
+            miniCanvas.height = 120;
+            miniCanvas.getContext("2d").drawImage(tempCanvas, 0, 0, 120, 120);
+            img.dataset.miniUrl = miniCanvas.toDataURL("image/jpeg", 0.5);
+            
+            list.push({ img, tempCanvas, oldDisp });
+        } catch(e) { console.error(e); }
     }
     return list;
 }
 function restoreSafariBlobs(list) {
     for (const item of list) {
-        item.img.src = item.oldSrc;
-        URL.revokeObjectURL(item.blobUrl);
+        if (item.tempCanvas) item.tempCanvas.remove();
+        item.img.style.display = item.oldDisp;
+        delete item.img.dataset.miniUrl;
     }
 }
 
@@ -641,7 +657,7 @@ window.exportMergedImage = async function(btn) {
             fakeBg.style.left = "0";
             fakeBg.style.width = "100%";
             fakeBg.style.height = "100%";
-            fakeBg.style.backgroundImage = `url(${rawImg.src})`;
+            fakeBg.style.backgroundImage = `url(${rawImg.dataset.miniUrl || rawImg.src})`;
             fakeBg.style.backgroundSize = `${wRect.width}px ${wRect.height}px`;
             fakeBg.style.backgroundPosition = `-${offsetX}px -${offsetY}px`;
             fakeBg.style.filter = "blur(28px)";
@@ -771,7 +787,7 @@ window.approveAndProceed = async function(btn) {
             fakeBg.style.left = "0";
             fakeBg.style.width = "100%";
             fakeBg.style.height = "100%";
-            fakeBg.style.backgroundImage = `url(${rawImg.src})`;
+            fakeBg.style.backgroundImage = `url(${rawImg.dataset.miniUrl || rawImg.src})`;
             fakeBg.style.backgroundSize = `${wRect.width}px ${wRect.height}px`;
             fakeBg.style.backgroundPosition = `-${offsetX}px -${offsetY}px`;
             fakeBg.style.filter = "blur(28px)";
