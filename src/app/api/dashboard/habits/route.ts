@@ -19,6 +19,8 @@ const HABIT_LABELS: Record<string, { label: string; icon: string }> = {
     phone_down: { label: 'Phone Down', icon: '📱' },
     meditation: { label: 'Meditation', icon: '🧘' },
     hydration: { label: 'Hydration', icon: '💧' },
+    reading: { label: 'Reading', icon: '📖' },
+    exercise: { label: 'Exercise', icon: '🏋️' },
 };
 
 export async function PATCH(req: NextRequest) {
@@ -58,44 +60,8 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
         }
 
-        // ── Side effect: Habit ↔ Calendar auto-linking ──
-        // When marking habit done, create a calendar event if one doesn't exist yet
-        if (done) {
-            const habitInfo = HABIT_LABELS[habit_id];
-            if (habitInfo) {
-                try {
-                    const eventTitle = `${habitInfo.icon} ${habitInfo.label}`;
-                    // Check if a calendar event already exists for this habit+date
-                    const { data: existing } = await supabase
-                        .from('calendar_events')
-                        .select('id')
-                        .eq('source', 'habit')
-                        .eq('source_id', habit_id)
-                        .gte('start_time', `${date}T00:00:00`)
-                        .lte('start_time', `${date}T23:59:59`)
-                        .limit(1);
-
-                    if (!existing?.length) {
-                        // Create a 15-min event at the current time
-                        const now = new Date();
-                        const endTime = new Date(now.getTime() + 15 * 60000);
-                        await supabase.from('calendar_events').insert({
-                            title: eventTitle,
-                            start_time: now.toISOString(),
-                            end_time: endTime.toISOString(),
-                            all_day: false,
-                            source: 'habit',
-                            source_id: habit_id,
-                            status: 'confirmed',
-                        });
-                        console.log(`[habits PATCH] Auto-created calendar event for ${habit_id}`);
-                    }
-                } catch (calErr) {
-                    // Non-critical — don't fail the habit save if calendar linking fails
-                    console.warn(`[habits PATCH] Calendar auto-link failed for ${habit_id}:`, calErr);
-                }
-            }
-        }
+        // Habits are shown as overlays on matching calendar events (via keyword matching),
+        // not as standalone events. No calendar event creation needed.
 
         // ── Side effect: Update habit_records for persistent streaks ──
         try {

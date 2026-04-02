@@ -101,7 +101,7 @@ async function fetchLiveWeather(): Promise<WeatherData> {
 }
 
 async function fetchDayWeather(targetDate: string): Promise<WeatherData> {
-    const todayAEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).toISOString().slice(0, 10);
+    const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
     const isToday = targetDate === todayAEST;
     const isFuture = targetDate > todayAEST;
     const isPast = targetDate < todayAEST;
@@ -190,7 +190,7 @@ export async function GET(req: Request) {
                     .eq('id', `day_${dateParam}`)
                     .single();
 
-                const todayAEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).toISOString().slice(0, 10);
+                const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
                 const isPastDate = dateParam < todayAEST;
                 const cacheAge = cached?.updated_at ? Date.now() - new Date(cached.updated_at).getTime() : Infinity;
                 const FORECAST_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours

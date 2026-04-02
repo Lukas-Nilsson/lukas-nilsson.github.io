@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/server';
 import Navigation from '@/components/Navigation';
 import type { Metadata } from 'next';
 import styles from './projects.module.css';
@@ -46,7 +47,24 @@ const statusColors: Record<string, string> = {
     'Archived': 'var(--neutral-500)',
 };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const displayProjects = [...projects];
+
+    if (user) {
+        displayProjects.push({
+            name: 'CLEANED AI Inspection Demo',
+            url: '/demo/cleaned',
+            status: 'Live',
+            year: '2026',
+            tags: ['AI', 'Computer Vision', 'Voice'],
+            description: 'An AI-powered supervisor report tool built for a cleaning logistics company. It takes a raw site photo and a voice note, and autonomously generates a marked-up image highlighting specific issues to be emailed to clients. (Private Sandbox Demo)',
+            tech: ['Vanilla JS', 'Python Backend', 'Next.js Iframe'],
+        });
+    }
+
     return (
         <>
             <Navigation />
@@ -61,7 +79,7 @@ export default function ProjectsPage() {
                     </header>
 
                     <div className={styles.projectList}>
-                        {projects.map((project, i) => (
+                        {displayProjects.map((project, i) => (
                             <article
                                 key={project.name}
                                 className={`${styles.project} animate-fade-in-up`}

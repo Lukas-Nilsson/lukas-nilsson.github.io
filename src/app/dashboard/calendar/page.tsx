@@ -68,6 +68,8 @@ const HABITS: HabitDef[] = [
     { key: 'phone_down', label: 'Phone Down', icon: '📱', keywords: ['phone down', 'screen time', 'digital detox', 'no phone'] },
     { key: 'meditation', label: 'Meditation', icon: '🧘', keywords: ['meditat', 'mindful', 'breathwork'] },
     { key: 'hydration', label: 'Hydration', icon: '💧', keywords: ['hydrat', 'water intake', 'drink water'] },
+    { key: 'reading', label: 'Reading', icon: '📖', keywords: ['reading', 'book', 'kindle', 'audiobook'] },
+    { key: 'exercise', label: 'Exercise', icon: '🏋️', keywords: ['exercise', 'workout', 'gym', 'training', 'run', 'lift'] },
 ];
 
 const accountColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -75,8 +77,8 @@ const accountColors: Record<string, { bg: string; border: string; text: string }
     business: { bg: 'rgba(90,170,120,0.18)', border: '#5aaa78', text: '#7ac89a' },
     task: { bg: 'rgba(193,127,58,0.18)', border: '#c17f3a', text: '#d4a05a' },
     habit: { bg: 'rgba(154,90,170,0.18)', border: '#9a5aaa', text: '#b87ac8' },
-    clickup_task: { bg: 'rgba(193,127,58,0.15)', border: '#c9a84c', text: '#d4b65a' },
-    clickup_time: { bg: 'rgba(58,150,193,0.18)', border: '#3a96c1', text: '#5ab4d4' },
+    clickup_task: { bg: 'rgba(193,127,58,0.15)', border: '#c17f3a', text: '#c17f3a' },
+    clickup_time: { bg: 'rgba(193,127,58,0.15)', border: '#c17f3a', text: '#c17f3a' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -167,7 +169,7 @@ function matchTasksToEvent(ev: CalendarEvent, tasks: TaskInfo[]): TaskInfo[] {
     // 1. Direct link via source_id (explicit association — always trust)
     if (ev.source_id) {
         const ids = ev.source_id.split(',').map(s => s.trim()).filter(Boolean);
-        const direct = tasks.filter(t => ids.includes(t.task_name));
+        const direct = tasks.filter(t => ids.includes(t.task_name) || (t.clickup_id && ids.includes(t.clickup_id)));
         if (direct.length) return direct;
     }
 
@@ -242,12 +244,13 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
     const [mounted, setMounted] = useState(false);
-    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task', 'habit', 'google', 'clickup_task', 'clickup_time']));
+    const [visibleSources, setVisibleSources] = useState<Set<string>>(new Set(['personal', 'business', 'task']));
     const syncInFlight = useRef(false);
+    const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
     // Responsive
     const [isMobile, setIsMobile] = useState(false);
-    const [bottomSheet, setBottomSheet] = useState<'hidden' | 'peek' | 'half' | 'full'>('hidden');
+    const [bottomSheet, setBottomSheet] = useState<'hidden' | 'peek' | 'half' | 'full'>('peek');
     const [zoomHeight, setZoomHeight] = useState(HOUR_HEIGHT);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const calendarBodyRef = useRef<HTMLDivElement>(null);
@@ -257,14 +260,16 @@ export default function CalendarPage() {
     const filteredEvents = useMemo(() => events.filter(ev => {
         // Google/calendar events: filter by account (personal/business)
         if (ev.source === 'google' || ev.source === 'calendar') return visibleSources.has(ev.account ?? 'personal');
-        // ClickUp tasks: filter by clickup_task source
-        if (ev.source === 'clickup_task') return visibleSources.has('clickup_task');
-        // Task/habit-only events (created from OpenClaw, not synced from Google)
+        // ClickUp tasks and time entries: unified under 'task' filter
+        if (ev.source === 'clickup_task' || ev.source === 'clickup_time') return visibleSources.has('task');
+        // Habit events (legacy): always show if they exist
+        if (ev.source === 'habit') return visibleSources.has('task');
+        // Task/other events
         return visibleSources.has(ev.source);
     }), [events, visibleSources]);
 
-    // Whether to show task UI overlays (chips, pills) on events
     const showTaskUI = visibleSources.has('task');
+    const showHabitUI = true; // Habits are always shown as overlays on matching events
 
     // Init — load cached data immediately, then fetch fresh
     useEffect(() => {
@@ -350,24 +355,26 @@ export default function CalendarPage() {
     }, [mounted, triggerSync]);
 
     // Fetch tasks
+    const refreshTasks = useCallback(async () => {
+        try {
+            const res = await fetch('/api/dashboard/tasks');
+            if (!res.ok) return;
+            const td = await res.json();
+            const done = new Set((td.completions ?? []).map((c: { task_name: string }) => c.task_name));
+            setTasks((td.metadata ?? []).map((m: { task_name: string; clickup_id?: string; priority?: number; context?: string; due_date?: string; estimated_duration?: number }) => ({
+                task_name: m.task_name, clickup_id: m.clickup_id ?? null,
+                status: done.has(m.task_name) ? 'done' : 'open',
+                priority: m.priority ?? null, category: m.context ?? null,
+                due_date: m.due_date ?? null,
+                estimated_duration: (m as Record<string, unknown>).estimated_duration as number | null ?? null,
+            })));
+        } catch (e) { console.error('Failed to load tasks:', e); }
+    }, []);
+
     useEffect(() => {
         if (!mounted) return;
-        (async () => {
-            try {
-                const res = await fetch('/api/dashboard/tasks');
-                if (!res.ok) return;
-                const td = await res.json();
-                const done = new Set((td.completions ?? []).map((c: { task_name: string }) => c.task_name));
-                setTasks((td.metadata ?? []).map((m: { task_name: string; clickup_id?: string; priority?: number; context?: string; due_date?: string; estimated_duration?: number }) => ({
-                    task_name: m.task_name, clickup_id: m.clickup_id ?? null,
-                    status: done.has(m.task_name) ? 'done' : 'open',
-                    priority: m.priority ?? null, category: m.context ?? null,
-                    due_date: m.due_date ?? null,
-                    estimated_duration: (m as Record<string, unknown>).estimated_duration as number | null ?? null,
-                })));
-            } catch (e) { console.error('Failed to load tasks:', e); }
-        })();
-    }, [mounted]);
+        refreshTasks();
+    }, [mounted, refreshTasks]);
 
     const navigate = (delta: number) => {
         setSelectedDate(prev => {
@@ -439,7 +446,13 @@ export default function CalendarPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this event?')) return;
+        setPendingDelete(id);
+    };
+
+    const executeDelete = async () => {
+        const id = pendingDelete;
+        if (!id) return;
+        setPendingDelete(null);
         // Optimistic: remove from UI immediately
         const rollback = events;
         setEvents(prev => prev.filter(ev => ev.id !== id));
@@ -541,22 +554,46 @@ export default function CalendarPage() {
     // Finish an event: truncate end_time to now + update ClickUp task status
     const handleFinishEvent = async (eventId: string, status: string) => {
         const ev = events.find(e => e.id === eventId);
-        if (!ev?.time_entry_id || !ev?.clickup_task_id) return;
+        if (!ev) return;
+
+        // Resolve the ClickUp task ID: directly from the event, or from matched tasks
+        const clickupTaskId = ev.clickup_task_id
+            || tasks.find(t => t.clickup_id && ev.source_id?.split(',').map(s => s.trim()).includes(t.task_name))?.clickup_id
+            || tasks.find(t => t.clickup_id && ev.source_id?.split(',').map(s => s.trim()).includes(t.clickup_id!))?.clickup_id
+            || null;
+
+        if (!clickupTaskId) return;
+
         const now = new Date().toISOString();
-        // Optimistically truncate the event to now
         const rollback = events;
         setEvents(prev => prev.map(e => e.id === eventId ? { ...e, end_time: now } : e));
+
         try {
-            const res = await fetch('/api/dashboard/tasks/schedule', {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    entry_id: ev.time_entry_id,
-                    end_time: now,
-                    clickup_task_id: ev.clickup_task_id,
-                    task_status: status,
-                }),
-            });
-            if (!res.ok) setEvents(rollback);
+            if (ev.time_entry_id) {
+                // ClickUp time entry event: use schedule PATCH
+                const res = await fetch('/api/dashboard/tasks/schedule', {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        entry_id: ev.time_entry_id,
+                        end_time: now,
+                        clickup_task_id: clickupTaskId,
+                        task_status: status,
+                    }),
+                });
+                if (!res.ok) setEvents(rollback);
+                else { refreshTasks(); fetchEvents(); }
+            } else {
+                // Regular event linked to a ClickUp task: update task status directly + truncate event
+                const [statusRes] = await Promise.all([
+                    fetch('/api/dashboard/tasks/schedule', {
+                        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ entry_id: '_noop_', clickup_task_id: clickupTaskId, task_status: status }),
+                    }),
+                    handleUpdate(eventId, { end_time: now }),
+                ]);
+                if (!statusRes.ok) setEvents(rollback);
+                else { refreshTasks(); fetchEvents(); }
+            }
         } catch (e) {
             console.error('Finish event failed:', e);
             setEvents(rollback);
@@ -604,9 +641,28 @@ export default function CalendarPage() {
     }
 
     const unscheduledTasks = tasks.filter(t => t.status === 'open' && !linkedTaskNames.has(t.task_name));
-    const selectedTasks = selectedEvent?.source_id
-        ? selectedEvent.source_id.split(',').map(s => s.trim()).filter(Boolean).map(n => tasks.find(t => t.task_name === n)).filter(Boolean) as TaskInfo[]
-        : [];
+    const selectedTasks = (() => {
+        if (selectedEvent?.source_id) {
+            const direct = selectedEvent.source_id.split(',').map(s => s.trim()).filter(Boolean).map(n => tasks.find(t => t.task_name === n || t.clickup_id === n)).filter(Boolean) as TaskInfo[];
+            if (direct.length) return direct;
+        }
+        return selectedEvent ? matchTasksToEvent(selectedEvent, tasks) : [];
+    })();
+    const selectedHabits = selectedEvent ? matchHabitsToEvent(selectedEvent) : [];
+
+    // Toggle a habit as done/undone using the event's end time
+    const handleHabitToggle = async (habitKey: string, done: boolean, eventEndTime: string) => {
+        const endDate = new Date(eventEndTime);
+        const date = endDate.toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+        const time = endDate.toLocaleTimeString('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hour12: false });
+        try {
+            await fetch('/api/dashboard/habits', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, habit_id: habitKey, done, value: time }),
+            });
+        } catch (e) { console.error('Habit toggle failed:', e); }
+    };
 
     // Mobile: open bottom sheet when an event is tapped
     const handleEventSelect = (ev: CalendarEvent) => {
@@ -655,17 +711,37 @@ export default function CalendarPage() {
             : `${shortMonth[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
     const calendarBody = loading && events.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>Loading…</div>
+        <div className={styles.skeletonContainer} style={{ padding: 'var(--space-3)' }}>
+            {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(h => (
+                <div key={h} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+                    <div className={styles.skeletonBar} style={{ width: 40, height: 14, flexShrink: 0 }} />
+                    <div style={{ flex: 1, borderBottom: '1px solid var(--color-border)', height: zoomHeight }} />
+                </div>
+            ))}
+        </div>
     ) : view === 'day' ? (
-        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
+        <TimeGrid events={filteredEvents} dates={[selectedDate]} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={showHabitUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : view === 'week' ? (
-        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={visibleSources.has('habit')} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
+        <TimeGrid events={filteredEvents} dates={isMobile ? mobileWeekDates : getWeekDays(selectedDate)} tasks={tasks} showTaskUI={showTaskUI} showHabitUI={showHabitUI} onSlotClick={(s, e) => { setCreateSlot({ start: s, end: e }); setShowCreate(true); }} onEventClick={handleEventSelect} onDrop={handleDrop} onLinkToEvent={handleLinkToEvent} onEventMove={handleEventMove} onEventResize={handleEventMove} onFinishEvent={handleFinishEvent} isMobile={isMobile} hourHeight={zoomHeight} />
     ) : (
         <MonthView events={filteredEvents} selectedDate={selectedDate} onDayClick={(d) => { setSelectedDate(d); setView('day'); }} />
     );
 
     return (
         <DashboardShell>
+            {/* Custom confirmation dialog */}
+            {pendingDelete && (
+                <div onClick={() => setPendingDelete(null)} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg)', border: '1px solid rgba(192,80,80,0.3)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', maxWidth: 340, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 8 }}>Delete event?</div>
+                        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 16 }}>This event will be permanently removed from your calendar.</div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setPendingDelete(null)} style={{ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                            <button onClick={executeDelete} style={{ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,80,80,0.3)', background: 'rgba(192,80,80,0.12)', color: '#c05050', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
                 {/* Main area */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -692,7 +768,7 @@ export default function CalendarPage() {
                                             <button key={v} onClick={() => setView(v)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: view === v ? 'var(--color-accent)' : 'transparent', color: view === v ? 'white' : 'var(--color-text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', minHeight: 32 }}>{v}</button>
                                         ))}
                                     </div>
-                                    {[{ k: 'personal', l: 'P' }, { k: 'business', l: 'B' }, { k: 'task', l: 'T' }, { k: 'habit', l: 'H' }, { k: 'clickup_task', l: 'CU' }].map(({ k, l }) => {
+                                    {[{ k: 'personal', l: 'P' }, { k: 'business', l: 'B' }, { k: 'task', l: 'T' }].map(({ k, l }) => {
                                         const c = accountColors[k], on = visibleSources.has(k);
                                         return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, minHeight: 32 }}>{on ? '●' : '○'} {l}</button>;
                                     })}
@@ -725,7 +801,7 @@ export default function CalendarPage() {
                             </div>
                             <button onClick={() => { setCreateSlot(null); setShowCreate(true); }} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-accent)', background: 'var(--color-accent)', color: 'white', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>+ Event</button>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-                                {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }, { k: 'habit', l: 'Habits' }, { k: 'clickup_task', l: 'ClickUp' }].map(({ k, l }) => {
+                                {[{ k: 'personal', l: 'Personal' }, { k: 'business', l: 'Business' }, { k: 'task', l: 'Tasks' }].map(({ k, l }) => {
                                     const c = accountColors[k], on = visibleSources.has(k);
                                     return <button key={k} onClick={() => toggleSource(k)} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${on ? c.border : 'var(--color-border)'}`, background: on ? c.bg : 'transparent', color: on ? c.text : 'var(--color-text-muted)', cursor: 'pointer', opacity: on ? 1 : 0.4, transition: 'all 0.15s' }}>{on ? '●' : '○'} {l}</button>;
                                 })}
@@ -759,25 +835,28 @@ export default function CalendarPage() {
                 {!isMobile && (
                     <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--color-border)', padding: 'var(--space-3)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                         {selectedEvent ? (
-                            <EventDetail event={selectedEvent} tasks={selectedTasks} allTasks={tasks} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} onUpdateSourceId={handleUpdateSourceId} />
+                            <EventDetail event={selectedEvent} tasks={selectedTasks} allTasks={tasks} habits={selectedHabits} onClose={() => setSelectedEvent(null)} onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }} onDelete={() => handleDelete(selectedEvent.id)} onUpdateSourceId={handleUpdateSourceId} onHabitToggle={handleHabitToggle} />
                         ) : (
                             <TaskSidebar tasks={unscheduledTasks} />
                         )}
                     </div>
                 )}
 
-                {/* Mobile: FAB */}
+                {/* Mobile: FAB — fixed to viewport, lifts above bottom sheet peek */}
                 {isMobile && (
                     <button
                         onClick={() => { setCreateSlot(null); setShowCreate(true); }}
                         style={{
-                            position: 'absolute', bottom: bottomSheet !== 'hidden' ? 'calc(60px + var(--space-4))' : 'var(--space-4)',
+                            position: 'fixed',
+                            bottom: bottomSheet !== 'hidden'
+                                ? `calc(60px + env(safe-area-inset-bottom, 0px))`
+                                : `calc(var(--space-4) + env(safe-area-inset-bottom, 0px))`,
                             right: 'var(--space-4)', width: 56, height: 56, borderRadius: '50%',
                             background: 'var(--color-accent)', border: 'none', color: 'white',
                             fontSize: 24, fontWeight: 700, cursor: 'pointer',
                             boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 50, transition: 'bottom 0.3s ease',
+                            zIndex: 70, transition: 'bottom 0.3s ease',
                         }}
                     >+</button>
                 )}
@@ -794,10 +873,12 @@ export default function CalendarPage() {
                                 event={selectedEvent}
                                 tasks={selectedTasks}
                                 allTasks={tasks}
+                                habits={selectedHabits}
                                 onClose={() => { setSelectedEvent(null); setBottomSheet('peek'); }}
                                 onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); setBottomSheet('hidden'); }}
                                 onDelete={() => { handleDelete(selectedEvent.id); setBottomSheet('peek'); }}
                                 onUpdateSourceId={handleUpdateSourceId}
+                                onHabitToggle={handleHabitToggle}
                             />
                         ) : (
                             <TaskSidebar tasks={unscheduledTasks} />
@@ -807,8 +888,8 @@ export default function CalendarPage() {
             </div>
 
             {/* Modals */}
-            {showCreate && <EventModal mode="create" accounts={accounts} defaultStart={createSlot?.start} defaultEnd={createSlot?.end} onClose={() => { setShowCreate(false); setCreateSlot(null); }} onSubmit={(t, s, e, a) => handleCreate(t, s, e, a)} isMobile={isMobile} />}
-            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => setEditEvent(null)} onSubmit={(t, s, e, _a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, description: desc })} isMobile={isMobile} />}
+            {showCreate && <EventModal mode="create" accounts={accounts} defaultStart={createSlot?.start} defaultEnd={createSlot?.end} onClose={() => { setShowCreate(false); setCreateSlot(null); if (isMobile) setBottomSheet('peek'); }} onSubmit={(t, s, e, a) => handleCreate(t, s, e, a)} isMobile={isMobile} />}
+            {editEvent && <EventModal mode="edit" event={editEvent} accounts={accounts} onClose={() => { setEditEvent(null); if (isMobile) setBottomSheet('peek'); }} onSubmit={(t, s, e, _a, desc) => handleUpdate(editEvent.id, { title: t, start_time: s, end_time: e, description: desc })} isMobile={isMobile} />}
         </DashboardShell>
     );
 }
@@ -959,222 +1040,272 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
                         )}
 
                         {/* Rendered events */}
-                        {dayEvents.map(ev => {
-                            const startMins = getMinutesFromAEST(new Date(ev.start_time));
-                            const endMins = getMinutesFromAEST(new Date(ev.end_time));
-                            const top = ((startMins - START_HOUR * 60) / 60) * hourHeight + (isMulti ? 36 : 0);
-                            const height = Math.max(((endMins - startMins) / 60) * hourHeight, 18);
-                            const c = eventColor(ev);
-                            const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
-                            const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
+                        {(() => {
+                            // Calculate overlap columns for side-by-side layout
+                            const evWithTimes = dayEvents.map(ev => ({
+                                ev,
+                                startMins: getMinutesFromAEST(new Date(ev.start_time)),
+                                endMins: getMinutesFromAEST(new Date(ev.end_time)),
+                            })).sort((a, b) => a.startMins - b.startMins || (b.endMins - b.startMins) - (a.endMins - a.startMins));
 
-                            return (
-                                <div
-                                    key={ev.id}
-                                    draggable
-                                    onDragStart={(e) => {
-                                        const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
-                                        e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
-                                        e.dataTransfer.effectAllowed = 'all';
-                                        (e.currentTarget as HTMLElement).style.opacity = '0.4';
-                                        setDraggingId(ev.id);
-                                        wasDragging.current = true;
-                                    }}
-                                    onDragEnd={(e) => {
-                                        (e.currentTarget as HTMLElement).style.opacity = '1';
-                                        setDraggingId(null);
-                                        // Suppress the click that fires after drag
-                                        setTimeout(() => { wasDragging.current = false; }, 0);
-                                    }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (wasDragging.current) return; // Suppress click after drag
-                                        onEventClick(ev);
-                                    }}
-                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                    onDrop={(e) => {
-                                        e.preventDefault(); e.stopPropagation();
-                                        try {
-                                            const parsed = JSON.parse(e.dataTransfer.getData('text/plain'));
-                                            if (parsed.taskName) onLinkToEvent(ev.id, parsed.taskName);
-                                        } catch { /* ignore */ }
-                                    }}
-                                    style={{
-                                        position: 'absolute', left: 2, right: 2, top: Math.max(top, isMulti ? 36 : 0),
-                                        height: resizingId === ev.id && resizePreviewHeight !== null ? resizePreviewHeight : height,
-                                        background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
-                                        padding: isMobile ? '4px 8px' : '1px 4px', fontSize: isMobile ? 12 : isMulti ? 9 : 'var(--text-xs)',
-                                        cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
-                                        backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
-                                        userSelect: 'none', WebkitUserSelect: 'none',
-                                        // During drag, make OTHER events transparent to drops so slots receive them
-                                        pointerEvents: draggingId && draggingId !== ev.id ? 'none' : undefined,
-                                    }}
-                                    title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
-                                >
-                                    <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
-                                        {matchedHabits.length > 0 && !isMulti && (
-                                            <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
-                                                {matchedHabits.map(h => (
-                                                    <HoverTip key={h.key} label={h.label}>{h.icon}</HoverTip>
-                                                ))}
-                                            </span>
-                                        )}
-                                        {matchedTasks.length > 0 && !isMulti && (
-                                            <TaskChips tasks={matchedTasks} compact={height < 36} />
-                                        )}
-                                    </div>
-                                    {height > 28 && !isMulti && (
-                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
+                            // Assign columns using greedy algorithm
+                            const columns: { endMins: number }[][] = [];
+                            const colMap = new Map<string, { col: number; totalCols: number }>();
+
+                            for (const item of evWithTimes) {
+                                let placed = false;
+                                for (let ci = 0; ci < columns.length; ci++) {
+                                    const lastInCol = columns[ci][columns[ci].length - 1];
+                                    if (lastInCol.endMins <= item.startMins) {
+                                        columns[ci].push({ endMins: item.endMins });
+                                        colMap.set(item.ev.id, { col: ci, totalCols: 0 });
+                                        placed = true;
+                                        break;
+                                    }
+                                }
+                                if (!placed) {
+                                    columns.push([{ endMins: item.endMins }]);
+                                    colMap.set(item.ev.id, { col: columns.length - 1, totalCols: 0 });
+                                }
+                            }
+
+                            // Calculate totalCols for each group of overlapping events
+                            for (const item of evWithTimes) {
+                                const overlapping = evWithTimes.filter(o =>
+                                    o.ev.id !== item.ev.id && o.startMins < item.endMins && o.endMins > item.startMins
+                                );
+                                const maxCol = Math.max(colMap.get(item.ev.id)!.col, ...overlapping.map(o => colMap.get(o.ev.id)!.col));
+                                const entry = colMap.get(item.ev.id)!;
+                                entry.totalCols = Math.max(entry.totalCols, maxCol + 1);
+                                for (const o of overlapping) {
+                                    const oe = colMap.get(o.ev.id)!;
+                                    oe.totalCols = Math.max(oe.totalCols, maxCol + 1);
+                                }
+                            }
+
+                            return dayEvents.map(ev => {
+                                const startMins = getMinutesFromAEST(new Date(ev.start_time));
+                                const endMins = getMinutesFromAEST(new Date(ev.end_time));
+                                const top = ((startMins - START_HOUR * 60) / 60) * hourHeight + (isMulti ? 36 : 0);
+                                const height = Math.max(((endMins - startMins) / 60) * hourHeight, 18);
+                                const c = eventColor(ev);
+                                const matchedTasks = showTaskUI ? matchTasksToEvent(ev, tasks) : [];
+                                const matchedHabits = showHabitUI ? matchHabitsToEvent(ev) : [];
+                                const layout = colMap.get(ev.id) ?? { col: 0, totalCols: 1 };
+                                const colWidth = layout.totalCols > 1 ? (100 / layout.totalCols) : 100;
+                                const colLeft = layout.col * colWidth;
+
+                                return (
+                                    <div
+                                        key={ev.id}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            const durationMins = Math.round((new Date(ev.end_time).getTime() - new Date(ev.start_time).getTime()) / 60000);
+                                            e.dataTransfer.setData('text/plain', JSON.stringify({ eventId: ev.id, durationMins }));
+                                            e.dataTransfer.effectAllowed = 'all';
+                                            (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                                            setDraggingId(ev.id);
+                                            wasDragging.current = true;
+                                        }}
+                                        onDragEnd={(e) => {
+                                            (e.currentTarget as HTMLElement).style.opacity = '1';
+                                            setDraggingId(null);
+                                            // Suppress the click that fires after drag
+                                            setTimeout(() => { wasDragging.current = false; }, 0);
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (wasDragging.current) return; // Suppress click after drag
+                                            onEventClick(ev);
+                                        }}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        onDrop={(e) => {
+                                            e.preventDefault(); e.stopPropagation();
+                                            try {
+                                                const parsed = JSON.parse(e.dataTransfer.getData('text/plain'));
+                                                if (parsed.taskName) onLinkToEvent(ev.id, parsed.taskName);
+                                            } catch { /* ignore */ }
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            left: `calc(${colLeft}% + 2px)`,
+                                            width: `calc(${colWidth}% - 4px)`,
+                                            top: Math.max(top, isMulti ? 36 : 0),
+                                            height: resizingId === ev.id && resizePreviewHeight !== null ? resizePreviewHeight : height,
+                                            background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 'var(--radius-sm)',
+                                            padding: isMobile ? (isMulti ? '2px 3px' : '4px 8px') : '1px 4px', fontSize: isMobile ? (isMulti ? 8 : 12) : isMulti ? 9 : 'var(--text-xs)',
+                                            cursor: 'grab', zIndex: draggingId && draggingId !== ev.id ? 1 : 5,
+                                            backdropFilter: 'blur(4px)', transition: 'opacity 0.15s',
+                                            userSelect: 'none', WebkitUserSelect: 'none',
+                                            // During drag, make OTHER events transparent to drops so slots receive them
+                                            pointerEvents: draggingId && draggingId !== ev.id ? 'none' : undefined,
+                                        }}
+                                        title={`${ev.title}\n${toAESTTime(new Date(ev.start_time))} – ${toAESTTime(new Date(ev.end_time))}${matchedTasks.length ? '\n\n📋 Tasks: ' + matchedTasks.map(t => t.task_name).join(', ') : ''}${matchedHabits.length ? '\n' + matchedHabits.map(h => h.icon + ' ' + h.label).join(', ') : ''}`}
+                                    >
+                                        <div style={{ fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                                            {matchedHabits.length > 0 && !isMulti && (
+                                                <span style={{ display: 'inline-flex', gap: 1, flexShrink: 0, fontSize: 10 }}>
+                                                    {matchedHabits.map(h => (
+                                                        <HoverTip key={h.key} label={h.label}>{h.icon}</HoverTip>
+                                                    ))}
+                                                </span>
+                                            )}
+                                            {matchedTasks.length > 0 && !isMulti && (
+                                                <TaskChips tasks={matchedTasks} compact={height < 36} />
+                                            )}
                                         </div>
-                                    )}
-                                    {/* Done button for ClickUp time entry events */}
-                                    {ev.source === 'clickup_time' && ev.time_entry_id && ev.clickup_task_id && onFinishEvent && !isMulti && (
-                                        <div style={{ position: 'absolute', top: 2, right: 2, zIndex: 10 }}>
-                                            <button
-                                                onClick={(e) => {
+                                        {height > 28 && !isMulti && (
+                                            <div style={{ color: 'var(--color-text-muted)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                {toAESTTime(new Date(ev.start_time))} – {toAESTTime(new Date(ev.end_time))}
+                                            </div>
+                                        )}
+                                        {/* Done button for ClickUp time entry events */}
+                                        {matchedTasks.some(t => t.clickup_id) && onFinishEvent && !isMulti && (
+                                            <div style={{ position: 'absolute', top: 2, right: 2, zIndex: 10 }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (statusPopup?.id === ev.id) { setStatusPopup(null); return; }
+                                                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                        setStatusPopup({ id: ev.id, top: rect.bottom + 4, left: Math.min(rect.right - 140, window.innerWidth - 150) });
+                                                    }}
+                                                    style={{
+                                                        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+                                                        borderRadius: 'var(--radius-sm)', padding: '1px 6px', cursor: 'pointer',
+                                                        fontSize: 10, fontWeight: 700, color: c.text, lineHeight: '1.4',
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
+                                                    onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
+                                                    title="Finish event & set task status"
+                                                >✓</button>
+                                                {statusPopup?.id === ev.id && createPortal(
+                                                    <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }} onClick={() => setStatusPopup(null)}>
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: statusPopup.top,
+                                                                left: statusPopup.left,
+                                                                background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)',
+                                                                borderRadius: 'var(--radius)', padding: 4,
+                                                                boxShadow: 'var(--shadow-md)', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 2,
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {[
+                                                                { status: 'complete', label: '✅ Complete' },
+                                                                { status: 'in progress', label: '🔄 In Progress' },
+                                                                { status: 'abandoned', label: '❌ Abandoned' },
+                                                            ].map(opt => (
+                                                                <button
+                                                                    key={opt.status}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        onFinishEvent(ev.id, opt.status);
+                                                                        setStatusPopup(null);
+                                                                    }}
+                                                                    style={{
+                                                                        background: 'none', border: 'none', padding: '6px 10px',
+                                                                        borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                                                        fontSize: 12, fontWeight: 600, color: 'var(--color-text)',
+                                                                        textAlign: 'left', transition: 'background 0.1s',
+                                                                    }}
+                                                                    onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--color-surface-hover)'; }}
+                                                                    onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none'; }}
+                                                                >
+                                                                    {opt.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>,
+                                                    document.body
+                                                )}
+                                            </div>
+                                        )}
+                                        {height > 42 && !isMulti && matchedTasks.length > 0 && (
+                                            <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 1 }}>
+                                                {matchedTasks.slice(0, 3).map(t => (
+                                                    <span key={t.task_name} style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: accountColors.task.bg, border: `1px solid ${accountColors.task.border}40`, color: accountColors.task.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
+                                                        {t.task_name}
+                                                    </span>
+                                                ))}
+                                                {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
+                                            </div>
+                                        )}
+                                        {/* Week view: dot indicators */}
+                                        {isMulti && (matchedTasks.length > 0 || matchedHabits.length > 0) && (
+                                            <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
+                                                {matchedHabits.slice(0, 2).map(h => (
+                                                    <span key={h.key} style={{ fontSize: 6, lineHeight: 1 }}>{h.icon}</span>
+                                                ))}
+                                                {matchedTasks.length > 0 && (
+                                                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Resize handle at bottom */}
+                                        {onEventResize && !isMulti && (
+                                            <div
+                                                onMouseDown={(e) => {
                                                     e.stopPropagation();
-                                                    if (statusPopup?.id === ev.id) { setStatusPopup(null); return; }
-                                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                                    setStatusPopup({ id: ev.id, top: rect.bottom + 4, left: Math.min(rect.right - 140, window.innerWidth - 150) });
+                                                    e.preventDefault();
+                                                    const colEl = (e.currentTarget as HTMLElement).closest('[data-col]') as HTMLElement;
+                                                    if (!colEl) return;
+                                                    const endMins = getMinutesFromAEST(new Date(ev.end_time));
+                                                    resizeStart.current = { eventId: ev.id, startTime: ev.start_time, colEl, initialEndMins: endMins, headerOffset: isMulti ? 36 : 0 };
+                                                    setResizingId(ev.id);
+                                                    const onMove = (me: MouseEvent) => {
+                                                        if (!resizeStart.current) return;
+                                                        const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                        const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                        const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                        const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                        const snapped = Math.round(rawMins / 15) * 15;
+                                                        const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                        const clamped = Math.max(snapped, startMins + 15);
+                                                        const newH = Math.max(((clamped - startMins) / 60) * hourHeight, 18);
+                                                        setResizePreviewHeight(newH);
+                                                    };
+                                                    const onUp = (me: MouseEvent) => {
+                                                        document.removeEventListener('mousemove', onMove);
+                                                        document.removeEventListener('mouseup', onUp);
+                                                        if (!resizeStart.current) return;
+                                                        const rect = resizeStart.current.colEl.getBoundingClientRect();
+                                                        const scrollTop = gridRef.current?.scrollTop ?? 0;
+                                                        const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
+                                                        const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
+                                                        const snapped = Math.round(rawMins / 15) * 15;
+                                                        const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
+                                                        const clamped = Math.max(snapped, startMins + 15);
+                                                        // Build new end date in AEST
+                                                        const evDate = new Date(resizeStart.current.startTime);
+                                                        const newEnd = new Date(evDate.toLocaleString('en-US', { timeZone: AEST }));
+                                                        newEnd.setHours(Math.floor(clamped / 60), clamped % 60, 0, 0);
+                                                        // Convert back to ISO via AEST offset
+                                                        const isoEnd = newEnd.toLocaleString('sv-SE', { timeZone: AEST }).replace(' ', 'T');
+                                                        const utcEnd = new Date(isoEnd + '+11:00').toISOString();
+                                                        onEventResize(resizeStart.current.eventId, resizeStart.current.startTime, utcEnd);
+                                                        resizeStart.current = null;
+                                                        setResizingId(null);
+                                                        setResizePreviewHeight(null);
+                                                    };
+                                                    document.addEventListener('mousemove', onMove);
+                                                    document.addEventListener('mouseup', onUp);
                                                 }}
                                                 style={{
-                                                    background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-                                                    borderRadius: 'var(--radius-sm)', padding: '1px 6px', cursor: 'pointer',
-                                                    fontSize: 10, fontWeight: 700, color: c.text, lineHeight: '1.4',
-                                                    transition: 'background 0.15s',
+                                                    position: 'absolute', bottom: 0, left: 0, right: 0, height: 6,
+                                                    cursor: 'ns-resize', background: 'transparent',
+                                                    borderBottomLeftRadius: 'var(--radius-sm)', borderBottomRightRadius: 'var(--radius-sm)',
                                                 }}
-                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
-                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
-                                                title="Finish event & set task status"
-                                            >✓</button>
-                                            {statusPopup?.id === ev.id && createPortal(
-                                                <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }} onClick={() => setStatusPopup(null)}>
-                                                    <div
-                                                        style={{
-                                                            position: 'absolute',
-                                                            top: statusPopup.top,
-                                                            left: statusPopup.left,
-                                                            background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)',
-                                                            borderRadius: 'var(--radius)', padding: 4,
-                                                            boxShadow: 'var(--shadow-md)', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 2,
-                                                        }}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {[
-                                                            { status: 'complete', label: '✅ Complete' },
-                                                            { status: 'in progress', label: '🔄 In Progress' },
-                                                            { status: 'abandoned', label: '❌ Abandoned' },
-                                                        ].map(opt => (
-                                                            <button
-                                                                key={opt.status}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onFinishEvent(ev.id, opt.status);
-                                                                    setStatusPopup(null);
-                                                                }}
-                                                                style={{
-                                                                    background: 'none', border: 'none', padding: '6px 10px',
-                                                                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                                                                    fontSize: 12, fontWeight: 600, color: 'var(--color-text)',
-                                                                    textAlign: 'left', transition: 'background 0.1s',
-                                                                }}
-                                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--color-surface-hover)'; }}
-                                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none'; }}
-                                                            >
-                                                                {opt.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>,
-                                                document.body
-                                            )}
-                                        </div>
-                                    )}
-                                    {height > 42 && !isMulti && matchedTasks.length > 0 && (
-                                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 1 }}>
-                                            {matchedTasks.slice(0, 3).map(t => (
-                                                <span key={t.task_name} style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: accountColors.task.bg, border: `1px solid ${accountColors.task.border}40`, color: accountColors.task.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
-                                                    {t.task_name}
-                                                </span>
-                                            ))}
-                                            {matchedTasks.length > 3 && <span style={{ fontSize: 8, color: accountColors.task.text }}>+{matchedTasks.length - 3}</span>}
-                                        </div>
-                                    )}
-                                    {/* Week view: dot indicators */}
-                                    {isMulti && (matchedTasks.length > 0 || matchedHabits.length > 0) && (
-                                        <div style={{ position: 'absolute', top: 1, right: 2, display: 'flex', gap: 1 }}>
-                                            {matchedHabits.slice(0, 2).map(h => (
-                                                <span key={h.key} style={{ fontSize: 6, lineHeight: 1 }}>{h.icon}</span>
-                                            ))}
-                                            {matchedTasks.length > 0 && (
-                                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: accountColors.task.border, marginTop: 1 }} />
-                                            )}
-                                        </div>
-                                    )}
-                                    {/* Resize handle at bottom */}
-                                    {onEventResize && !isMulti && (
-                                        <div
-                                            onMouseDown={(e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                const colEl = (e.currentTarget as HTMLElement).closest('[data-col]') as HTMLElement;
-                                                if (!colEl) return;
-                                                const endMins = getMinutesFromAEST(new Date(ev.end_time));
-                                                resizeStart.current = { eventId: ev.id, startTime: ev.start_time, colEl, initialEndMins: endMins, headerOffset: isMulti ? 36 : 0 };
-                                                setResizingId(ev.id);
-                                                const onMove = (me: MouseEvent) => {
-                                                    if (!resizeStart.current) return;
-                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
-                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
-                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
-                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
-                                                    const snapped = Math.round(rawMins / 15) * 15;
-                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
-                                                    const clamped = Math.max(snapped, startMins + 15);
-                                                    const newH = Math.max(((clamped - startMins) / 60) * hourHeight, 18);
-                                                    setResizePreviewHeight(newH);
-                                                };
-                                                const onUp = (me: MouseEvent) => {
-                                                    document.removeEventListener('mousemove', onMove);
-                                                    document.removeEventListener('mouseup', onUp);
-                                                    if (!resizeStart.current) return;
-                                                    const rect = resizeStart.current.colEl.getBoundingClientRect();
-                                                    const scrollTop = gridRef.current?.scrollTop ?? 0;
-                                                    const y = me.clientY - rect.top - resizeStart.current.headerOffset + scrollTop;
-                                                    const rawMins = START_HOUR * 60 + (y / hourHeight) * 60;
-                                                    const snapped = Math.round(rawMins / 15) * 15;
-                                                    const startMins = getMinutesFromAEST(new Date(resizeStart.current.startTime));
-                                                    const clamped = Math.max(snapped, startMins + 15);
-                                                    // Build new end date in AEST
-                                                    const evDate = new Date(resizeStart.current.startTime);
-                                                    const newEnd = new Date(evDate.toLocaleString('en-US', { timeZone: AEST }));
-                                                    newEnd.setHours(Math.floor(clamped / 60), clamped % 60, 0, 0);
-                                                    // Convert back to ISO via AEST offset
-                                                    const isoEnd = newEnd.toLocaleString('sv-SE', { timeZone: AEST }).replace(' ', 'T');
-                                                    const utcEnd = new Date(isoEnd + '+11:00').toISOString();
-                                                    onEventResize(resizeStart.current.eventId, resizeStart.current.startTime, utcEnd);
-                                                    resizeStart.current = null;
-                                                    setResizingId(null);
-                                                    setResizePreviewHeight(null);
-                                                };
-                                                document.addEventListener('mousemove', onMove);
-                                                document.addEventListener('mouseup', onUp);
-                                            }}
-                                            style={{
-                                                position: 'absolute', bottom: 0, left: 0, right: 0, height: 6,
-                                                cursor: 'ns-resize', background: 'transparent',
-                                                borderBottomLeftRadius: 'var(--radius-sm)', borderBottomRightRadius: 'var(--radius-sm)',
-                                            }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.border}40`; }}
-                                            onMouseLeave={(e) => { if (resizingId !== ev.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                                        />
-                                    )}
-                                </div>
-                            );
-                        })}
+                                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.border}40`; }}
+                                                onMouseLeave={(e) => { if (resizingId !== ev.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 );
             })}
@@ -1291,37 +1422,46 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
                     <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                         Linked Tasks ({tasks.length})
                     </div>
-                    {tasks.map(t => (
-                        <div key={t.task_name} style={{
-                            padding: '4px 6px', marginBottom: 2,
-                            borderRadius: 'var(--radius-sm)',
-                            borderLeft: `3px solid ${accountColors.task.border}`,
-                            background: accountColors.task.bg,
-                        }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
-                                {t.task_name}
-                            </div>
-                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2 }}>
-                                {t.category && (
-                                    <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,130,200,0.1)', color: '#5a82c8' }}>
-                                        {t.category}
+                    {tasks.map(t => {
+                        const statusColor = t.status === 'complete' ? { bg: 'rgba(90,154,90,0.1)', text: '#5a9a5a' }
+                            : t.status === 'abandoned' ? { bg: 'rgba(192,80,80,0.1)', text: '#c05050' }
+                                : t.status === 'in progress' ? { bg: 'rgba(90,130,200,0.1)', text: '#5a82c8' }
+                                    : { bg: 'rgba(193,127,58,0.1)', text: '#c17f3a' };
+                        const clickupUrl = t.clickup_id ? `https://app.clickup.com/t/${t.clickup_id}` : null;
+                        return (
+                            <div key={t.task_name} style={{
+                                padding: '4px 6px', marginBottom: 2,
+                                borderRadius: 'var(--radius-sm)',
+                                borderLeft: `3px solid ${accountColors.task.border}`,
+                                background: accountColors.task.bg,
+                                cursor: clickupUrl ? 'pointer' : 'default',
+                            }}
+                                onClick={() => clickupUrl && window.open(clickupUrl, '_blank')}
+                            >
+                                <div style={{ fontSize: 11, fontWeight: 600, color: clickupUrl ? '#5a82c8' : 'var(--color-text)', lineHeight: 1.3, textDecoration: clickupUrl ? 'underline' : 'none', textDecorationColor: 'rgba(90,130,200,0.3)' }}>
+                                    {t.task_name} {clickupUrl && '↗'}
+                                </div>
+                                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2 }}>
+                                    {t.category && (
+                                        <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,130,200,0.1)', color: '#5a82c8' }}>
+                                            {t.category}
+                                        </span>
+                                    )}
+                                    {t.estimated_duration && (
+                                        <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,154,90,0.1)', color: '#5a9a5a' }}>
+                                            {formatDuration(t.estimated_duration)}
+                                        </span>
+                                    )}
+                                    <span style={{
+                                        fontSize: 8, padding: '0 4px', borderRadius: 2,
+                                        background: statusColor.bg, color: statusColor.text,
+                                    }}>
+                                        {t.status}
                                     </span>
-                                )}
-                                {t.estimated_duration && (
-                                    <span style={{ fontSize: 8, padding: '0 4px', borderRadius: 2, background: 'rgba(90,154,90,0.1)', color: '#5a9a5a' }}>
-                                        {formatDuration(t.estimated_duration)}
-                                    </span>
-                                )}
-                                <span style={{
-                                    fontSize: 8, padding: '0 4px', borderRadius: 2,
-                                    background: t.status === 'done' ? 'rgba(90,154,90,0.1)' : 'rgba(193,127,58,0.1)',
-                                    color: t.status === 'done' ? '#5a9a5a' : '#c17f3a',
-                                }}>
-                                    {t.status}
-                                </span>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>,
                 document.body
             )}
@@ -1331,20 +1471,30 @@ function TaskChips({ tasks, compact }: { tasks: TaskInfo[]; compact?: boolean })
 
 // ─── Event Detail Panel ──────────────────────────────────────────────────────
 
-function EventDetail({ event, tasks, allTasks, onClose, onEdit, onDelete, onUpdateSourceId }: {
-    event: CalendarEvent; tasks?: TaskInfo[]; allTasks?: TaskInfo[];
+function EventDetail({ event, tasks, allTasks, habits, onClose, onEdit, onDelete, onUpdateSourceId, onHabitToggle }: {
+    event: CalendarEvent; tasks?: TaskInfo[]; allTasks?: TaskInfo[]; habits?: HabitDef[];
     onClose: () => void; onEdit: () => void; onDelete: () => void;
     onUpdateSourceId?: (eventId: string, sourceId: string) => void;
+    onHabitToggle?: (habitKey: string, done: boolean, eventEndTime: string) => void;
 }) {
     const [showLinkDropdown, setShowLinkDropdown] = useState(false);
     const [linkFilter, setLinkFilter] = useState('');
+    const [habitToggles, setHabitToggles] = useState<Record<string, boolean>>({});
 
     const c = eventColor(event);
     const start = new Date(event.start_time), end = new Date(event.end_time);
     const durMins = Math.round((end.getTime() - start.getTime()) / 60000);
 
+    // Resolve source_id entries (which may be task names OR clickup IDs) to task names
+    const sourceIds = event.source_id ? event.source_id.split(',').map(s => s.trim()).filter(Boolean) : [];
     const linkedTaskNames = new Set(
-        event.source_id ? event.source_id.split(',').map(s => s.trim()).filter(Boolean) : []
+        sourceIds.map(id => {
+            const byName = allTasks?.find(t => t.task_name === id);
+            if (byName) return byName.task_name;
+            const byClickup = allTasks?.find(t => t.clickup_id === id);
+            if (byClickup) return byClickup.task_name;
+            return id; // fallback to raw value
+        })
     );
 
     const unlinkTask = (taskName: string) => {
@@ -1406,21 +1556,39 @@ function EventDetail({ event, tasks, allTasks, onClose, onEdit, onDelete, onUpda
                     </button>
                 </div>
 
-                {tasks && tasks.length > 0 ? tasks.map(task => (
-                    <div key={task.task_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tasks.length > 1 ? 4 : 0 }}>
-                        <div>
-                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{task.task_name}</div>
-                            {task.estimated_duration && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>{formatDuration(task.estimated_duration)} estimated</div>}
+                {tasks && tasks.length > 0 ? tasks.map(task => {
+                    const statusColor = task.status === 'complete' ? { bg: 'rgba(90,154,90,0.1)', text: '#5a9a5a' }
+                        : task.status === 'abandoned' ? { bg: 'rgba(192,80,80,0.1)', text: '#c05050' }
+                            : task.status === 'in progress' ? { bg: 'rgba(90,130,200,0.1)', text: '#5a82c8' }
+                                : { bg: 'rgba(193,127,58,0.1)', text: '#c17f3a' };
+                    const clickupUrl = task.clickup_id ? `https://app.clickup.com/t/${task.clickup_id}` : null;
+                    return (
+                        <div key={task.task_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tasks.length > 1 ? 4 : 0 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                {clickupUrl ? (
+                                    <a href={clickupUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: '#5a82c8', textDecoration: 'underline', textDecorationColor: 'rgba(90,130,200,0.3)' }}>
+                                        {task.task_name} ↗
+                                    </a>
+                                ) : (
+                                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{task.task_name}</div>
+                                )}
+                                <div style={{ display: 'flex', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: 9, padding: '0 4px', borderRadius: 2, background: statusColor.bg, color: statusColor.text, fontWeight: 600 }}>
+                                        {task.status}
+                                    </span>
+                                    {task.estimated_duration && <span style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>{formatDuration(task.estimated_duration)} est.</span>}
+                                </div>
+                            </div>
+                            {onUpdateSourceId && (
+                                <button
+                                    onClick={() => unlinkTask(task.task_name)}
+                                    style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 12, padding: '0 4px', opacity: 0.5 }}
+                                    title="Remove link"
+                                >×</button>
+                            )}
                         </div>
-                        {onUpdateSourceId && (
-                            <button
-                                onClick={() => unlinkTask(task.task_name)}
-                                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 12, padding: '0 4px', opacity: 0.5 }}
-                                title="Remove link"
-                            >×</button>
-                        )}
-                    </div>
-                )) : !showLinkDropdown && (
+                    );
+                }) : !showLinkDropdown && (
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No tasks linked</div>
                 )}
 
@@ -1463,6 +1631,44 @@ function EventDetail({ event, tasks, allTasks, onClose, onEdit, onDelete, onUpda
                     </div>
                 )}
             </div>
+
+            {/* Linked Habits */}
+            {habits && habits.length > 0 && (
+                <div style={{ padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(154,90,170,0.2)', background: 'rgba(154,90,170,0.05)', marginBottom: 'var(--space-2)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: accountColors.habit.text, textTransform: 'uppercase', marginBottom: 4 }}>🔁 Linked Habits</div>
+                    {habits.map(h => {
+                        const toggled = habitToggles[h.key] ?? false;
+                        return (
+                            <div key={h.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: habits.length > 1 ? 4 : 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                                    <span style={{ fontSize: 14 }}>{h.icon}</span>
+                                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>{h.label}</span>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        const newDone = !toggled;
+                                        setHabitToggles(prev => ({ ...prev, [h.key]: newDone }));
+                                        onHabitToggle?.(h.key, newDone, event.end_time);
+                                    }}
+                                    style={{
+                                        background: toggled ? 'rgba(90,154,90,0.15)' : 'rgba(154,90,170,0.1)',
+                                        border: `1px solid ${toggled ? 'rgba(90,154,90,0.3)' : 'rgba(154,90,170,0.25)'}`,
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: toggled ? '#5a9a5a' : accountColors.habit.text,
+                                        fontSize: 9, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
+                                        transition: 'all 0.15s',
+                                    }}
+                                >
+                                    {toggled ? '✓ Done' : 'Mark done'}
+                                </button>
+                            </div>
+                        );
+                    })}
+                    <div style={{ fontSize: 9, color: 'var(--color-text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                        Completion time: {toAESTTime(new Date(event.end_time))}
+                    </div>
+                </div>
+            )}
 
             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
                 <button onClick={onEdit} style={{ flex: 1, padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}>✏️ Edit</button>
@@ -1633,8 +1839,10 @@ function BottomSheet({ state, onStateChange, peekLabel, children }: {
 }) {
     const sheetRef = useRef<HTMLDivElement>(null);
     const dragStartY = useRef<number | null>(null);
-    const heightMap = { hidden: 0, peek: 60, half: 45, full: 85 };
-    const h = heightMap[state];
+
+    // Peek = fixed pixel height (just handle + label); half/full = vh
+    const peekPx = 56;
+    const sheetHeight = state === 'peek' ? `${peekPx}px` : state === 'half' ? '45vh' : state === 'full' ? '85vh' : '0';
 
     const handleDragStart = (e: React.TouchEvent) => {
         dragStartY.current = e.touches[0].clientY;
@@ -1659,7 +1867,7 @@ function BottomSheet({ state, onStateChange, peekLabel, children }: {
             ref={sheetRef}
             style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
-                height: `${h}vh`, minHeight: state === 'peek' ? 60 : undefined,
+                height: sheetHeight,
                 background: 'var(--color-surface)',
                 borderTop: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
@@ -1676,14 +1884,14 @@ function BottomSheet({ state, onStateChange, peekLabel, children }: {
                 onTouchEnd={handleDragEnd}
                 onClick={() => onStateChange(state === 'peek' ? 'half' : 'peek')}
                 style={{
-                    padding: 'var(--space-2) var(--space-3)',
+                    padding: 'var(--space-3) var(--space-3) var(--space-2)',
                     cursor: 'grab', flexShrink: 0,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 }}
             >
-                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+                <div style={{ width: 40, height: 5, borderRadius: 3, background: 'var(--color-text-muted)', opacity: 0.4 }} />
                 {state === 'peek' && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 700 }}>
                         {peekLabel}
                     </span>
                 )}

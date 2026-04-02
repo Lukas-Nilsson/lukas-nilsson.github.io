@@ -22,9 +22,20 @@ export default function Navigation() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
+    // Close on route change
     useEffect(() => {
         setMenuOpen(false);
     }, [pathname]);
+
+    // Lock body scroll when menu is open
+    useEffect(() => {
+        if (menuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [menuOpen]);
 
     return (
         <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
@@ -34,7 +45,8 @@ export default function Navigation() {
                     <span className={styles.logoText}>Lukas Nilsson</span>
                 </Link>
 
-                <ul className={`${styles.links} ${menuOpen ? styles.open : ''}`}>
+                {/* Desktop links */}
+                <ul className={styles.links}>
                     {navLinks.map(({ href, label }) => (
                         <li key={href}>
                             <Link
@@ -52,6 +64,7 @@ export default function Navigation() {
                     </li>
                 </ul>
 
+                {/* Mobile hamburger */}
                 <button
                     className={`${styles.menuBtn} ${menuOpen ? styles.menuOpen : ''}`}
                     onClick={() => setMenuOpen(!menuOpen)}
@@ -63,6 +76,34 @@ export default function Navigation() {
                     <span />
                 </button>
             </nav>
+
+            {/* Mobile full-screen overlay */}
+            <div
+                className={`${styles.mobileOverlay} ${menuOpen ? styles.mobileOverlayOpen : ''}`}
+                aria-hidden={!menuOpen}
+            >
+                <div className={styles.mobileNavInner}>
+                    {navLinks.map(({ href, label }, i) => (
+                        <Link
+                            key={href}
+                            href={href}
+                            className={`${styles.mobileLink} ${pathname === href ? styles.mobileLinkActive : ''}`}
+                            onClick={() => setMenuOpen(false)}
+                            style={{ transitionDelay: menuOpen ? `${80 + i * 50}ms` : '0ms' }}
+                        >
+                            {label}
+                        </Link>
+                    ))}
+                    <Link
+                        href="/dashboard"
+                        className={styles.mobileDashboardLink}
+                        onClick={() => setMenuOpen(false)}
+                        style={{ transitionDelay: menuOpen ? `${80 + navLinks.length * 50}ms` : '0ms' }}
+                    >
+                        Dashboard →
+                    </Link>
+                </div>
+            </div>
         </header>
     );
 }

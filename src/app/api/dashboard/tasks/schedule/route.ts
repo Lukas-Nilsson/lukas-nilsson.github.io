@@ -133,7 +133,7 @@ export async function PATCH(req: NextRequest) {
         if (updates.start && updates.end) updates.duration = updates.end - updates.start;
 
         let entry = null;
-        if (Object.keys(updates).length > 0) {
+        if (Object.keys(updates).length > 0 && !entry_id.startsWith('_noop_')) {
             entry = await updateTimeEntry(entry_id, updates);
         }
 

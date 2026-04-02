@@ -1,11 +1,11 @@
 'use client';
 
 import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AreaChart, BarChart, LineChart } from '@/components/charts/Charts';
 import WeatherHeader from './components/WeatherHeader';
+import DashboardShell from './DashboardShell';
+import MessagesWidget from '@/components/MessagesWidget';
 import styles from './dashboard.module.css';
 
 interface Props { user: User; }
@@ -45,6 +45,8 @@ const FALLBACK_CHECK_DEFS = [
     { key: 'phone_down', icon: '📱', label: 'Phone Down', target: '11:30pm' },
     { key: 'meditation', icon: '🧘', label: 'Meditation' },
     { key: 'hydration', icon: '💧', label: 'Hydration' },
+    { key: 'reading', icon: '📖', label: 'Reading' },
+    { key: 'exercise', icon: '🏋️', label: 'Exercise' },
 ];
 
 // Build checkDefs from API habitDefinitions (with fallback)
@@ -222,6 +224,8 @@ const habitFields: Record<string, { showTime: boolean; showDescription: boolean;
     phone_down: { showTime: true, showDescription: false, showNotes: false, timePlaceholder: 'e.g. 23:30', defaultToNow: true },
     meditation: { showTime: true, showDescription: false, showNotes: true, timePlaceholder: 'Duration e.g. 10 min', defaultToNow: true },
     hydration: { showTime: false, showDescription: false, showNotes: true },
+    reading: { showTime: false, showDescription: false, showNotes: true },
+    exercise: { showTime: false, showDescription: false, showNotes: true },
 };
 
 // Helper: get current Melbourne time as HH:MM
@@ -237,6 +241,8 @@ const habitIdMap: Record<string, string> = {
     phone_down: 'phone_down',
     meditation: 'meditation',
     hydration: 'hydration',
+    reading: 'reading',
+    exercise: 'exercise',
 };
 
 // ─── Habit Modal ──────────────────────────────────────────────────────────────
@@ -294,13 +300,11 @@ function HabitModal({
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ error: res.statusText }));
                 console.error('[Habit save failed]', err);
-                alert(`Save failed: ${err.error || res.statusText}`);
                 return;
             }
             onSave(state.key, done, value, notes || null);
         } catch (e) {
             console.error('[Habit save error]', e);
-            alert('Network error — habit not saved.');
         } finally {
             setSaving(false);
             onClose();
@@ -803,6 +807,8 @@ function CalendarWidget() {
         { icon: '📱', label: 'Phone Down', keywords: ['phone down', 'screen time', 'digital detox', 'no phone'] },
         { icon: '🧘', label: 'Meditation', keywords: ['meditat', 'mindful', 'breathwork'] },
         { icon: '💧', label: 'Hydration', keywords: ['hydrat', 'water intake', 'drink water'] },
+        { icon: '📖', label: 'Reading', keywords: ['reading', 'book', 'kindle', 'audiobook'] },
+        { icon: '🏋️', label: 'Exercise', keywords: ['exercise', 'workout', 'gym', 'training', 'run', 'lift'] },
     ];
     // Match habits with curated, specific keywords (no false positives)
     const matchHabits = (title: string) => {
@@ -1117,8 +1123,6 @@ function EmptyWidget({ icon, title, message }: { icon: string; title: string; me
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function DashboardClient({ user }: Props) {
-    const router = useRouter();
-    const supabase = createClient();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
@@ -1162,95 +1166,28 @@ export default function DashboardClient({ user }: Props) {
         return () => clearInterval(interval);
     }, [mounted]);
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.push('/');
-        router.refresh();
-    };
 
     // Defer Date rendering to client-only to prevent hydration mismatch (server=UTC, client=AEST)
     const today = mounted ? new Date() : null;
+    const melbourneHourForGreeting = today
+        ? parseInt(today.toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false }), 10)
+        : 12;
     const greeting = today
-        ? (today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening')
+        ? (melbourneHourForGreeting < 12 ? 'Good morning' : melbourneHourForGreeting < 17 ? 'Good afternoon' : 'Good evening')
         : 'Welcome';
 
     const lastSyncedLabel = data?.lastSynced && mounted
         ? `Synced ${new Date(data.lastSynced).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} at ${new Date(data.lastSynced).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}`
         : 'Not yet synced';
 
-    const [menuOpen, setMenuOpen] = useState(false);
-    const navLinks = [
-        { icon: '◉', label: 'Overview', href: '/dashboard', active: true },
-        { icon: '◎', label: 'Health', href: '/dashboard/health' },
-        { icon: '◈', label: 'Habits', href: '/dashboard/habits' },
-        { icon: '◇', label: 'Tasks', href: '/dashboard/tasks' },
-        { icon: '▦', label: 'Calendar', href: '/dashboard/calendar' },
-    ];
-
     return (
-        <div className={styles.shell}>
-            {/* Mobile hamburger */}
-            <button
-                className={styles.hamburger}
-                onClick={() => setMenuOpen(o => !o)}
-                aria-label="Toggle menu"
-            >
-                <span className={styles.hamburgerBar} style={menuOpen ? { transform: 'rotate(45deg) translate(4px,4px)' } : undefined} />
-                <span className={styles.hamburgerBar} style={menuOpen ? { opacity: 0 } : undefined} />
-                <span className={styles.hamburgerBar} style={menuOpen ? { transform: 'rotate(-45deg) translate(4px,-4px)' } : undefined} />
-            </button>
-
-            {/* Mobile overlay */}
-            {menuOpen && (
-                <div className={styles.mobileOverlay} onClick={() => setMenuOpen(false)}>
-                    <nav className={styles.mobileMenu} onClick={e => e.stopPropagation()}>
-                        <div className={styles.mobileMenuHeader}>
-                            <div className={styles.logoMark}>LN</div>
-                            <button className={styles.mobileMenuClose} onClick={() => setMenuOpen(false)}>✕</button>
-                        </div>
-                        {navLinks.map(({ icon, label, href, active }) => (
-                            <a key={href} href={href}
-                                className={`${styles.mobileNavLink} ${active ? styles.mobileNavActive : ''}`}
-                                onClick={() => setMenuOpen(false)}
-                            >
-                                <span style={{ fontSize: 18 }}>{icon}</span>
-                                <span>{label}</span>
-                            </a>
-                        ))}
-                        <div style={{ borderTop: '1px solid var(--color-border)', marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                            <a href="/" className={styles.mobileNavLink} style={{ color: 'var(--color-text-muted)' }}>← Public site</a>
-                            <button className={styles.mobileNavLink} style={{ color: '#c07070', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', font: 'inherit' }} onClick={handleSignOut}>Sign out</button>
-                        </div>
-                    </nav>
-                </div>
-            )}
-
-            {/* Sidebar */}
-            <aside className={styles.sidebar}>
-                <div className={styles.sidebarLogo}>
-                    <div className={styles.logoMark}>LN</div>
-                </div>
-                <nav className={styles.sidebarNav}>
-                    {navLinks.map(({ icon, label, href, active }) => (
-                        <a key={href} href={href} className={`${styles.navLink} ${active ? styles.navActive : ''}`}>
-                            <span className={styles.navIcon}>{icon}</span>
-                            <span className={styles.navLabel}>{label}</span>
-                        </a>
-                    ))}
-                </nav>
-                <div className={styles.sidebarFooter}>
-                    <a href="/" className={styles.siteLink}>← Public site</a>
-                    <button className={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
-                </div>
-            </aside>
-
-            {/* Main */}
+        <DashboardShell>
             <main className={styles.main}>
                 <header className={styles.header}>
                     <div style={{ flex: 1 }}>
                         <h1 className={styles.greeting}>{greeting}, Lukas.</h1>
                         <p className={styles.date}>
-                            {today ? today.toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                            {today ? today.toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
                         </p>
                     </div>
 
@@ -1293,9 +1230,32 @@ export default function DashboardClient({ user }: Props) {
                 </header>
 
                 {loading ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                        <span className="spinner" style={{ width: 16, height: 16 }} />
-                        Loading your data…
+                    <div className={styles.skeletonContainer}>
+                        <div className={styles.skeletonCard} style={{ border: 'none' }}>
+                            <div className={styles.skeletonBar} style={{ height: 40, width: '100%' }} />
+                        </div>
+                        <div className={styles.skeletonCard}>
+                            <div className={styles.skeletonRow}>
+                                <div className={styles.skeletonBar} style={{ height: 14, width: '30%' }} />
+                                <div style={{ flex: 1 }} />
+                                <div className={styles.skeletonBar} style={{ height: 12, width: 80 }} />
+                            </div>
+                            <div className={styles.skeletonBar} style={{ height: 48, width: '100%' }} />
+                            <div className={styles.skeletonBar} style={{ height: 14, width: '50%' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className={styles.skeletonCard}>
+                                    <div className={styles.skeletonBar} style={{ height: 14, width: '60%' }} />
+                                    {[1, 2, 3].map(j => (
+                                        <div key={j} className={styles.skeletonRow}>
+                                            <div className={styles.skeletonBar} style={{ width: 20, height: 20, borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />
+                                            <div className={styles.skeletonBar} style={{ height: 12, flex: 1 }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : !data ? (
                     <div className={styles.widgetNotice}>
@@ -1338,6 +1298,10 @@ export default function DashboardClient({ user }: Props) {
                             <CalendarWidget />
                         </div>
 
+                        <div className={styles.gridItem}>
+                            <MessagesWidget />
+                        </div>
+
                         {/* Sleep Stage Chart */}
                         <div className={styles.gridItem}>
                             <SleepChartWidget data={data.sleep} />
@@ -1350,6 +1314,6 @@ export default function DashboardClient({ user }: Props) {
                     </div>
                 )}
             </main>
-        </div>
+        </DashboardShell>
     );
 }

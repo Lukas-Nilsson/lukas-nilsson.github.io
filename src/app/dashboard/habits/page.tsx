@@ -19,6 +19,8 @@ const allHabits = [
     { key: 'phone_down', icon: '📱', label: 'Phone Down by 11:30pm', group: 'Sleep', weight: 12 },
     { key: 'meditation', icon: '🧘', label: 'Meditation', group: 'Mind', weight: 15 },
     { key: 'hydration', icon: '💧', label: 'Hydration', group: 'Health', weight: 12 },
+    { key: 'reading', icon: '📖', label: 'Reading', group: 'Growth', weight: 12 },
+    { key: 'exercise', icon: '🏋️', label: 'Exercise', group: 'Health', weight: 12 },
 ];
 
 const totalWeight = allHabits.reduce((s, h) => s + h.weight, 0);
@@ -26,6 +28,7 @@ const totalWeight = allHabits.reduce((s, h) => s + h.weight, 0);
 const habitIdMap: Record<string, string> = {
     teeth: 'teeth', bedtime: 'bedtime', wake: 'wake',
     phone_down: 'phone_down', meditation: 'meditation', hydration: 'hydration',
+    reading: 'reading', exercise: 'exercise',
 };
 
 const modalFields: Record<string, { descLabel: string; timeLabel?: string }> = {
@@ -35,6 +38,8 @@ const modalFields: Record<string, { descLabel: string; timeLabel?: string }> = {
     phone_down: { descLabel: 'Notes', timeLabel: 'Last message time' },
     meditation: { descLabel: 'Notes', timeLabel: 'Duration' },
     hydration: { descLabel: 'Notes' },
+    reading: { descLabel: 'Notes' },
+    exercise: { descLabel: 'Notes' },
 };
 
 function shortDate(d: string) {
@@ -69,8 +74,8 @@ function HabitModal({ state, date, onClose, onSave }: {
                 body: JSON.stringify({ date, habit_id: habitIdMap[state.key], done, value, notes: notes || null }),
             });
             if (res.ok) { onSave(state.key, done, value, notes || null); onClose(); }
-            else { const e = await res.json(); alert(`Save failed: ${e.error}`); }
-        } catch (e) { alert(`Save failed: ${e}`); }
+            else { const e = await res.json(); onClose(); }
+        } catch (e) { console.error('Save failed:', e); }
         setSaving(false);
     };
 
@@ -137,23 +142,28 @@ export default function HabitsPage() {
     const [overrides, setOverrides] = useState<Record<string, { done: boolean; time: string | null }>>({});
     const [modal, setModal] = useState<ModalState | null>(null);
     const [lastSynced, setLastSynced] = useState<string | null>(null);
+    const [todayAEST, setTodayAEST] = useState<string>('');
 
     useEffect(() => {
         fetch('/api/dashboard')
             .then(r => r.json())
             .then(d => {
                 const hist = d.habitHistory ?? [];
+                const apiToday = d.todayAEST ?? '';
                 setHistory(hist);
-                setIdx(hist.length - 1);
+                setTodayAEST(apiToday);
+                // Default to today's index, not the last entry
+                const todayIdx = hist.findIndex((h: HabitDay) => h.date === apiToday);
+                setIdx(todayIdx >= 0 ? todayIdx : hist.length - 1);
                 setLastSynced(d.lastSynced ?? null);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
     }, []);
 
-    const today = history[history.length - 1];
+    const today = history.find(h => h.date === todayAEST) ?? history[history.length - 1];
     const data = history[idx];
-    const isViewingToday = idx === history.length - 1;
+    const isViewingToday = data?.date === todayAEST;
 
     const getCheck = (key: string) => {
         if (isViewingToday && overrides[key] !== undefined) return overrides[key];
@@ -248,8 +258,27 @@ export default function HabitsPage() {
 
     if (loading) return (
         <DashboardShell>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                <span className="spinner" style={{ width: 16, height: 16 }} />Loading habits…
+            <div className={styles.skeletonContainer}>
+                <div className={styles.skeletonHeader}>
+                    <div className={styles.skeletonBar} style={{ height: 28, width: '40%' }} />
+                    <div className={styles.skeletonBar} style={{ height: 14, width: '65%' }} />
+                </div>
+                <div className={styles.skeletonCard}>
+                    <div className={styles.skeletonRow}>
+                        <div className={styles.skeletonCircle} style={{ width: 56, height: 56 }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div className={styles.skeletonBar} style={{ height: 14, width: '50%' }} />
+                            <div className={styles.skeletonBar} style={{ height: 10, width: '30%' }} />
+                        </div>
+                    </div>
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={i} className={styles.skeletonRow}>
+                            <div className={styles.skeletonBar} style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />
+                            <div className={styles.skeletonBar} style={{ height: 14, flex: 1 }} />
+                            <div className={styles.skeletonBar} style={{ height: 12, width: 32 }} />
+                        </div>
+                    ))}
+                </div>
             </div>
         </DashboardShell>
     );
@@ -498,7 +527,7 @@ export default function HabitsPage() {
                         dateMap.set(d.date, allHabits.length > 0 ? dayDone / allHabits.length : 0);
                     });
 
-                    const todayDate = new Date();
+                    const todayDate = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' }) + 'T12:00:00+11:00');
                     const totalDays = 5 * 7;
                     const startOffset = totalDays - 1;
                     const cells: { date: string; dow: number; pct: number; dayNum: number; monthStr: string }[] = [];
@@ -506,7 +535,7 @@ export default function HabitsPage() {
                     for (let i = startOffset; i >= 0; i--) {
                         const d = new Date(todayDate);
                         d.setDate(d.getDate() - i);
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        const key = d.toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
                         cells.push({
                             date: key,
                             dow: d.getDay(),

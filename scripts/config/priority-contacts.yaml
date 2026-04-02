@@ -1,0 +1,47 @@
+# iMessage Priority Contacts
+#
+# Threads are ranked by priority tier first, then by recency.
+# Handles can be phone numbers (+61...) or email addresses.
+# Use 'mute' to suppress threads entirely from the triage view.
+#
+# Edit this file to customize your iMessage triage priorities.
+
+high:
+  - name: "Yari"
+    handle: "+61402391639"
+  - name: "Jasper"
+    handle: "+61409369009"
+  - name: "Jane"
+    handle: "+61425743515"
+  - name: "Mal"
+    handle: "+61417589046"
+
+medium:
+  - name: "Ria"
+    handle: "+61402613325"
+  - name: "Jarred"
+    handle: "+61434026657"
+  - name: "Cadan"
+    handle: "+61423863818"
+  - name: "Kai"
+    handle: "+61420550517"
+  - name: "Jack (Muay Thai)"
+    handle: "+61423687692"
+  - name: "Toni"
+    handle: "+13127140893"
+  - name: "Ricky"
+    handle: "+17733874866"
+  - name: "Roble"
+    handle: "+17737279970"
+  - name: "Mario"
+    handle: "+17736109242"
+
+# Keywords that deprioritize a thread (matched against chat display name)
+low_keywords:
+  - "group chat"
+  - "newsletter"
+  - "noreply"
+
+# Muted handles — these threads are hidden from triage entirely
+mute: []
+  # - handle: "+1234567890"  # spam

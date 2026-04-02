@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLEANED — Inspection Assistant</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">C</div>
+                <div class="header-text">
+                    <h1>CLEANED</h1>
+                    <span class="status-dot"></span>
+                    <span class="status-text">AI Inspector Online</span>
+                </div>
+            <div class="header-right">
+                <button class="cart-btn" id="cartBtn" title="Review Approved Items" style="display: none;">
+                    ✅ Approved (<span id="cartCount">0</span>)
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat area -->
+        <main class="chat" id="chat">
+            <div class="message ai">
+                <div class="message-avatar">AI</div>
+                <div class="message-content">
+                    <p>Hey Lukas 👋</p>
+                    <p>Send me a photo of the area + describe what's wrong (or right! I can highlight areas reflective of a job well done ✅).</p>
+                    <p style="margin-top: 10px; font-size: 13px; color: var(--text-secondary);">
+                        <strong>Tips for best results:</strong><br>
+                        📸 Try to leave a corner free in the photo for the report panel to live.<br>
+                        📍 If the room has a number or name, please read it out (e.g. "Room 402" or "Kitchen") so we can correctly label it in the final report.<br>
+                        🎤 Use the dictation mic to easily speak your notes.<br>
+                        ✏️ If the overlay isn't perfect, you can drag the polygons to adjust them or hit ✕ to remove them.
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Image preview bar -->
+        <div class="preview-bar" id="previewBar">
+            <div class="preview-item" id="previewItem">
+                <img id="previewImage" src="" alt="Preview">
+                <button class="preview-remove" id="previewRemove">&times;</button>
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <footer class="input-area">
+            <div class="input-row">
+                <label class="attach-btn" id="attachBtn" title="Attach photo">
+                    <input type="file" accept="image/*" id="fileInput" hidden>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                </label>
+                <button class="dictate-btn" id="dictateBtn" title="Dictate">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <input 
+                    type="text" 
+                    class="text-input" 
+                    id="textInput" 
+                    placeholder="Describe what's wrong (or right)..."
+                    autocomplete="off"
+                >
+                <button class="send-btn" id="sendBtn" disabled title="Send">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Fullscreen image viewer -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">&times;</button>
+        <img id="lightboxImage" src="" alt="Full size">
+    </div>
+
+    <!-- Expanded Interactive Editor Modal -->
+    <div class="editor-modal" id="editorModal">
+        <div class="editor-topbar">
+            <span class="editor-status" id="editorStatus">Auto-saved</span>
+            <div style="display: flex; gap: 10px;">
+                <button class="editor-undo" id="editorUndo" style="display: none;">↩ Undo</button>
+                <button class="editor-close" id="editorClose">&times; Close</button>
+            </div>
+        </div>
+        <div class="editor-content" id="editorContent"></div>
+    </div>
+
+    <!-- Review / Send Email Modal -->
+    <div class="lightbox" id="reviewModal" style="z-index: 3000; align-items: flex-start; padding: 0; display: none;">
+        <div style="width: 100%; max-width: 720px; background: var(--bg-primary); min-height: 100dvh; display: flex; flex-direction: column;">
+            <div class="header" style="position: sticky; top: 0; z-index: 10;">
+                <div class="header-left">
+                    <div class="header-text">
+                        <h1 style="font-size: 16px;">Final Review</h1>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="editor-close" id="closeReviewBtn">&times; Close</button>
+                </div>
+            </div>
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                <div id="reviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px;">
+                    <!-- Thumbnails injected here -->
+                </div>
+            </div>
+            <div style="padding: 20px; border-top: 1px solid var(--border); background: var(--bg-secondary); position: sticky; bottom: 0; display: flex; gap: 12px;">
+                <button id="sendEmailBtn" class="send-email-btn" style="flex: 1; background: var(--bg-tertiary); color: white; border: 1px solid rgba(255,255,255,0.1);">📧 Email Draft</button>
+                <button id="downloadZipBtn" class="send-email-btn" style="flex: 1; background: var(--success); color: white; border: none;">📦 Download Zip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side export compositing via html-to-image for accurate CSS rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="editor.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

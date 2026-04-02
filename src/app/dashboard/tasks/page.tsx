@@ -193,13 +193,13 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
     const [location, setLocation] = useState(task.meta?.location ?? '');
     const [clickupStatus, setClickupStatus] = useState(task.meta?.clickup_status ?? 'to do');
     const [completedAt, setCompletedAt] = useState(() => {
-        // Format completed_at date for the input (YYYY-MM-DD)
         if (task.completion?.completed_at) {
             return new Date(task.completion.completed_at).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
         }
         return '';
     });
     const [saving, setSaving] = useState(false);
+    const [pendingAction, setPendingAction] = useState<{ type: 'delete' | 'abandon'; message: string } | null>(null);
     const isDone = task.completion != null;
 
     const handleSave = async () => {
@@ -221,7 +221,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                 });
                 if (!renameRes.ok) {
                     const err = await renameRes.json();
-                    alert(`Rename failed: ${err.error}`);
+                    console.error('Rename failed:', err.error);
                     setSaving(false);
                     return;
                 }
@@ -245,7 +245,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
             });
             if (!res.ok) {
                 const err = await res.json();
-                alert(`Save failed: ${err.error}`);
+                console.error('Save failed:', err.error);
                 setSaving(false);
                 return;
             }
@@ -274,7 +274,7 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
 
             onClose();
         } catch (e) {
-            alert(`Save failed: ${e}`);
+            console.error('Save failed:', e);
         }
         setSaving(false);
     };
@@ -447,34 +447,12 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                 <div style={{ display: 'flex', gap: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
                     <button
                         style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,112,112,0.3)', background: 'rgba(192,112,112,0.08)', color: '#c07070', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}
-                        onClick={async () => {
-                            if (!confirm(`Delete "${task.name}"? This removes it permanently.`)) return;
-                            setSaving(true);
-                            const res = await fetch('/api/dashboard/tasks', {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ task_name: task.name, action: 'delete' }),
-                            });
-                            if (res.ok) { onDelete(task.name); onClose(); }
-                            else { const e = await res.json(); alert(`Delete failed: ${e.error}`); }
-                            setSaving(false);
-                        }}
+                        onClick={() => setPendingAction({ type: 'delete', message: `Delete "${task.name}"? This removes it permanently.` })}
                         disabled={saving}
                     >🗑 Delete</button>
                     <button
                         style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.08)', color: '#c9a84c', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer' }}
-                        onClick={async () => {
-                            if (!confirm(`Abandon "${task.name}"? It will move to completed as abandoned.`)) return;
-                            setSaving(true);
-                            const res = await fetch('/api/dashboard/tasks', {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ task_name: task.name, category: task.category, action: 'abandon' }),
-                            });
-                            if (res.ok) { onAbandon(task.name, task.category); onClose(); }
-                            else { const e = await res.json(); alert(`Abandon failed: ${e.error}`); }
-                            setSaving(false);
-                        }}
+                        onClick={() => setPendingAction({ type: 'abandon', message: `Abandon "${task.name}"? It will move to completed as abandoned.` })}
                         disabled={saving}
                     >🚫 Abandon</button>
                     <div style={{ flex: 1 }} />
@@ -483,6 +461,51 @@ function TaskEditModal({ task, allTaskNames, onClose, onSave, onDelete, onAbando
                         {saving ? 'Saving…' : 'Save'}
                     </button>
                 </div>
+
+                {/* Inline confirmation dialog */}
+                {pendingAction && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)', zIndex: 10 }}>
+                        <div style={{ background: 'var(--color-bg)', border: `1px solid ${pendingAction.type === 'delete' ? 'rgba(192,80,80,0.3)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 'var(--radius-md)', padding: '16px 20px', maxWidth: 320, width: '90%' }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 8 }}>
+                                {pendingAction.type === 'delete' ? 'Delete task?' : 'Abandon task?'}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
+                                {pendingAction.message}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button onClick={() => setPendingAction(null)} style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                                <button
+                                    onClick={async () => {
+                                        setSaving(true);
+                                        const action = pendingAction.type === 'delete' ? 'delete' : 'abandon';
+                                        const body: Record<string, string> = { task_name: task.name, action };
+                                        if (action === 'abandon') body.category = task.category;
+                                        try {
+                                            const res = await fetch('/api/dashboard/tasks', {
+                                                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify(body),
+                                            });
+                                            if (res.ok) {
+                                                if (action === 'delete') onDelete(task.name);
+                                                else onAbandon(task.name, task.category);
+                                                onClose();
+                                            }
+                                        } catch (e) { console.error(`${action} failed:`, e); }
+                                        setSaving(false);
+                                        setPendingAction(null);
+                                    }}
+                                    style={{
+                                        padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                                        border: `1px solid ${pendingAction.type === 'delete' ? 'rgba(192,80,80,0.3)' : 'rgba(201,168,76,0.3)'}`,
+                                        background: pendingAction.type === 'delete' ? 'rgba(192,80,80,0.12)' : 'rgba(201,168,76,0.12)',
+                                        color: pendingAction.type === 'delete' ? '#c05050' : '#c9a84c',
+                                        fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    }}
+                                >{pendingAction.type === 'delete' ? 'Delete' : 'Abandon'}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -635,9 +658,29 @@ export default function TasksPage() {
 
     if (loading) return (
         <DashboardShell>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                <span className="spinner" style={{ width: 16, height: 16 }} />
-                Loading tasks…
+            <div className={styles.skeletonContainer}>
+                <div className={styles.skeletonHeader}>
+                    <div className={styles.skeletonBar} style={{ height: 28, width: '35%' }} />
+                    <div className={styles.skeletonBar} style={{ height: 14, width: '55%' }} />
+                </div>
+                <div className={styles.skeletonBar} style={{ height: 36, width: '100%', borderRadius: 'var(--radius-sm)' }} />
+                <div className={styles.skeletonGrid}>
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className={styles.skeletonCard} style={{ padding: 'var(--space-3)', alignItems: 'center' }}>
+                            <div className={styles.skeletonBar} style={{ height: 24, width: '60%' }} />
+                            <div className={styles.skeletonBar} style={{ height: 10, width: '40%' }} />
+                        </div>
+                    ))}
+                </div>
+                <div className={styles.skeletonCard}>
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={i} className={styles.skeletonRow}>
+                            <div className={styles.skeletonCircle} style={{ width: 24, height: 24 }} />
+                            <div className={styles.skeletonBar} style={{ height: 14, flex: 1 }} />
+                            <div className={styles.skeletonBar} style={{ height: 12, width: 48 }} />
+                        </div>
+                    ))}
+                </div>
             </div>
         </DashboardShell>
     );
@@ -945,7 +988,7 @@ export default function TasksPage() {
                             });
                             if (!res.ok) {
                                 const err = await res.json();
-                                alert(`Add failed: ${err.error}`);
+                                showToast(`Add failed: ${err.error}`, 'error');
                             } else {
                                 // Update local state
                                 setTasks(prev => {
@@ -958,7 +1001,7 @@ export default function TasksPage() {
                                 nameInput.value = '';
                             }
                         } catch (err) {
-                            alert(`Add failed: ${err}`);
+                            showToast(`Add failed: ${err}`, 'error');
                         }
                         nameInput.disabled = false;
                         nameInput.focus();

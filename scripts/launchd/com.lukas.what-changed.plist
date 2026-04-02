@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lukas.what-changed</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/npx</string>
+        <string>tsx</string>
+        <string>--require</string>
+        <string>./scripts/preload-env.js</string>
+        <string>/Users/lukas/dev/lukas-nilsson.github.io/scripts/what-changed.ts</string>
+        <string>--notify</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>900</integer>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/lukas/dev/lukas-nilsson.github.io</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/Users/lukas/Library/pnpm:/Users/lukas/.nvm/versions/node/v22.0.0/bin</string>
+        <key>HOME</key>
+        <string>/Users/lukas</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/what-changed.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/what-changed.err.log</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

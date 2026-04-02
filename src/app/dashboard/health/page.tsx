@@ -79,8 +79,25 @@ export default function HealthPage() {
 
     if (loading) return (
         <DashboardShell>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                <span className="spinner" style={{ width: 16, height: 16 }} />Loading health data…
+            <div className={styles.skeletonContainer}>
+                <div className={styles.skeletonHeader}>
+                    <div className={styles.skeletonBar} style={{ height: 28, width: '30%' }} />
+                    <div className={styles.skeletonBar} style={{ height: 14, width: '70%' }} />
+                </div>
+                <div className={styles.skeletonCard}>
+                    <div className={styles.skeletonGrid}>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 'var(--space-2)' }}>
+                                <div className={styles.skeletonBar} style={{ height: 24, width: '70%' }} />
+                                <div className={styles.skeletonBar} style={{ height: 10, width: '50%' }} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className={styles.skeletonCard}>
+                    <div className={styles.skeletonBar} style={{ height: 14, width: '45%' }} />
+                    <div className={styles.skeletonBar} style={{ height: 160, width: '100%' }} />
+                </div>
             </div>
         </DashboardShell>
     );

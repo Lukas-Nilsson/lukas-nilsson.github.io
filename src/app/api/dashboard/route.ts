@@ -40,6 +40,8 @@ export async function GET() {
         { habit_id: 'phone_down', label: 'Phone Down', icon: '📱', tracking_start: '2026-03-01', show_time: true, show_notes: false, default_to_now: true, sort_order: 40 },
         { habit_id: 'meditation', label: 'Meditation', icon: '🧘', tracking_start: '2026-03-01', show_time: true, show_notes: true, default_to_now: true, sort_order: 50 },
         { habit_id: 'hydration', label: 'Hydration', icon: '💧', tracking_start: '2026-03-01', show_time: false, show_notes: true, default_to_now: false, sort_order: 60 },
+        { habit_id: 'reading', label: 'Reading', icon: '📖', tracking_start: '2026-03-10', show_time: false, show_notes: true, default_to_now: false, sort_order: 70 },
+        { habit_id: 'exercise', label: 'Exercise', icon: '🏋️', tracking_start: '2026-03-10', show_time: false, show_notes: true, default_to_now: false, sort_order: 80 },
     ];
     const habitDefs = (habitDefRes.data && habitDefRes.data.length > 0) ? habitDefRes.data : FALLBACK_DEFS;
     const habitIds = habitDefs.map((d: { habit_id: string }) => d.habit_id);
@@ -53,12 +55,12 @@ export async function GET() {
 
     // ── Build habitHistory shape — dynamic from habit definitions ──
     // Always include today + next 3 days for forward navigation
-    const todayDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).toISOString().slice(0, 10);
+    const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
     const futureDates: string[] = [];
     for (let i = 0; i <= 3; i++) {
-        const d = new Date(todayDate + 'T00:00:00');
+        const d = new Date(todayDate + 'T12:00:00+11:00'); // Use noon AEDT to avoid day boundary issues
         d.setDate(d.getDate() + i);
-        futureDates.push(d.toISOString().slice(0, 10));
+        futureDates.push(d.toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' }));
     }
     const allDates = [...new Set([...habitRows.map(r => r.date), ...futureDates])].sort();
     const habitHistory = allDates.map(date => {
@@ -95,6 +97,11 @@ export async function GET() {
         if (checksMapped.phone_down?.done) {
             const mins = parseTime(checksMapped.phone_down.time);
             if (mins !== null && ((mins >= 720 && mins <= 1410) || mins <= 60)) timeBonus += 5;
+        }
+        if (checksMapped.meditation?.done) {
+            const mins = parseTime(checksMapped.meditation.time);
+            // +5% if meditation was done before noon (morning meditation)
+            if (mins !== null && mins >= 300 && mins <= 720) timeBonus += 5;
         }
 
         const baseScore = total > 0 ? Math.round((doneCount / total) * 100) : 0;

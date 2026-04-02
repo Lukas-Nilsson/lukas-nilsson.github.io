@@ -327,6 +327,23 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'id required' }, { status: 400 });
         }
 
+        // Virtual events (ClickUp tasks) are read-only
+        if (id.startsWith('clickup_')) {
+            return NextResponse.json({ ok: true, virtual: true });
+        }
+
+        // ClickUp time entries: actually delete from ClickUp
+        if (id.startsWith('time_')) {
+            const entryId = id.replace('time_', '');
+            try {
+                const { deleteTimeEntry } = await import('@/lib/clickup');
+                await deleteTimeEntry(entryId);
+            } catch (e) {
+                console.error('[calendar DELETE] ClickUp time entry delete failed:', e);
+            }
+            return NextResponse.json({ ok: true });
+        }
+
         const { data: existing } = await supabase
             .from('calendar_events')
             .select('*')

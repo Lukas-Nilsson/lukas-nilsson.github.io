@@ -1,0 +1,7 @@
+{
+    "name": "cleaned-demo-client",
+    "private": true,
+    "scripts": {
+        "dev": "npx -y serve -l 3000 ."
+    }
+}
