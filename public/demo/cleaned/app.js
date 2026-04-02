@@ -9,6 +9,12 @@ async function processSafariBlobs(wrapper) {
     const imgs = wrapper.querySelectorAll('img[data-raw], img[src^="data:"]');
     for (const img of imgs) {
         try {
+            // CRITICAL: Store original dimensions BEFORE swapping src
+            const origW = img.naturalWidth;
+            const origH = img.naturalHeight;
+            img.dataset._origNatW = origW;
+            img.dataset._origNatH = origH;
+
             const w = wrapper.offsetWidth * 1.5 || 800;
             const h = wrapper.offsetHeight * 1.5 || 800;
             const memCanvas = document.createElement("canvas");
@@ -40,6 +46,8 @@ function restoreSafariBlobs(list) {
         item.img.src = item.oldSrc;
         delete item.img.dataset.miniUrl;
         delete item.img.dataset._originalFullSrc;
+        delete item.img.dataset._origNatW;
+        delete item.img.dataset._origNatH;
     }
 }
 
@@ -54,12 +62,16 @@ async function generateSafeComposite(wrapper, rawImg, isExport = false) {
     // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it)
     const originalFullSrc = rawImg ? (rawImg.dataset._originalFullSrc || rawImg.src) : null;
     
+    // Read ORIGINAL natural dimensions (stored before Safari downgrade mutated them)
+    const origNatW = rawImg ? (parseInt(rawImg.dataset._origNatW) || rawImg.naturalWidth) : 0;
+    const origNatH = rawImg ? (parseInt(rawImg.dataset._origNatH) || rawImg.naturalHeight) : 0;
+    
     // For export: match the original image's native resolution
     // For internal (approve flow): use 2x screen DPR
     let targetW, targetH, overlayDpr;
-    if (isExport && rawImg && rawImg.naturalWidth) {
-        targetW = rawImg.naturalWidth;
-        targetH = rawImg.naturalHeight;
+    if (isExport && origNatW > 0) {
+        targetW = origNatW;
+        targetH = origNatH;
         // Cap overlay DPR at 3x to keep the overlay crisp without OOM
         overlayDpr = Math.min(targetW / w, 3);
     } else {
@@ -146,6 +158,35 @@ const lightbox = document.getElementById("lightbox");
 const lightboxImage = document.getElementById("lightboxImage");
 const lightboxClose = document.getElementById("lightboxClose");
 const appEl = document.querySelector(".app");
+const inputArea = document.getElementById("inputArea");
+
+// ===========================
+// Mobile Keyboard Handling
+// ===========================
+if (window.visualViewport) {
+    const vv = window.visualViewport;
+    function adjustForKeyboard() {
+        const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
+        if (inputArea) {
+            inputArea.style.bottom = Math.max(0, offsetBottom) + "px";
+        }
+        if (previewBar) {
+            const inputH = inputArea ? inputArea.offsetHeight : 60;
+            previewBar.style.bottom = (Math.max(0, offsetBottom) + inputH) + "px";
+        }
+    }
+    vv.addEventListener("resize", adjustForKeyboard);
+    vv.addEventListener("scroll", adjustForKeyboard);
+}
+
+// Scroll chat to bottom when input is focused (mobile keyboard pushes content)
+if (textInput) {
+    textInput.addEventListener("focus", () => {
+        setTimeout(() => {
+            chat.scrollTop = chat.scrollHeight;
+        }, 300);
+    });
+}
 
 let selectedFile = null;
 let globalActiveImageFile = null;
