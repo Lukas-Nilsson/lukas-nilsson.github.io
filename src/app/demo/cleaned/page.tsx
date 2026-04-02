@@ -18,7 +18,10 @@ export default async function CleanedDemoPage() {
     }
 
     return (
-        <div style={{ width: '100%', height: '100dvh', overflow: 'hidden', background: '#0a0a0f' }}>
+        <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', background: '#0a0a0f' }}>
+            <style dangerouslySetInnerHTML={{ __html: `
+                html, body { background-color: #0a0a0f !important; overscroll-behavior: none; margin: 0; padding: 0; }
+            ` }} />
             <iframe 
                 src="/demo/cleaned/index.html" 
                 style={{ 
