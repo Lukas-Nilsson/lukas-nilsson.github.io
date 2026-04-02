@@ -34,7 +34,10 @@ html, body {
 
 body {
     font-family: var(--font);
-    background: var(--bg-primary);
+    background: radial-gradient(circle at 80% 0%, #1a1625 0%, transparent 50%),
+                radial-gradient(circle at 20% 100%, #2a1015 0%, transparent 50%);
+    background-color: var(--bg-primary);
+    background-attachment: fixed;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
 }
@@ -62,9 +65,12 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(18, 18, 26, 0.4);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     flex-shrink: 0;
+    z-index: 10;
 }
 
 .header-left {
@@ -300,13 +306,19 @@ body {
 }
 
 .message.ai .message-content {
-    background: var(--bg-message-ai);
-    border: 1px solid var(--border);
+    background: rgba(28, 28, 46, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
 .message.user .message-content {
-    background: var(--bg-message-user);
-    border: 1px solid rgba(255, 90, 40, 0.15);
+    background: rgba(255, 90, 40, 0.12);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 90, 40, 0.2);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     border-top-right-radius: 4px;
 }
 
@@ -395,9 +407,12 @@ body {
 .preview-bar {
     display: none;
     padding: 10px 20px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(18, 18, 26, 0.4);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     flex-shrink: 0;
+    z-index: 10;
 }
 
 .preview-bar.visible {
@@ -440,20 +455,23 @@ body {
 
 .input-area {
     padding: 16px 20px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(18, 18, 26, 0.4);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     flex-shrink: 0;
+    z-index: 10;
 }
 
 .input-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius);
     padding: 6px 6px 6px 14px;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background 0.2s;
 }
 
 .input-row:focus-within {
