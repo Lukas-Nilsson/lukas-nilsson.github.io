@@ -166,13 +166,10 @@ const inputArea = document.getElementById("inputArea");
 if (window.visualViewport) {
     const vv = window.visualViewport;
     function adjustForKeyboard() {
-        const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
-        if (inputArea) {
-            inputArea.style.bottom = Math.max(0, offsetBottom) + "px";
-        }
-        if (previewBar) {
-            const inputH = inputArea ? inputArea.offsetHeight : 60;
-            previewBar.style.bottom = (Math.max(0, offsetBottom) + inputH) + "px";
+        // Resize .app to match the visible viewport so the flex layout
+        // naturally keeps the input pinned to the bottom of visible area
+        if (appEl) {
+            appEl.style.height = vv.height + "px";
         }
     }
     vv.addEventListener("resize", adjustForKeyboard);
