@@ -5,6 +5,10 @@ export const metadata = {
     title: 'CLEANED Demo — Lukas Nilsson'
 };
 
+export const viewport = {
+    themeColor: '#0a0a0f',
+};
+
 export default async function CleanedDemoPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
