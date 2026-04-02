@@ -814,13 +814,20 @@ window.exportMergedImage = async function(btn) {
             locks.push({ el, css: el.style.cssText });
             if (el.tagName !== "svg" && el.tagName !== "SVG" && el.tagName !== "path") {
                 el.style.fontSize = comp.fontSize;
-                el.style.padding = comp.padding;
-                el.style.width = comp.width;
-                el.style.height = comp.height;
-                el.style.borderRadius = comp.borderRadius;
-                el.style.gap = comp.gap;
                 el.style.lineHeight = comp.lineHeight;
-                el.style.marginBottom = comp.marginBottom;
+                el.style.padding = comp.padding;
+                el.style.margin = comp.margin;
+                el.style.width = comp.width;
+                el.style.minWidth = comp.width;
+                el.style.maxWidth = comp.width;
+                el.style.height = comp.height;
+                el.style.minHeight = comp.height;
+                el.style.maxHeight = comp.height;
+                el.style.borderRadius = comp.borderRadius;
+                el.style.top = comp.top;
+                el.style.bottom = comp.bottom;
+                el.style.left = comp.left;
+                el.style.right = comp.right;
             }
         });
 
@@ -846,6 +853,19 @@ window.exportMergedImage = async function(btn) {
             mainPanel.style.backdropFilter = "none";
             mainPanel.style.webkitBackdropFilter = "none";
         }
+        
+        // Disable SVG SVG drop-shadow filters during capture.
+        // html-to-image + Safari forces 1x DPR rasterization when SVG filters are active,
+        // causing badges to look incredibly blurry on high-resolution exports.
+        const svgShadowLocks = [];
+        const shadowedSvgs = wrapper.querySelectorAll('[filter]');
+        shadowedSvgs.forEach(el => {
+            const currentFilter = el.getAttribute('filter');
+            if (currentFilter && currentFilter !== 'none') {
+                svgShadowLocks.push({ el, filter: currentFilter });
+                el.setAttribute('filter', 'none');
+            }
+        });
 
         let dataUrl;
         try {
@@ -859,6 +879,7 @@ window.exportMergedImage = async function(btn) {
         if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
         wrapper.style.cssText = preWrapCSS;
         locks.forEach(lock => lock.el.style.cssText = lock.css);
+        svgShadowLocks.forEach(lock => lock.el.setAttribute('filter', lock.filter));
         if (mainPanel && oldPanelStyles) {
             mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
             mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
@@ -910,13 +931,20 @@ window.approveAndProceed = async function(btn) {
             locks.push({ el, css: el.style.cssText });
             if (el.tagName !== "svg" && el.tagName !== "SVG" && el.tagName !== "path") {
                 el.style.fontSize = comp.fontSize;
-                el.style.padding = comp.padding;
-                el.style.width = comp.width;
-                el.style.height = comp.height;
-                el.style.borderRadius = comp.borderRadius;
-                el.style.gap = comp.gap;
                 el.style.lineHeight = comp.lineHeight;
-                el.style.marginBottom = comp.marginBottom;
+                el.style.padding = comp.padding;
+                el.style.margin = comp.margin;
+                el.style.width = comp.width;
+                el.style.minWidth = comp.width;
+                el.style.maxWidth = comp.width;
+                el.style.height = comp.height;
+                el.style.minHeight = comp.height;
+                el.style.maxHeight = comp.height;
+                el.style.borderRadius = comp.borderRadius;
+                el.style.top = comp.top;
+                el.style.bottom = comp.bottom;
+                el.style.left = comp.left;
+                el.style.right = comp.right;
             }
         });
 
@@ -938,12 +966,23 @@ window.approveAndProceed = async function(btn) {
             mainPanel.style.webkitBackdropFilter = "none";
         }
 
+        const svgShadowLocks = [];
+        const shadowedSvgs = wrapper.querySelectorAll('[filter]');
+        shadowedSvgs.forEach(el => {
+            const currentFilter = el.getAttribute('filter');
+            if (currentFilter && currentFilter !== 'none') {
+                svgShadowLocks.push({ el, filter: currentFilter });
+                el.setAttribute('filter', 'none');
+            }
+        });
+
         let dataUrl = await generateSafeComposite(wrapper, rawImg, false);
 
         // RESTORE
         if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
         wrapper.style.cssText = preWrapCSS;
         locks.forEach(lock => lock.el.style.cssText = lock.css);
+        svgShadowLocks.forEach(lock => lock.el.setAttribute('filter', lock.filter));
         if (mainPanel && oldPanelStyles) {
             mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
             mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
