@@ -4,6 +4,30 @@
 
 const API_URL = "https://cleaned-demo-backend-hpogfshfba-uc.a.run.app";
 
+async function processSafariBlobs(wrapper) {
+    const list = [];
+    const imgs = wrapper.querySelectorAll('img[src^="data:"]');
+    for (const img of imgs) {
+        try {
+            const res = await fetch(img.src);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            list.push({ img, oldSrc: img.src, blobUrl });
+            img.src = blobUrl;
+        } catch(e) {
+            console.error(e);
+        }
+    }
+    return list;
+}
+function restoreSafariBlobs(list) {
+    for (const item of list) {
+        item.img.src = item.oldSrc;
+        URL.revokeObjectURL(item.blobUrl);
+    }
+}
+
+
 // DOM elements
 const chat = document.getElementById("chat");
 const fileInput = document.getElementById("fileInput");
@@ -600,6 +624,7 @@ window.exportMergedImage = async function(btn) {
         const mainPanel = wrapper.querySelector('.ai-panel');
         const rawImg = wrapper.querySelector('img[data-raw]');
         let fakeBg = null;
+        let safariBlobs = await processSafariBlobs(wrapper);
         let oldOverflow = "";
         
         if (mainPanel && rawImg) {
@@ -659,6 +684,7 @@ window.exportMergedImage = async function(btn) {
         }
         
         // RESTORE
+        if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
         wrapper.style.cssText = preWrapCSS;
         locks.forEach(lock => lock.el.style.cssText = lock.css);
         if (mainPanel) {
@@ -730,6 +756,7 @@ window.approveAndProceed = async function(btn) {
         const mainPanel = wrapper.querySelector('.ai-panel');
         const rawImg = wrapper.querySelector('img[data-raw]') || wrapper.querySelector('img');
         let fakeBg = null;
+        let safariBlobs = await processSafariBlobs(wrapper);
         let oldOverflow = "";
         
         if (mainPanel && rawImg) {
@@ -768,6 +795,7 @@ window.approveAndProceed = async function(btn) {
         });
 
         // RESTORE
+        if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
         wrapper.style.cssText = preWrapCSS;
         locks.forEach(lock => lock.el.style.cssText = lock.css);
         if (mainPanel) {
