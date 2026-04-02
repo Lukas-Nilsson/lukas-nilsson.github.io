@@ -9,36 +9,34 @@ async function processSafariBlobs(wrapper) {
     const imgs = wrapper.querySelectorAll('img[data-raw], img[src^="data:"]');
     for (const img of imgs) {
         try {
-            const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = img.naturalWidth || img.width || wrapper.offsetWidth;
-            tempCanvas.height = img.naturalHeight || img.height || wrapper.offsetHeight;
-            const ctx = tempCanvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+            const w = wrapper.offsetWidth * 1.5 || 800;
+            const h = wrapper.offsetHeight * 1.5 || 800;
+            const memCanvas = document.createElement("canvas");
+            memCanvas.width = w;
+            memCanvas.height = h;
+            memCanvas.getContext("2d").drawImage(img, 0, 0, w, h);
             
-            const cs = window.getComputedStyle(img);
-            tempCanvas.style.cssText = cs.cssText;
-            tempCanvas.style.width = img.offsetWidth + "px";
-            tempCanvas.style.height = img.offsetHeight + "px";
-            
-            img.parentNode.insertBefore(tempCanvas, img);
-            const oldDisp = img.style.display || "";
-            img.style.display = "none";
+            const safeBase64 = memCanvas.toDataURL("image/jpeg", 0.85);
             
             const miniCanvas = document.createElement("canvas");
             miniCanvas.width = 120;
             miniCanvas.height = 120;
-            miniCanvas.getContext("2d").drawImage(tempCanvas, 0, 0, 120, 120);
-            img.dataset.miniUrl = miniCanvas.toDataURL("image/jpeg", 0.5);
+            miniCanvas.getContext("2d").drawImage(memCanvas, 0, 0, 120, 120);
+            const miniBase64 = miniCanvas.toDataURL("image/jpeg", 0.3);
             
-            list.push({ img, tempCanvas, oldDisp });
+            const oldSrc = img.src;
+            img.dataset.miniUrl = miniBase64;
+            img.src = safeBase64;
+            
+            list.push({ img, oldSrc });
         } catch(e) { console.error(e); }
     }
+    await new Promise(r => setTimeout(r, 60));
     return list;
 }
 function restoreSafariBlobs(list) {
     for (const item of list) {
-        if (item.tempCanvas) item.tempCanvas.remove();
-        item.img.style.display = item.oldDisp;
+        item.img.src = item.oldSrc;
         delete item.img.dataset.miniUrl;
     }
 }
