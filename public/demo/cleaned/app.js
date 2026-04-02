@@ -41,6 +41,77 @@ function restoreSafariBlobs(list) {
     }
 }
 
+async function generateSafeComposite(wrapper, rawImg, lowRes = false) {
+    console.log(`\n[COMPOSITE] Starting ${lowRes ? 'Low-Res' : 'High-Res'} generated composite export...`);
+    const startTime = performance.now();
+    
+    const w = wrapper.offsetWidth;
+    const h = wrapper.offsetHeight;
+    const dpr = lowRes ? 1 : 2;
+    console.log(`[COMPOSITE] Target layout area: ${w}x${h} (Canvas target: ${w * dpr}x${h * dpr}, DPR: ${dpr})`);
+    
+    const oldVis = rawImg ? rawImg.style.visibility : "";
+    if (rawImg) {
+        console.log(`[COMPOSITE] Hiding heavy raw image from DOM rasterizer.`);
+        rawImg.style.visibility = "hidden";
+    }
+    
+    const t0 = performance.now();
+    const overlayDataUrl = await htmlToImage.toPng(wrapper, {
+        pixelRatio: dpr,
+        quality: 1.0,
+        skipFonts: true,
+        style: { width: w + "px", height: h + "px" }
+    });
+    console.log(`[COMPOSITE] 🪄 html-to-image transparent overlay generated in ${(performance.now() - t0).toFixed(1)}ms. Buffer Size: ${(overlayDataUrl.length/1024).toFixed(1)}kb`);
+    
+    if (rawImg) rawImg.style.visibility = oldVis;
+    if (!rawImg) {
+        console.log(`[COMPOSITE] No base image found, returning overlay only.`);
+        return overlayDataUrl;
+    }
+
+    console.log(`[COMPOSITE] Building native physical HTML5 canvas for GPU fusion...`);
+    const canvas = document.createElement("canvas");
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    
+    const base = new Image();
+    base.crossOrigin = "anonymous";
+    const t1 = performance.now();
+    await new Promise((resolve) => {
+        base.onload = resolve;
+        base.onerror = (e) => {
+            console.error("[COMPOSITE] ❌ Base image failed to load natively:", e);
+            resolve();
+        };
+        base.src = rawImg.src;
+    });
+    ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+    console.log(`[COMPOSITE] 🖼️ Base image drawn natively to canvas in ${(performance.now() - t1).toFixed(1)}ms.`);
+    
+    const overlay = new Image();
+    const t2 = performance.now();
+    await new Promise((resolve) => {
+        overlay.onload = resolve;
+        overlay.onerror = (e) => {
+            console.error("[COMPOSITE] ❌ Overlay image failed to load natively:", e);
+            resolve();
+        };
+        overlay.src = overlayDataUrl;
+    });
+    ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+    console.log(`[COMPOSITE] 🖌️ Overlay drawn directly over base in ${(performance.now() - t2).toFixed(1)}ms.`);
+    
+    const t3 = performance.now();
+    const finalJpeg = canvas.toDataURL("image/jpeg", lowRes ? 0.8 : 0.95);
+    console.log(`[COMPOSITE] 💾 JPEG fused buffer created in ${(performance.now() - t3).toFixed(1)}ms. Final payload size: ${(finalJpeg.length/1024/1024).toFixed(2)}MB`);
+    
+    console.log(`[COMPOSITE] 🔥 Finished total composite run in ${(performance.now() - startTime).toFixed(1)}ms!\n`);
+    return finalJpeg;
+}
+
 
 // DOM elements
 const chat = document.getElementById("chat");
@@ -675,26 +746,10 @@ window.exportMergedImage = async function(btn) {
 
         let dataUrl;
         try {
-            dataUrl = await htmlToImage.toPng(wrapper, {
-                pixelRatio: 2,
-                quality: 1.0,
-                skipFonts: true,
-                style: {
-                    width: wrapper.offsetWidth + "px",
-                    height: wrapper.offsetHeight + "px"
-                }
-            });
+            dataUrl = await generateSafeComposite(wrapper, rawImg, false);
         } catch (memError) {
             console.warn("High-res export failed, attempting lower resolution fallback...", memError);
-            dataUrl = await htmlToImage.toPng(wrapper, {
-                pixelRatio: 1,
-                quality: 0.8,
-                skipFonts: true,
-                style: {
-                    width: wrapper.offsetWidth + "px",
-                    height: wrapper.offsetHeight + "px"
-                }
-            });
+            dataUrl = await generateSafeComposite(wrapper, rawImg, true);
         }
         
         // RESTORE
@@ -801,12 +856,7 @@ window.approveAndProceed = async function(btn) {
             mainPanel.style.transform = "translateZ(0)";
         }
 
-        let dataUrl = await htmlToImage.toPng(wrapper, {
-            pixelRatio: 1.5,
-            quality: 0.9,
-            skipFonts: true,
-            style: { width: wrapper.offsetWidth + "px", height: wrapper.offsetHeight + "px" }
-        });
+        let dataUrl = await generateSafeComposite(wrapper, rawImg, false);
 
         // RESTORE
         if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
