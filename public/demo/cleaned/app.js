@@ -812,7 +812,7 @@ window.exportMergedImage = async function(btn) {
         btn.innerHTML = "⏳ Exporting...";
         btn.disabled = true;
 
-        // Hide UI handles
+        // Hide interactive UI handles (not part of the export)
         const handles = wrapper.querySelector(".warp-handles");
         if (handles) handles.style.display = "none";
         const expandBtn = wrapper.querySelector(".expand-inline-btn");
@@ -820,9 +820,7 @@ window.exportMergedImage = async function(btn) {
         const allResizers = wrapper.querySelectorAll('.custom-resizer, [style*="nwse-resize"], [style*="nesw-resize"]');
         allResizers.forEach(r => r.style.display = "none");
 
-        // FREEZE COMPUTED STYLES: 
-        // html-to-image / foreignObject drops SVG aspect scaling and CSS cqi container metrics cleanly on webkit.
-        // We force all responsive/computed inline queries to strict pixel locks before cloning.
+        // FREEZE COMPUTED STYLES for html-to-image compatibility
         const locks = [];
         const freezeElements = wrapper.querySelectorAll('.ai-panel, .ai-panel *, svg, svg circle');
         freezeElements.forEach(el => {
@@ -831,59 +829,128 @@ window.exportMergedImage = async function(btn) {
             if (el.tagName !== "svg" && el.tagName !== "SVG" && el.tagName !== "path") {
                 el.style.fontSize = comp.fontSize;
                 el.style.padding = comp.padding;
-                el.style.width = comp.width;
-                el.style.height = comp.height;
                 el.style.borderRadius = comp.borderRadius;
                 el.style.gap = comp.gap;
             }
         });
 
-        // Ensure Wrapper aspect matches bounding exact.
+        // Lock wrapper dimensions
         const preWrapCSS = wrapper.style.cssText;
-        wrapper.style.width = wrapper.offsetWidth + "px";
-        wrapper.style.height = wrapper.offsetHeight + "px";
+        const wrapW = wrapper.offsetWidth;
+        const wrapH = wrapper.offsetHeight;
+        wrapper.style.width = wrapW + "px";
+        wrapper.style.height = wrapH + "px";
 
-        // Safari webkit workaround for base64 image rendering
+        // Downgrade heavy base64 images for Safari capture stability
+        let safariBlobs = await processSafariBlobs(wrapper);
+
+        // ========================================================
+        // UNIFIED GLASS EFFECT: Replace uncapturable CSS backdrop-filter
+        // with a renderable CSS filter: blur() on a background div.
+        // html-to-image uses SVG foreignObject which has NO backdrop,
+        // so we pre-bake the glass effect as a real DOM element.
+        // ========================================================
         const mainPanel = wrapper.querySelector('.ai-panel');
         const rawImg = wrapper.querySelector('img[data-raw]');
-        let safariBlobs = await processSafariBlobs(wrapper);
-        
-        // Tell the panel to render without backdrop-filter for the overlay capture
-        // (the canvas-based glass blur in generateSafeComposite handles it at full resolution)
-        let oldPanelStyles = null;
-        if (mainPanel) {
-            oldPanelStyles = {
-                background: mainPanel.style.background,
-                backdropFilter: mainPanel.style.backdropFilter,
-                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter,
-                boxShadow: mainPanel.style.boxShadow
-            };
-            // Make panel transparent so canvas glass blur shows through
-            mainPanel.style.background = "transparent";
+        let fakeBg = null;
+        let savedPanelCSS = null;
+
+        if (mainPanel && rawImg) {
+            const wRect = wrapper.getBoundingClientRect();
+            const pRect = mainPanel.getBoundingClientRect();
+            const offsetX = pRect.left - wRect.left;
+            const offsetY = pRect.top - wRect.top;
+
+            // Create a blurred copy of the image INSIDE the panel
+            fakeBg = document.createElement("div");
+            fakeBg.id = "export-fake-blur";
+            // Use the DOWNGRADED image (small, fast) — blur destroys detail anyway
+            fakeBg.style.cssText = [
+                "position: absolute",
+                "top: -30px",
+                "left: -30px",
+                "width: calc(100% + 60px)",
+                "height: calc(100% + 60px)",
+                `background-image: url(${rawImg.src})`,
+                `background-size: ${wRect.width}px ${wRect.height}px`,
+                `background-position: -${offsetX - 30}px -${offsetY - 30}px`,
+                "filter: blur(28px)",
+                "z-index: 0",
+                "pointer-events: none"
+            ].join(";");
+
+            mainPanel.insertBefore(fakeBg, mainPanel.firstChild);
+
+            // Save and override panel styles
+            savedPanelCSS = mainPanel.style.cssText;
+            // Keep existing inline styles but override glass-specific ones
             mainPanel.style.backdropFilter = "none";
             mainPanel.style.webkitBackdropFilter = "none";
-            mainPanel.style.boxShadow = "none";
+            // Semi-transparent tint OVER the blur (matches the CSS background)
+            mainPanel.style.background = "rgba(10, 10, 16, 0.4)";
+            mainPanel.style.overflow = "hidden";
+            mainPanel.style.position = getComputedStyle(mainPanel).position; // keep absolute
+
+            // Ensure panel children render above the blur div
+            const panelChildren = mainPanel.children;
+            for (let i = 0; i < panelChildren.length; i++) {
+                if (panelChildren[i] !== fakeBg) {
+                    const child = panelChildren[i];
+                    if (!child.style.position || child.style.position === 'static') {
+                        child.style.position = 'relative';
+                    }
+                    if (!child.style.zIndex) {
+                        child.style.zIndex = '1';
+                    }
+                }
+            }
         }
 
+        // ========================================================
+        // SINGLE-PASS CAPTURE: Everything in one shot.
+        // The image, polygons, glass panel, text — all rendered together
+        // exactly as the browser shows them. No canvas compositing.
+        // ========================================================
+        const captureDpr = 6; // ~2250px on mobile — crisp and memory-safe
+        console.log(`[EXPORT] Single-pass capture at ${captureDpr}x DPR (${wrapW * captureDpr}x${wrapH * captureDpr})`);
+
+        const t0 = performance.now();
         let dataUrl;
         try {
-            dataUrl = await generateSafeComposite(wrapper, rawImg, true);
+            dataUrl = await htmlToImage.toPng(wrapper, {
+                pixelRatio: captureDpr,
+                quality: 1.0,
+                skipFonts: true,
+                style: { width: wrapW + "px", height: wrapH + "px" }
+            });
         } catch (memError) {
-            console.warn("High-res export failed, attempting internal resolution fallback...", memError);
-            dataUrl = await generateSafeComposite(wrapper, rawImg, false);
+            console.warn("[EXPORT] High DPR failed, falling back to 3x...", memError);
+            dataUrl = await htmlToImage.toPng(wrapper, {
+                pixelRatio: 3,
+                quality: 1.0,
+                skipFonts: true,
+                style: { width: wrapW + "px", height: wrapH + "px" }
+            });
         }
-        
-        // RESTORE
+        console.log(`[EXPORT] Captured in ${(performance.now() - t0).toFixed(0)}ms (${(dataUrl.length/1024/1024).toFixed(2)}MB)`);
+
+        // ========================================================
+        // RESTORE everything
+        // ========================================================
+        if (fakeBg) fakeBg.remove();
+        if (mainPanel && savedPanelCSS !== null) {
+            mainPanel.style.cssText = savedPanelCSS;
+            // Remove the z-index/position overrides on children
+            const panelChildren = mainPanel.children;
+            for (let i = 0; i < panelChildren.length; i++) {
+                // The locks will restore these anyway
+            }
+        }
         if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
         wrapper.style.cssText = preWrapCSS;
         locks.forEach(lock => lock.el.style.cssText = lock.css);
-        if (mainPanel && oldPanelStyles) {
-            mainPanel.style.background = oldPanelStyles.background;
-            mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
-            mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
-            mainPanel.style.boxShadow = oldPanelStyles.boxShadow;
-        }
 
+        // Download
         const link = document.createElement("a");
         link.download = `cleaned_report_${Date.now()}.png`;
         link.href = dataUrl;
