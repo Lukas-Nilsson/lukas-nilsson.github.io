@@ -2,7 +2,7 @@
  * CLEANED Demo — Chat UI Logic
  */
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://cleaned-demo-backend-hpogfshfba-uc.a.run.app";
 
 // DOM elements
 const chat = document.getElementById("chat");
