@@ -890,7 +890,7 @@ function addErrorMessage(errorText) {
         <div class="message-avatar">AI</div>
         <div class="message-content">
             <p>❌ ${escapeHtml(errorText)}</p>
-            <p>Try again or check the server is running on port 8000.</p>
+            <p>Please try again later or check your network connection.</p>
         </div>
     `;
     chat.appendChild(msg);
