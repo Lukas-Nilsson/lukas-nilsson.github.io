@@ -2,198 +2,123 @@
  * CLEANED Demo — Chat UI Logic
  */
 
-const API_URL = "https://cleaned-demo-backend-hpogfshfba-uc.a.run.app";
+const REMOTE_API_URL = "https://cleaned-demo-backend-hpogfshfba-uc.a.run.app";
+const SITE_DEMO_PATH = "/demo/cleaned";
+const LOCAL_DEV_HOST_PATTERN = /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
+const IS_LOCAL_DEV_HOST = LOCAL_DEV_HOST_PATTERN.test(window.location.hostname);
+const IS_SITE_EMBEDDED_DEMO =
+    window.location.pathname === SITE_DEMO_PATH ||
+    window.location.pathname === `${SITE_DEMO_PATH}/` ||
+    window.location.pathname.startsWith(`${SITE_DEMO_PATH}/`);
+const API_URL = IS_SITE_EMBEDDED_DEMO ? SITE_DEMO_PATH : (IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL);
+const debugLogStore = [];
+const DEBUG_LOG_LIMIT = 250;
+let maxObservedViewportHeight = 0;
 
-async function processSafariBlobs(wrapper) {
-    const list = [];
-    const imgs = wrapper.querySelectorAll('img[data-raw], img[src^="data:"]');
-    for (const img of imgs) {
+function formatDebugValue(value) {
+    if (typeof value === "string") return value;
+    if (value instanceof Error) return `${value.name}: ${value.message}`;
+    try {
+        return JSON.stringify(value);
+    } catch (_) {
+        return String(value);
+    }
+}
+
+function appendDebugLog(level, args) {
+    const ts = new Date().toISOString();
+    const line = `[${ts}] ${level.toUpperCase()} ${args.map(formatDebugValue).join(" ")}`;
+    debugLogStore.push(line);
+    if (debugLogStore.length > DEBUG_LOG_LIMIT) {
+        debugLogStore.splice(0, debugLogStore.length - DEBUG_LOG_LIMIT);
+    }
+}
+
+function snapshotLayout(label, extra = {}) {
+    appendDebugLog("event", [{ label, ...extra }]);
+}
+
+function setupDebugOverlay() {
+    const originalConsole = {
+        log: console.log.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        info: console.info ? console.info.bind(console) : console.log.bind(console)
+    };
+
+    console.log = (...args) => {
+        appendDebugLog("log", args);
+        originalConsole.log(...args);
+    };
+    console.warn = (...args) => {
+        appendDebugLog("warn", args);
+        originalConsole.warn(...args);
+    };
+    console.error = (...args) => {
+        appendDebugLog("error", args);
+        originalConsole.error(...args);
+    };
+    console.info = (...args) => {
+        appendDebugLog("info", args);
+        originalConsole.info(...args);
+    };
+
+    window.addEventListener("error", (event) => {
+        appendDebugLog("window-error", [event.message, event.filename, event.lineno, event.colno]);
+    });
+    window.addEventListener("unhandledrejection", (event) => {
+        appendDebugLog("unhandledrejection", [event.reason]);
+    });
+
+    const overlay = document.createElement("div");
+    overlay.className = "debug-overlay";
+    overlay.innerHTML = `
+        <button class="debug-overlay-btn" id="copyDebugLogsBtn" type="button">Copy Debug Logs</button>
+    `;
+    document.body.appendChild(overlay);
+
+    async function copyLogs() {
+        appendDebugLog("copy", ["manual-copy"]);
+        const payload = debugLogStore.join("\n");
         try {
-            // CRITICAL: Store original dimensions BEFORE swapping src
-            const origW = img.naturalWidth;
-            const origH = img.naturalHeight;
-            img.dataset._origNatW = origW;
-            img.dataset._origNatH = origH;
-
-            const w = wrapper.offsetWidth * 1.5 || 800;
-            const h = wrapper.offsetHeight * 1.5 || 800;
-            const memCanvas = document.createElement("canvas");
-            memCanvas.width = w;
-            memCanvas.height = h;
-            memCanvas.getContext("2d").drawImage(img, 0, 0, w, h);
-            
-            const safeBase64 = memCanvas.toDataURL("image/jpeg", 0.85);
-            
-            const miniCanvas = document.createElement("canvas");
-            miniCanvas.width = 120;
-            miniCanvas.height = 120;
-            miniCanvas.getContext("2d").drawImage(memCanvas, 0, 0, 120, 120);
-            const miniBase64 = miniCanvas.toDataURL("image/jpeg", 0.3);
-            
-            const oldSrc = img.src;
-            img.dataset._originalFullSrc = oldSrc;
-            img.dataset.miniUrl = miniBase64;
-            img.src = safeBase64;
-            
-            list.push({ img, oldSrc });
-        } catch(e) { console.error(e); }
-    }
-    await new Promise(r => setTimeout(r, 60));
-    return list;
-}
-function restoreSafariBlobs(list) {
-    for (const item of list) {
-        item.img.src = item.oldSrc;
-        delete item.img.dataset.miniUrl;
-        delete item.img.dataset._originalFullSrc;
-        delete item.img.dataset._origNatW;
-        delete item.img.dataset._origNatH;
-    }
-}
-
-async function generateSafeComposite(wrapper, rawImg, isExport = false) {
-    console.log(`\n[COMPOSITE] Starting ${isExport ? 'LOSSLESS EXPORT' : 'Internal'} composite...`);
-    const startTime = performance.now();
-    
-    const w = wrapper.offsetWidth;
-    const h = wrapper.offsetHeight;
-    
-    // Retrieve the ORIGINAL full-resolution src (before processSafariBlobs downgraded it), using the clean user upload if possible.
-    const originalFullSrc = rawImg ? (rawImg.dataset.cleanUrl || rawImg.dataset._originalFullSrc || rawImg.src) : null;
-    
-    // Read ORIGINAL natural dimensions (stored before Safari downgrade mutated them)
-    const origNatW = rawImg ? (parseInt(rawImg.dataset._origNatW) || rawImg.naturalWidth) : 0;
-    const origNatH = rawImg ? (parseInt(rawImg.dataset._origNatH) || rawImg.naturalHeight) : 0;
-    
-    // For export: match the original image's native resolution
-    // Overlay DPR capped at 5 for crisp text (rawImg hidden = mostly transparent = low memory)
-    let targetW, targetH, overlayDpr;
-    if (isExport && origNatW > 0) {
-        targetW = origNatW;
-        targetH = origNatH;
-        overlayDpr = Math.min(targetW / w, 5);
-    } else {
-        overlayDpr = 2;
-        targetW = Math.round(w * overlayDpr);
-        targetH = Math.round(h * overlayDpr);
-    }
-
-    console.log(`[COMPOSITE] Layout: ${w}x${h} → Canvas: ${targetW}x${targetH}, Overlay DPR: ${overlayDpr.toFixed(2)}`);
-    
-    // Step 1: Capture the UI overlay (everything EXCEPT the base image)
-    const oldVis = rawImg ? rawImg.style.visibility : "";
-    if (rawImg) rawImg.style.visibility = "hidden";
-    
-    const t0 = performance.now();
-    const overlayDataUrl = await htmlToImage.toPng(wrapper, {
-        pixelRatio: overlayDpr,
-        quality: 1.0,
-        skipFonts: true,
-        style: { width: w + "px", height: h + "px" }
-    });
-    console.log(`[COMPOSITE] Overlay captured in ${(performance.now() - t0).toFixed(0)}ms (${(overlayDataUrl.length/1024).toFixed(0)}kb)`);
-    
-    if (rawImg) rawImg.style.visibility = oldVis;
-    if (!rawImg) return overlayDataUrl;
-
-    // Step 2: Build the final canvas at full resolution
-    const canvas = document.createElement("canvas");
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext("2d");
-    
-    // Step 3: Draw the ORIGINAL full-res base image
-    const base = new Image();
-    base.crossOrigin = "anonymous";
-    const t1 = performance.now();
-    await new Promise((resolve) => {
-        base.onload = resolve;
-        base.onerror = () => resolve();
-        base.src = originalFullSrc;
-    });
-    ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
-    console.log(`[COMPOSITE] Base image (${base.naturalWidth}x${base.naturalHeight}) drawn in ${(performance.now() - t1).toFixed(0)}ms`);
-    
-    // Step 4: Draw glass panel blur regions directly on canvas
-    // CSS backdrop-filter CANNOT be captured by html-to-image (SVG foreignObject has no backdrop).
-    // We only simulate the underlying blur. 
-    // The panel's background color, borders, and box-shadow are natively captured by html-to-image.
-    {
-        const scaleX = canvas.width / w;
-        const scaleY = canvas.height / h;
-        const wrapperRect = wrapper.getBoundingClientRect();
-        const panels = wrapper.querySelectorAll('.ai-panel');
-        
-        panels.forEach(panel => {
-            const pRect = panel.getBoundingClientRect();
-            const px = (pRect.left - wrapperRect.left) * scaleX;
-            const py = (pRect.top - wrapperRect.top) * scaleY;
-            const pw = pRect.width * scaleX;
-            const ph = pRect.height * scaleY;
-            // Match CSS: border-radius: 12px (scaled to canvas resolution)
-            const borderRadius = 12 * scaleX;
-            // Scale blur to canvas pixels (28 CSS px → 28 * scaleX canvas px)
-            const blurRadius = Math.round(28 * scaleX);
-            
-            if (pw <= 0 || ph <= 0) return;
-            
-            // Helper: draw rounded rect path
-            function roundedRectPath(x, y, rw, rh, r) {
-                ctx.beginPath();
-                ctx.moveTo(x + r, y);
-                ctx.lineTo(x + rw - r, y);
-                ctx.quadraticCurveTo(x + rw, y, x + rw, y + r);
-                ctx.lineTo(x + rw, y + rh - r);
-                ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh);
-                ctx.lineTo(x + r, y + rh);
-                ctx.quadraticCurveTo(x, y + rh, x, y + rh - r);
-                ctx.lineTo(x, y + r);
-                ctx.quadraticCurveTo(x, y, x + r, y);
-                ctx.closePath();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(payload);
+            } else {
+                const ta = document.createElement("textarea");
+                ta.value = payload;
+                ta.setAttribute("readonly", "");
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                ta.remove();
             }
-            
-            // ONLY draw the blurred base image under the panel
-            // html-to-image handles the panel's tint, borders, and shadow.
-            ctx.save();
-            roundedRectPath(px, py, pw, ph, borderRadius);
-            ctx.clip();
-            
-            ctx.filter = `blur(${blurRadius}px)`;
-            ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
-            ctx.filter = "none";
-            
-            ctx.restore();
-            
-            console.log(`[COMPOSITE] Glass panel blur at (${px.toFixed(0)},${py.toFixed(0)}) ${pw.toFixed(0)}x${ph.toFixed(0)}, blur=${blurRadius}px`);
-        });
+            appendDebugLog("copy", ["copied-debug-logs"]);
+            const btn = document.getElementById("copyDebugLogsBtn");
+            if (btn) {
+                const old = btn.textContent;
+                btn.textContent = "Copied";
+                setTimeout(() => {
+                    btn.textContent = old;
+                }, 1200);
+            }
+        } catch (error) {
+            appendDebugLog("copy-error", [error]);
+            alert("Failed to copy logs");
+        }
     }
-    
-    // Step 5: Composite the overlay on top (text, polygons, icons)
-    const overlay = new Image();
-    const t2 = performance.now();
-    await new Promise((resolve) => {
-        overlay.onload = resolve;
-        overlay.onerror = () => resolve();
-        overlay.src = overlayDataUrl;
-    });
-    ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
-    console.log(`[COMPOSITE] Overlay composited in ${(performance.now() - t2).toFixed(0)}ms`);
-    
-    // Step 6: Output
-    const t3 = performance.now();
-    if (isExport) {
-        return new Promise((resolve) => {
-            canvas.toBlob((blob) => {
-                const finalUrl = URL.createObjectURL(blob);
-                console.log(`[COMPOSITE] PNG blob: ${(blob.size/1024/1024).toFixed(2)}MB in ${(performance.now() - t3).toFixed(0)}ms. Total: ${(performance.now() - startTime).toFixed(0)}ms`);
-                resolve(finalUrl);
-            }, "image/png");
-        });
-    } else {
-        const finalJpeg = canvas.toDataURL("image/jpeg", 0.92);
-        console.log(`[COMPOSITE] JPEG: ${(finalJpeg.length/1024/1024).toFixed(2)}MB in ${(performance.now() - t3).toFixed(0)}ms. Total: ${(performance.now() - startTime).toFixed(0)}ms`);
-        return finalJpeg;
-    }
+
+    const copyBtn = document.getElementById("copyDebugLogsBtn");
+    if (copyBtn) copyBtn.addEventListener("click", copyLogs);
+
+    appendDebugLog("debug", ["overlay-ready"]);
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupDebugOverlay, { once: true });
+} else {
+    setupDebugOverlay();
 }
 
 
@@ -216,38 +141,78 @@ const inputArea = document.getElementById("inputArea");
 // Mobile Keyboard Handling
 // ===========================
 
-// Set exact height immediately to prevent any initial scroll
-if (appEl) {
-    appEl.style.height = window.innerHeight + "px";
+function applyMobileViewportLayout() {
+    const vv = window.visualViewport;
+    const viewportHeight = vv ? vv.height : window.innerHeight;
+    const viewportOffsetTop = vv ? vv.offsetTop : 0;
+    const viewportBottom = viewportHeight + viewportOffsetTop;
+
+    if (viewportBottom > maxObservedViewportHeight) {
+        maxObservedViewportHeight = viewportBottom;
+    }
+    if (window.innerHeight > maxObservedViewportHeight) {
+        maxObservedViewportHeight = window.innerHeight;
+    }
+
+    document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+    document.body.style.height = `${viewportHeight}px`;
+
+    if (appEl) {
+        appEl.style.height = `${viewportHeight}px`;
+        appEl.style.transform = "none";
+    }
+
+    let inputHeight = 0;
+    if (inputArea) {
+        inputArea.style.bottom = "0px";
+        inputArea.style.top = "auto";
+        inputHeight = Math.round(inputArea.getBoundingClientRect().height);
+    }
+
+    const previewVisible = !!(previewBar && previewBar.classList.contains("visible"));
+    const previewGap = previewVisible ? 8 : 0;
+    const previewHeight = previewVisible ? Math.round(previewBar.getBoundingClientRect().height) : 0;
+
+    if (previewBar) {
+        previewBar.style.bottom = `${inputHeight + previewGap}px`;
+        previewBar.style.top = "auto";
+    }
+
+    if (chat) {
+        const chatBottomPadding = inputHeight + previewHeight + previewGap + 24;
+        chat.style.paddingBottom = `${chatBottomPadding}px`;
+    }
+
 }
 
-if (window.visualViewport) {
-    const vv = window.visualViewport;
-    function adjustForKeyboard() {
-        if (appEl) {
-            appEl.style.height = vv.height + "px";
-        }
-    }
-    vv.addEventListener("resize", adjustForKeyboard);
-    vv.addEventListener("scroll", adjustForKeyboard);
-} else {
-    // Fallback for browsers without visualViewport
-    window.addEventListener("resize", () => {
-        if (appEl) appEl.style.height = window.innerHeight + "px";
+function resetWindowScrollToTop(reason) {
+    if (window.scrollY === 0) return;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    requestAnimationFrame(() => {
+        applyMobileViewportLayout();
     });
 }
 
-// Scroll chat to bottom when input is focused (mobile keyboard pushes content)
+applyMobileViewportLayout();
+
+if (!window.visualViewport) {
+    window.addEventListener("resize", applyMobileViewportLayout);
+}
+
 if (textInput) {
     textInput.addEventListener("focus", () => {
-        setTimeout(() => {
-            chat.scrollTop = chat.scrollHeight;
-        }, 300);
+        resetWindowScrollToTop("focus");
+    });
+    textInput.addEventListener("blur", () => {
+        resetWindowScrollToTop("blur");
     });
 }
 
 let selectedFile = null;
 let globalActiveImageFile = null;
+let globalActiveUploadFile = null;
 // Global pointer for edit syncing
 window._lastImageWrapper = null;
 let globalPreviousAnalysisData = null;
@@ -267,11 +232,220 @@ window.updateCartUI = function() {
     }
 };
 
+function bindSceneStateToWrapper(wrapper, sceneData, sourceFile = null, uploadFile = null) {
+    if (!wrapper) return;
+    wrapper._sceneData = sceneData || null;
+    if (sourceFile) wrapper._sourceFile = sourceFile;
+    if (uploadFile) wrapper._uploadFile = uploadFile;
+    window._lastImageWrapper = wrapper;
+}
+
+function cloneSceneForRender(wrapper) {
+    const sceneData = wrapper && wrapper._sceneData ? wrapper._sceneData : globalPreviousAnalysisData;
+    if (!sceneData) return null;
+
+    if (window.AnnotationRenderer && typeof window.AnnotationRenderer.normalizeScene === "function") {
+        return window.AnnotationRenderer.normalizeScene(sceneData);
+    }
+    return JSON.parse(JSON.stringify(sceneData));
+}
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Failed to convert rendered image to data URL"));
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function readBlobAsText(blob) {
+    if (!blob) return "";
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = () => resolve("");
+        reader.readAsText(blob);
+    });
+}
+
+function requestServerRenderedComposite(wrapper) {
+    return new Promise((resolve, reject) => {
+        const scene = cloneSceneForRender(wrapper);
+        if (!scene) {
+            reject(new Error("No scene data available for server render"));
+            return;
+        }
+
+        const rawImg = wrapper ? (wrapper.querySelector('img[data-raw]') || wrapper.querySelector("img")) : null;
+        const uploadFile = wrapper && wrapper._uploadFile ? wrapper._uploadFile : (wrapper ? wrapper._sourceFile : null);
+        const rawImage = rawImg ? (rawImg.getAttribute("data-raw") || rawImg.src || "") : "";
+
+        const formData = new FormData();
+        formData.append("scene", JSON.stringify(scene));
+        if (uploadFile instanceof File) {
+            formData.append("image", uploadFile);
+        } else if (rawImage) {
+            formData.append("raw_image", rawImage);
+        } else {
+            reject(new Error("No source image available for server render"));
+            return;
+        }
+
+        appendDebugLog("render-request", [{
+            url: `${API_URL}/api/render-annotated`,
+            hasUploadFile: uploadFile instanceof File,
+            uploadFileName: uploadFile instanceof File ? uploadFile.name : null,
+            rawImageLength: rawImage ? rawImage.length : 0
+        }]);
+
+        const startedAt = Date.now();
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_URL}/api/render-annotated`, true);
+        xhr.responseType = "blob";
+        xhr.timeout = 120000;
+
+        xhr.onload = async () => {
+            const durationMs = Date.now() - startedAt;
+            const ok = xhr.status >= 200 && xhr.status < 300;
+            const blob = xhr.response;
+            appendDebugLog("render-response", [{
+                ok,
+                status: xhr.status,
+                statusText: xhr.statusText || null,
+                durationMs,
+                contentType: xhr.getResponseHeader("content-type")
+            }]);
+
+            if (!ok) {
+                const responseText = await readBlobAsText(blob);
+                reject(new Error(parseResponseDetail(responseText) || `Render error (${xhr.status})`));
+                return;
+            }
+            resolve(blob);
+        };
+
+        xhr.onerror = () => {
+            appendDebugLog("render-network-error", [{
+                status: xhr.status,
+                durationMs: Date.now() - startedAt,
+                network: getNetworkContext()
+            }]);
+            reject(new Error("Server render failed due to a network error"));
+        };
+
+        xhr.ontimeout = () => {
+            appendDebugLog("render-timeout", [{
+                timeoutMs: xhr.timeout,
+                durationMs: Date.now() - startedAt
+            }]);
+            reject(new Error("Server render timed out"));
+        };
+
+        xhr.send(formData);
+    });
+}
+
+async function requestClientRenderedComposite(wrapper, isExport) {
+    const renderer = window.AnnotationRenderer;
+    if (!renderer || typeof renderer.rasterizeRenderedScene !== "function") {
+        throw new Error("Shared annotation renderer is not available for client fallback");
+    }
+
+    const rawImg = wrapper ? (wrapper.querySelector('img[data-raw]') || wrapper.querySelector("img")) : null;
+    if (!rawImg) {
+        throw new Error("No source image available for client render");
+    }
+
+    const imageSize = wrapper && wrapper._annotationImageSize ? wrapper._annotationImageSize : null;
+    const imageWidth = (imageSize && imageSize.width) || rawImg.naturalWidth || Number(rawImg.getAttribute("width")) || 0;
+    const imageHeight = (imageSize && imageSize.height) || rawImg.naturalHeight || Number(rawImg.getAttribute("height")) || 0;
+    if (!imageWidth || !imageHeight) {
+        throw new Error("Source image dimensions were not available for client render");
+    }
+
+    const baseImageSource =
+        (wrapper && wrapper._annotationBaseImageHref) ||
+        rawImg.getAttribute("data-clean-url") ||
+        rawImg.getAttribute("data-raw") ||
+        rawImg.currentSrc ||
+        rawImg.src;
+    const renderResult = wrapper && wrapper._annotationRenderResult
+        ? wrapper._annotationRenderResult
+        : (() => {
+            const scene = cloneSceneForRender(wrapper);
+            if (!scene) {
+                throw new Error("No scene data available for client render");
+            }
+            return renderer.renderAnnotatedScene(scene, { imageWidth, imageHeight, baseImageHref: baseImageSource });
+        })();
+
+    appendDebugLog("render-client-request", [{
+        mode: isExport ? "export" : "approval",
+        imageWidth,
+        imageHeight,
+        hasBaseImageSource: !!baseImageSource
+    }]);
+
+    if (isExport) {
+        const result = await renderer.rasterizeRenderedScene(renderResult, {
+            imageWidth,
+            imageHeight,
+            baseImageSource
+        }, {
+            returnBlob: true,
+            mimeType: "image/png"
+        });
+        return { kind: "blob", value: result.blob };
+    }
+
+    const result = await renderer.rasterizeRenderedScene(renderResult, {
+        imageWidth,
+        imageHeight,
+        baseImageSource
+    }, {
+        mimeType: "image/jpeg",
+        quality: 0.92
+    });
+    return { kind: "data-url", value: result.dataUrl };
+}
+
+async function requestCanonicalRenderedOutput(wrapper, mode, isExport) {
+    try {
+        const renderedBlob = await requestServerRenderedComposite(wrapper);
+        appendDebugLog("render-path", [{
+            mode,
+            path: "server-canonical"
+        }]);
+        return { kind: "blob", value: renderedBlob };
+    } catch (serverError) {
+        appendDebugLog("render-path", [{
+            mode,
+            path: "server-failed",
+            message: serverError.message
+        }]);
+
+        try {
+            const renderedOutput = await requestClientRenderedComposite(wrapper, isExport);
+            appendDebugLog("render-path", [{ mode, path: "client-fallback" }]);
+            return renderedOutput;
+        } catch (clientError) {
+            appendDebugLog("render-path", [{
+                mode,
+                path: "client-failed",
+                message: clientError.message
+            }]);
+            throw new Error(`Render failed in both canonical server and client fallback. Server: ${serverError.message}. Client: ${clientError.message}`);
+        }
+    }
+}
+
 window.buildTextSummary = function(data) {
     if (!data) return "";
     let html = '';
     const locName = data.location_name ? data.location_name.toUpperCase() : "INSPECTION AREA";
-    html += `<div style="margin-bottom: 12px; line-height: 1.3;"><strong style="color: var(--text-primary); letter-spacing: 0.5px;">225 GEORGE ST</strong><br>`;
+    const headerTitle = data.header_title || "225 GEORGE ST";
+    html += `<div style="margin-bottom: 12px; line-height: 1.3;"><strong style="color: var(--text-primary); letter-spacing: 0.5px;">${escapeHtml(headerTitle)}</strong><br>`;
     html += `<span style="opacity: 0.6; font-size: 11px; font-weight: 500; letter-spacing: 0.5px;">${locName}</span></div>`;
     
     const FALLBACK_COLORS = [
@@ -328,6 +502,11 @@ function canPreviewInBrowser(file) {
 fileInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file && isImageFile(file)) {
+        appendDebugLog("file-selected", [{
+            name: file.name,
+            type: file.type || null,
+            size: file.size
+        }]);
         selectedFile = file;
         showPreview(file);
         updateSendState();
@@ -342,12 +521,32 @@ function showPreview(file) {
     if (canPreviewInBrowser(file)) {
         const reader = new FileReader();
         reader.onload = (e) => {
+            appendDebugLog("preview-ready", [{
+                name: file.name,
+                type: file.type || null,
+                size: file.size,
+                mode: "data-url"
+            }]);
             previewImage.src = e.target.result;
             previewBar.classList.add("visible");
             attachBtn.classList.add("has-file");
         };
+        reader.onerror = () => {
+            appendDebugLog("preview-error", [{
+                name: file.name,
+                type: file.type || null,
+                size: file.size,
+                mode: "file-reader"
+            }]);
+        };
         reader.readAsDataURL(file);
     } else {
+        appendDebugLog("preview-ready", [{
+            name: file.name,
+            type: file.type || null,
+            size: file.size,
+            mode: "file-badge"
+        }]);
         // Show a file badge for formats browsers can't render (HEIC, TIFF, DNG)
         previewImage.src = "";
         previewImage.alt = file.name;
@@ -510,20 +709,325 @@ function stopDictation() {
 // Send Message
 // ===========================
 
+function getNetworkContext() {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    return {
+        online: navigator.onLine,
+        effectiveType: connection ? connection.effectiveType || null : null,
+        type: connection ? connection.type || null : null,
+        downlink: connection && typeof connection.downlink === "number" ? connection.downlink : null,
+        rtt: connection && typeof connection.rtt === "number" ? connection.rtt : null
+    };
+}
+
+function parseResponseDetail(responseText) {
+    if (!responseText) return null;
+    try {
+        const parsed = JSON.parse(responseText);
+        return parsed && typeof parsed.detail === "string" ? parsed.detail : responseText.slice(0, 500);
+    } catch (_) {
+        return responseText.slice(0, 500);
+    }
+}
+
+function isUploadOptimizationCandidate(file) {
+    if (!file || !file.type) return false;
+    return /^image\/(jpeg|jpg|webp)$/i.test(file.type);
+}
+
+function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(img);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error("Failed to decode image for upload optimization"));
+        };
+        img.src = objectUrl;
+    });
+}
+
+function canvasToBlobAsync(canvas, type, quality) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (blob) {
+                resolve(blob);
+            } else {
+                reject(new Error("Failed to encode optimized upload image"));
+            }
+        }, type, quality);
+    });
+}
+
+async function optimizeUploadImage(file) {
+    const shouldOptimize =
+        isUploadOptimizationCandidate(file) &&
+        (file.size > 1_500_000 || /iP(hone|ad|od)/.test(navigator.userAgent));
+
+    if (!shouldOptimize) {
+        appendDebugLog("upload-prepare-skip", [{
+            name: file.name,
+            type: file.type || null,
+            size: file.size
+        }]);
+        return file;
+    }
+
+    appendDebugLog("upload-prepare-start", [{
+        name: file.name,
+        type: file.type || null,
+        size: file.size
+    }]);
+
+    const sourceImage = await loadImageFromFile(file);
+    const maxDimension = 2048;
+    const maxBytes = 1_250_000;
+    const sourceWidth = sourceImage.naturalWidth || sourceImage.width;
+    const sourceHeight = sourceImage.naturalHeight || sourceImage.height;
+    const initialScale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+
+    let width = Math.max(1, Math.round(sourceWidth * initialScale));
+    let height = Math.max(1, Math.round(sourceHeight * initialScale));
+    let quality = 0.82;
+    let blob = null;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) {
+        appendDebugLog("upload-prepare-fallback", [{
+            reason: "no-2d-context",
+            name: file.name
+        }]);
+        return file;
+    }
+
+    while (true) {
+        canvas.width = width;
+        canvas.height = height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(sourceImage, 0, 0, width, height);
+        blob = await canvasToBlobAsync(canvas, "image/jpeg", quality);
+
+        if (blob.size <= maxBytes) break;
+
+        if (quality > 0.6) {
+            quality = Math.max(0.6, quality - 0.08);
+            continue;
+        }
+
+        if (Math.max(width, height) > 1280) {
+            width = Math.max(1, Math.round(width * 0.85));
+            height = Math.max(1, Math.round(height * 0.85));
+            quality = 0.82;
+            continue;
+        }
+
+        break;
+    }
+
+    if (!blob) {
+        appendDebugLog("upload-prepare-fallback", [{
+            reason: "empty-blob",
+            name: file.name
+        }]);
+        return file;
+    }
+
+    if (blob.size >= file.size * 0.98) {
+        appendDebugLog("upload-prepare-fallback", [{
+            reason: "not-smaller",
+            name: file.name,
+            originalSize: file.size,
+            optimizedSize: blob.size
+        }]);
+        return file;
+    }
+
+    const optimizedName = file.name.replace(/\.(jpe?g|webp)$/i, ".jpg");
+    const optimizedFile = new File([blob], optimizedName, {
+        type: "image/jpeg",
+        lastModified: Date.now()
+    });
+
+    appendDebugLog("upload-prepare-success", [{
+        name: file.name,
+        optimizedName,
+        originalSize: file.size,
+        optimizedSize: optimizedFile.size,
+        sourceWidth,
+        sourceHeight,
+        uploadWidth: width,
+        uploadHeight: height,
+        quality
+    }]);
+
+    return optimizedFile;
+}
+
+function uploadInspectionRequestOnce({ file, text, previousAnalysis, attempt, maxAttempts }) {
+    return new Promise((resolve, reject) => {
+        const startedAt = Date.now();
+        const xhr = new XMLHttpRequest();
+        const url = `${API_URL}/api/process`;
+
+        appendDebugLog("send-request", [{
+            url,
+            attempt,
+            maxAttempts,
+            hasPreviousAnalysis: !!previousAnalysis,
+            fileName: file ? file.name || null : null,
+            network: getNetworkContext()
+        }]);
+
+        xhr.open("POST", url, true);
+        xhr.responseType = "text";
+        xhr.timeout = 90000;
+
+        xhr.onload = () => {
+            const durationMs = Date.now() - startedAt;
+            const ok = xhr.status >= 200 && xhr.status < 300;
+            const responseText = typeof xhr.response === "string" ? xhr.response : (xhr.responseText || "");
+            const contentType = xhr.getResponseHeader("content-type");
+
+            appendDebugLog("send-response", [{
+                attempt,
+                ok,
+                status: xhr.status,
+                statusText: xhr.statusText || null,
+                contentType,
+                durationMs
+            }]);
+
+            if (!ok) {
+                const detail = parseResponseDetail(responseText);
+                appendDebugLog("send-response-error", [{
+                    attempt,
+                    status: xhr.status,
+                    statusText: xhr.statusText || null,
+                    detail
+                }]);
+                const error = new Error(detail || `Server error (${xhr.status})`);
+                error.retryable = xhr.status === 408 || xhr.status === 429 || xhr.status >= 500;
+                reject(error);
+                return;
+            }
+
+            try {
+                resolve(JSON.parse(responseText));
+            } catch (error) {
+                appendDebugLog("send-parse-error", [{
+                    attempt,
+                    message: error.message,
+                    responseSnippet: responseText.slice(0, 500)
+                }]);
+                reject(new Error("Server returned invalid JSON"));
+            }
+        };
+
+        xhr.onerror = () => {
+            const error = new Error(navigator.onLine ? "Network error while uploading image" : "You appear to be offline");
+            error.retryable = true;
+            appendDebugLog("send-network-error", [{
+                attempt,
+                readyState: xhr.readyState,
+                status: xhr.status,
+                durationMs: Date.now() - startedAt,
+                network: getNetworkContext()
+            }]);
+            reject(error);
+        };
+
+        xhr.ontimeout = () => {
+            const error = new Error("Upload timed out");
+            error.retryable = true;
+            appendDebugLog("send-timeout", [{
+                attempt,
+                timeoutMs: xhr.timeout,
+                durationMs: Date.now() - startedAt,
+                network: getNetworkContext()
+            }]);
+            reject(error);
+        };
+
+        xhr.onabort = () => {
+            const error = new Error("Upload was aborted");
+            error.retryable = true;
+            appendDebugLog("send-abort", [{
+                attempt,
+                durationMs: Date.now() - startedAt
+            }]);
+            reject(error);
+        };
+
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("description", text);
+        if (previousAnalysis) {
+            formData.append("previous_analysis", JSON.stringify(previousAnalysis));
+        }
+
+        xhr.send(formData);
+    });
+}
+
+async function uploadInspectionRequest({ file, text, previousAnalysis }) {
+    const maxAttempts = 2;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await uploadInspectionRequestOnce({
+                file,
+                text,
+                previousAnalysis,
+                attempt,
+                maxAttempts
+            });
+        } catch (error) {
+            if (!error.retryable || attempt === maxAttempts) {
+                throw error;
+            }
+            appendDebugLog("send-retry", [{
+                attempt,
+                nextAttempt: attempt + 1,
+                reason: error.message
+            }]);
+        }
+    }
+
+    throw new Error("Upload failed");
+}
+
 async function send() {
     const text = textInput.value.trim();
-    
-    // Use selectedfile, or fallback to active context image
     const isNewFile = selectedFile !== null;
-    
-    if (!text || (!selectedFile && !globalActiveImageFile)) return;
-    
-    if (isNewFile) {
-        globalActiveImageFile = selectedFile;
-        globalPreviousAnalysisData = null; // Reset context on new upload
-    }
-       // Add user message (defer showing raw file if it's HEIC, the server will process it)
-    addUserMessage(text, isNewFile ? globalActiveImageFile : null);
+    const requestFile = selectedFile || globalActiveImageFile;
+    const requestPreviousAnalysis = isNewFile ? null : globalPreviousAnalysisData;
+
+    if (!text || !requestFile) return;
+
+    appendDebugLog("send-start", [{
+        textLength: text.length,
+        isNewFile,
+        hasContextImage: !!globalActiveImageFile,
+        hasPreviousAnalysis: !!requestPreviousAnalysis,
+        file: requestFile ? {
+            name: requestFile.name || null,
+            type: requestFile.type || null,
+            size: requestFile.size || null
+        } : null
+    }]);
+    snapshotLayout("send-start", {
+        textLength: text.length,
+        isNewFile,
+        hasContextImage: !!globalActiveImageFile
+    });
+
+    // Add user message (defer showing raw file if it's HEIC, the server will process it)
+    addUserMessage(text, isNewFile ? requestFile : null);
     
     // Clear input
     textInput.value = "";
@@ -534,24 +1038,36 @@ async function send() {
     const processingEl = addProcessingMessage();
     
     try {
-        const formData = new FormData();
-        formData.append("image", globalActiveImageFile);
-        formData.append("description", text);
-        if (globalPreviousAnalysisData) {
-            formData.append("previous_analysis", JSON.stringify(globalPreviousAnalysisData));
+        let uploadFile = null;
+        if (!isNewFile && globalActiveUploadFile && globalActiveImageFile === requestFile) {
+            uploadFile = globalActiveUploadFile;
+            appendDebugLog("upload-prepare-cache-hit", [{
+                name: uploadFile.name,
+                size: uploadFile.size
+            }]);
+        } else {
+            uploadFile = await optimizeUploadImage(requestFile);
         }
-        
-        const response = await fetch(`${API_URL}/api/process`, {
-            method: "POST",
-            body: formData,
+
+        if (isNewFile) {
+            globalActiveImageFile = requestFile;
+            globalActiveUploadFile = uploadFile;
+            globalPreviousAnalysisData = null;
+        } else if (!globalActiveUploadFile || globalActiveImageFile === requestFile) {
+            globalActiveUploadFile = uploadFile;
+        }
+
+        const data = await uploadInspectionRequest({
+            file: uploadFile,
+            text,
+            previousAnalysis: requestPreviousAnalysis
         });
-        
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.detail || `Server error (${response.status})`);
-        }
-        
-        const data = await response.json();
+        appendDebugLog("send-success", [{
+            issues: Array.isArray(data.issues) ? data.issues.length : null,
+            praise: Array.isArray(data.praise) ? data.praise.length : null,
+            exclusions: Array.isArray(data.exclusions) ? data.exclusions.length : null,
+            isInspectionComplete: !!data.is_inspection_complete
+        }]);
         
         // Remove processing indicator
         processingEl.remove();
@@ -565,7 +1081,27 @@ async function send() {
         addAIResponse(data);
         
     } catch (err) {
+        appendDebugLog("send-error", [{
+            name: err && err.name ? err.name : "Error",
+            message: err && err.message ? err.message : String(err)
+        }]);
+        console.error("Send failed:", err);
+        snapshotLayout("send-error", {
+            message: err && err.message ? err.message : String(err)
+        });
         processingEl.remove();
+        if (isNewFile && !selectedFile) {
+            selectedFile = requestFile;
+            showPreview(requestFile);
+        }
+        if (!textInput.value) {
+            textInput.value = text;
+        }
+        updateSendState();
+        appendDebugLog("send-restore-draft", [{
+            restoredTextLength: text.length,
+            restoredFileName: isNewFile && requestFile ? requestFile.name || null : null
+        }]);
         addErrorMessage(err.message);
     }
 }
@@ -665,6 +1201,7 @@ function addAIResponse(data) {
         issues: data.issues,
         exclusions: data.exclusions,
         praise: data.praise,
+        header_title: data.header_title || "225 GEORGE ST",
         location_name: data.location_name,
         location_specified: data.location_specified
     };
@@ -702,6 +1239,7 @@ function addAIResponse(data) {
         if (window.buildInteractiveSVG && data.issues) {
             window.buildInteractiveSVG(wrapper, globalPreviousAnalysisData, false);
         }
+        bindSceneStateToWrapper(wrapper, globalPreviousAnalysisData, window.globalActiveImageFile, window.globalActiveUploadFile);
         
         const textContainer = document.querySelector('.message.ai:last-child .dynamic-message-text');
         if (textContainer) {
@@ -733,6 +1271,7 @@ window.removeIssue = function(issueIdx) {
     const wrapper = window._lastImageWrapper || document.querySelector('.message.ai:last-child .image-wrapper');
     if (wrapper && window.buildInteractiveSVG) {
         window.buildInteractiveSVG(wrapper, globalPreviousAnalysisData, false);
+        bindSceneStateToWrapper(wrapper, globalPreviousAnalysisData);
     }
     
     const undoBtn = document.querySelector('.message.ai:last-child .undo-btn');
@@ -748,6 +1287,7 @@ window.removePraise = function(praiseIdx) {
     const wrapper = window._lastImageWrapper || document.querySelector('.message.ai:last-child .image-wrapper');
     if (wrapper && window.buildInteractiveSVG) {
         window.buildInteractiveSVG(wrapper, globalPreviousAnalysisData, false);
+        bindSceneStateToWrapper(wrapper, globalPreviousAnalysisData);
     }
     
     const undoBtn = document.querySelector('.message.ai:last-child .undo-btn');
@@ -761,6 +1301,7 @@ window.undoRemove = function() {
     const wrapper = window._lastImageWrapper || document.querySelector('.message.ai:last-child .image-wrapper');
     if (wrapper && window.buildInteractiveSVG) {
         window.buildInteractiveSVG(wrapper, globalPreviousAnalysisData, false);
+        bindSceneStateToWrapper(wrapper, globalPreviousAnalysisData);
     }
     
     const undoBtn = document.querySelector('.message.ai:last-child .undo-btn');
@@ -788,117 +1329,35 @@ window.toggleAnnotation = function(btn) {
 
 window.exportMergedImage = async function(btn) {
     const wrapper = btn.closest(".message-content").querySelector(".image-wrapper");
-    if (!window.htmlToImage) {
-        addErrorMessage("html-to-image library is not loaded. Ensure you have an internet connection to fetch the CDN.");
-        return;
-    }
 
+    const ogBtnText = btn.innerHTML;
     try {
-        const ogBtnText = btn.innerHTML;
         btn.innerHTML = "⏳ Exporting...";
         btn.disabled = true;
-
-        // Hide UI handles
-        const handles = wrapper.querySelector(".warp-handles");
-        if (handles) handles.style.display = "none";
-        const expandBtn = wrapper.querySelector(".expand-inline-btn");
-        if (expandBtn) expandBtn.style.display = "none";
-        const allResizers = wrapper.querySelectorAll('.custom-resizer, [style*="nwse-resize"], [style*="nesw-resize"]');
-        allResizers.forEach(r => r.style.display = "none");
-
-        // FREEZE COMPUTED STYLES for html-to-image compatibility
-        const locks = [];
-        const freezeElements = wrapper.querySelectorAll('.ai-panel, .ai-panel *, svg, svg circle');
-        freezeElements.forEach(el => {
-            const comp = window.getComputedStyle(el);
-            locks.push({ el, css: el.style.cssText });
-            if (el.tagName !== "svg" && el.tagName !== "SVG" && el.tagName !== "path") {
-                el.style.fontSize = comp.fontSize;
-                el.style.lineHeight = comp.lineHeight;
-                el.style.padding = comp.padding;
-                el.style.margin = comp.margin;
-                el.style.width = comp.width;
-                el.style.minWidth = comp.width;
-                el.style.maxWidth = comp.width;
-                el.style.height = comp.height;
-                el.style.minHeight = comp.height;
-                el.style.maxHeight = comp.height;
-                el.style.borderRadius = comp.borderRadius;
-                el.style.top = comp.top;
-                el.style.bottom = comp.bottom;
-                el.style.left = comp.left;
-                el.style.right = comp.right;
-            }
-        });
-
-        // Ensure Wrapper aspect matches bounding exact.
-        const preWrapCSS = wrapper.style.cssText;
-        wrapper.style.width = wrapper.offsetWidth + "px";
-        wrapper.style.height = wrapper.offsetHeight + "px";
-
-        // Safari webkit workaround for base64 image rendering
-        const mainPanel = wrapper.querySelector('.ai-panel');
-        const rawImg = wrapper.querySelector('img[data-raw]');
-        let safariBlobs = await processSafariBlobs(wrapper);
-        
-        // Disable uncapturable CSS effects for the overlay capture.
-        // We KEEP the background color so text remains legible.
-        // The canvas in generateSafeComposite handles the actual blur behind it.
-        let oldPanelStyles = null;
-        if (mainPanel) {
-            oldPanelStyles = {
-                backdropFilter: mainPanel.style.backdropFilter,
-                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter
-            };
-            mainPanel.style.backdropFilter = "none";
-            mainPanel.style.webkitBackdropFilter = "none";
-        }
-        
-        // Disable SVG SVG drop-shadow filters during capture.
-        // html-to-image + Safari forces 1x DPR rasterization when SVG filters are active,
-        // causing badges to look incredibly blurry on high-resolution exports.
-        const svgShadowLocks = [];
-        const shadowedSvgs = wrapper.querySelectorAll('[filter]');
-        shadowedSvgs.forEach(el => {
-            const currentFilter = el.getAttribute('filter');
-            if (currentFilter && currentFilter !== 'none') {
-                svgShadowLocks.push({ el, filter: currentFilter });
-                el.setAttribute('filter', 'none');
-            }
-        });
-
-        let dataUrl;
-        try {
-            dataUrl = await generateSafeComposite(wrapper, rawImg, true);
-        } catch (memError) {
-            console.warn("High-res export failed, attempting internal resolution fallback...", memError);
-            dataUrl = await generateSafeComposite(wrapper, rawImg, false);
-        }
-        
-        // RESTORE
-        if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
-        wrapper.style.cssText = preWrapCSS;
-        locks.forEach(lock => lock.el.style.cssText = lock.css);
-        svgShadowLocks.forEach(lock => lock.el.setAttribute('filter', lock.filter));
-        if (mainPanel && oldPanelStyles) {
-            mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
-            mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
+        let downloadUrl;
+        let objectUrl = null;
+        const renderedOutput = await requestCanonicalRenderedOutput(wrapper, "export", true);
+        if (renderedOutput.kind === "blob") {
+            objectUrl = URL.createObjectURL(renderedOutput.value);
+            downloadUrl = objectUrl;
+        } else {
+            downloadUrl = renderedOutput.value;
         }
 
         const link = document.createElement("a");
         link.download = `cleaned_report_${Date.now()}.png`;
-        link.href = dataUrl;
+        link.href = downloadUrl;
         link.click();
+        if (objectUrl) {
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+        }
 
         btn.innerHTML = ogBtnText;
         btn.disabled = false;
-        if (handles) handles.style.display = "";
-        if (expandBtn) expandBtn.style.display = "";
-        allResizers.forEach(r => r.style.display = "");
     } catch (e) {
         console.error("Export failed:", e);
-        addErrorMessage("Failed to export image. Check console for details.");
-        btn.innerHTML = "⬇️ Export";
+        addErrorMessage(e && e.message ? e.message : "Failed to export image.");
+        btn.innerHTML = ogBtnText;
         btn.disabled = false;
     }
 };
@@ -906,92 +1365,21 @@ window.exportMergedImage = async function(btn) {
 window.approveAndProceed = async function(btn) {
     const aiMessageDiv = btn.closest(".message.ai");
     const wrapper = aiMessageDiv.querySelector(".image-wrapper");
-    if (!window.htmlToImage) {
-        addErrorMessage("html-to-image library is not loaded.");
-        return;
-    }
 
+    const ogBtnText = btn.innerHTML;
     try {
-        const ogBtnText = btn.innerHTML;
         btn.innerHTML = "⏳ Saving...";
         btn.disabled = true;
-
-        // Hide UI handles
-        const handles = wrapper.querySelector(".warp-handles");
-        if (handles) handles.style.display = "none";
-        const expandBtn = wrapper.querySelector(".expand-inline-btn");
-        if (expandBtn) expandBtn.style.display = "none";
-        const allResizers = wrapper.querySelectorAll('.custom-resizer, [style*="nwse-resize"], [style*="nesw-resize"]');
-        allResizers.forEach(r => r.style.display = "none");
-
-        const locks = [];
-        const freezeElements = wrapper.querySelectorAll('.ai-panel, .ai-panel *, svg, svg circle');
-        freezeElements.forEach(el => {
-            const comp = window.getComputedStyle(el);
-            locks.push({ el, css: el.style.cssText });
-            if (el.tagName !== "svg" && el.tagName !== "SVG" && el.tagName !== "path") {
-                el.style.fontSize = comp.fontSize;
-                el.style.lineHeight = comp.lineHeight;
-                el.style.padding = comp.padding;
-                el.style.margin = comp.margin;
-                el.style.width = comp.width;
-                el.style.minWidth = comp.width;
-                el.style.maxWidth = comp.width;
-                el.style.height = comp.height;
-                el.style.minHeight = comp.height;
-                el.style.maxHeight = comp.height;
-                el.style.borderRadius = comp.borderRadius;
-                el.style.top = comp.top;
-                el.style.bottom = comp.bottom;
-                el.style.left = comp.left;
-                el.style.right = comp.right;
-            }
-        });
-
-        const preWrapCSS = wrapper.style.cssText;
-        wrapper.style.width = wrapper.offsetWidth + "px";
-        wrapper.style.height = wrapper.offsetHeight + "px";
-
-        const mainPanel = wrapper.querySelector('.ai-panel');
-        const rawImg = wrapper.querySelector('img[data-raw]') || wrapper.querySelector('img');
-        let safariBlobs = await processSafariBlobs(wrapper);
-        
-        let oldPanelStyles = null;
-        if (mainPanel) {
-            oldPanelStyles = {
-                backdropFilter: mainPanel.style.backdropFilter,
-                webkitBackdropFilter: mainPanel.style.webkitBackdropFilter
-            };
-            mainPanel.style.backdropFilter = "none";
-            mainPanel.style.webkitBackdropFilter = "none";
+        let dataUrl;
+        const renderedOutput = await requestCanonicalRenderedOutput(wrapper, "approval", false);
+        if (renderedOutput.kind === "blob") {
+            dataUrl = await blobToDataUrl(renderedOutput.value);
+        } else {
+            dataUrl = renderedOutput.value;
         }
-
-        const svgShadowLocks = [];
-        const shadowedSvgs = wrapper.querySelectorAll('[filter]');
-        shadowedSvgs.forEach(el => {
-            const currentFilter = el.getAttribute('filter');
-            if (currentFilter && currentFilter !== 'none') {
-                svgShadowLocks.push({ el, filter: currentFilter });
-                el.setAttribute('filter', 'none');
-            }
-        });
-
-        let dataUrl = await generateSafeComposite(wrapper, rawImg, false);
-
-        // RESTORE
-        if (typeof safariBlobs !== 'undefined') restoreSafariBlobs(safariBlobs);
-        wrapper.style.cssText = preWrapCSS;
-        locks.forEach(lock => lock.el.style.cssText = lock.css);
-        svgShadowLocks.forEach(lock => lock.el.setAttribute('filter', lock.filter));
-        if (mainPanel && oldPanelStyles) {
-            mainPanel.style.backdropFilter = oldPanelStyles.backdropFilter;
-            mainPanel.style.webkitBackdropFilter = oldPanelStyles.webkitBackdropFilter;
-        }
-        if (handles) handles.style.display = "";
-        if (expandBtn) expandBtn.style.display = "";
-        allResizers.forEach(r => r.style.display = "");
 
         // Extract raw image string
+        const rawImg = wrapper.querySelector('img[data-raw]') || wrapper.querySelector('img');
         const rawImgSrc = rawImg ? rawImg.src : null;
         
         // Extract notes
@@ -1059,13 +1447,15 @@ window.approveAndProceed = async function(btn) {
 
     } catch (e) {
         console.error("Approve failed:", e);
-        addErrorMessage("Failed to approve image. Check console for details.");
-        btn.innerHTML = "✅ Approve";
+        addErrorMessage(e && e.message ? e.message : "Failed to approve image.");
+        btn.innerHTML = ogBtnText;
         btn.disabled = false;
     }
 };
 
 function addErrorMessage(errorText) {
+    appendDebugLog("ui-error", [{ message: errorText }]);
+    snapshotLayout("ui-error", { message: errorText });
     const msg = document.createElement("div");
     msg.className = "message ai";
     msg.innerHTML = `
@@ -1121,7 +1511,7 @@ window.openStandardEditorModal = function(data, imgSrc) {
     const img = document.createElement("img");
     img.src = imgSrc;
     img.style.maxWidth = "100%";
-    img.style.maxHeight = "calc(100svh - 90px)";
+    img.style.maxHeight = "calc(100dvh - 90px)";
     img.style.display = "block";
     img.style.margin = "0 auto";
     
@@ -1152,6 +1542,7 @@ if (editorClose) {
             // Unmount old interactive SVG logic entirely
             lastWrapper.innerHTML = `<img src="${img.src}" data-raw="${dataRaw}" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">`;
             window.buildInteractiveSVG(lastWrapper, globalPreviousAnalysisData, false);
+            bindSceneStateToWrapper(lastWrapper, globalPreviousAnalysisData, lastWrapper._sourceFile || window.globalActiveImageFile, lastWrapper._uploadFile || window.globalActiveUploadFile);
         }
         
         const textContainer = document.querySelector('.message.ai:last-child .dynamic-message-text');
@@ -1184,13 +1575,13 @@ function escapeHtml(text) {
 
 if (window.visualViewport) {
     const handleViewportChange = () => {
-        // Adjust the app to fit inside the visible area when the mobile keyboard is open
-        document.body.style.height = `${window.visualViewport.height}px`;
-        appEl.style.height = `${window.visualViewport.height}px`;
-        // Scroll to bottom whenever keyboard pops so we can still see input
-        setTimeout(scrollToBottom, 50);
+        applyMobileViewportLayout();
+        if (document.activeElement === textInput) {
+            requestAnimationFrame(() => resetWindowScrollToTop("viewport-change"));
+        }
     };
     window.visualViewport.addEventListener("resize", handleViewportChange);
+    window.visualViewport.addEventListener("scroll", handleViewportChange);
     // Initial setup
     handleViewportChange();
 }
@@ -1205,6 +1596,12 @@ document.addEventListener('pointerdown', (e) => {
         }
     }
 });
+
+window.addEventListener("scroll", () => {
+    if (document.activeElement === textInput) {
+        resetWindowScrollToTop("window-scroll");
+    }
+}, { passive: true });
 
 // ===========================
 // Review Modal & Email Flow
