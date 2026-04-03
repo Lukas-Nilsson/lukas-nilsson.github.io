@@ -15,10 +15,6 @@ import { NextRequest, NextResponse } from 'next/server';
 // to decide whether to re-fetch from ClickUp or serve a cached response.
 let lastClickUpChange = Date.now();
 
-export function getLastChangeTimestamp(): number {
-    return lastClickUpChange;
-}
-
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();

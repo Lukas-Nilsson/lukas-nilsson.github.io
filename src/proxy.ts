@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
+    const isCleanedDemoRoute = request.nextUrl.pathname.startsWith('/demo/cleaned');
 
     if (isDashboardRoute && !user) {
         const url = request.nextUrl.clone();
@@ -40,9 +41,20 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    if (isCleanedDemoRoute && !user) {
+        if (request.nextUrl.pathname.startsWith('/demo/cleaned/api/')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('redirect', '/demo/cleaned');
+        return NextResponse.redirect(url);
+    }
+
     return supabaseResponse;
 }
 
 export const config = {
-    matcher: ['/dashboard/:path*'],
+    matcher: ['/dashboard/:path*', '/demo/cleaned/:path*'],
 };
