@@ -29,7 +29,7 @@
             },
             background: [10, 10, 16, 0.4],
             border: [255, 255, 255, 0.15],
-            padding: { cqi: 2.5, min: 2, max: 8 },
+            padding: { cqi: 3.2, min: 4, max: 12 },
             gap: { cqi: 1.5, min: 1, max: 4 }
         },
         header: {
@@ -47,13 +47,13 @@
             subtitleLineHeight: 1.2,
             subtitleLetterSpacing: 0.5,
             subtitleColor: [255, 255, 255, 0.6],
-            titleGapPx: 4,
+            titleGapPx: 2,
             dividerMarginPx: 4,
             dividerColor: [255, 255, 255, 0.1]
         },
         row: {
             gapCqi: 2,
-            paddingYCqi: 1,
+            paddingYCqi: 1.35,
             paddingXCqi: 2,
             innerGapCqi: 2,
             radiusPx: 6,
@@ -66,8 +66,8 @@
             textColor: [255, 255, 255, 0.95]
         },
         badge: {
-            sizeCqi: 5.5,
-            fontSizeCqi: 3.5,
+            sizeCqi: 6.6,
+            fontSizeCqi: 3.2,
             fontWeight: 700,
             textColor: [255, 255, 255, 1],
             shadow: {
@@ -82,10 +82,13 @@
             nodeRadius: 5,
             nodeStrokeColor: [255, 255, 255, 1],
             nodeStrokeWidth: 1.5,
-            issueBadgeRadius: 12,
-            praiseBadgeRadius: 14,
+            issueBadgeRadius: 7,
+            praiseBadgeRadius: 8,
             badgeStrokeColor: [0, 0, 0, 0.2],
             badgeStrokeWidth: 1.5
+        },
+        overlayBadge: {
+            fontSizeScale: 0.5
         },
         issuePalette: [
             [255, 90, 40],
@@ -472,6 +475,8 @@
         const rowPadX = Math.max(4, THEME_V1.row.paddingXCqi * cqi);
         const rowInnerGap = Math.max(4, THEME_V1.row.innerGapCqi * cqi);
         const dividerMargin = THEME_V1.header.dividerMarginPx;
+        const headerTextOffsetY = Math.max(1, 0.45 * cqi);
+        const rowTextOffsetY = Math.max(1, 0.35 * cqi);
 
         const titleLetterSpacing = THEME_V1.header.titleLetterSpacing;
         const subtitleLetterSpacing = THEME_V1.header.subtitleLetterSpacing;
@@ -563,7 +568,7 @@
             height: accentHeight
         };
         const titleX = accentRect.x + accentRect.width + headerGap;
-        const titleTop = panelY + panelPad + Math.max(0, (headerHeight - (titleLineHeight + THEME_V1.header.titleGapPx + subtitleLineHeight)) / 2);
+        const titleTop = panelY + panelPad + Math.max(0, (headerHeight - (titleLineHeight + THEME_V1.header.titleGapPx + subtitleLineHeight)) / 2) + headerTextOffsetY;
         const subtitleTop = titleTop + titleLineHeight + THEME_V1.header.titleGapPx;
         const dividerRect = {
             x: panelX + panelPad,
@@ -590,9 +595,9 @@
             };
             row.textBox = {
                 x: row.badgeRect.x + row.badgeRect.width + rowInnerGap,
-                y: row.rect.y + rowPadY,
+                y: row.rect.y + rowPadY + rowTextOffsetY,
                 width: rowTextWidth,
-                height: Math.max(rowLineHeight, row.rowHeight - (rowPadY * 2))
+                height: Math.max(rowLineHeight, row.rowHeight - (rowPadY * 2) - rowTextOffsetY)
             };
             row.textLines = computeTextLines(
                 row.description,
@@ -629,7 +634,10 @@
             row.overlayBadge = {
                 x: row.centroid.x,
                 y: row.centroid.y,
-                radius: row.kind === "praise" ? THEME_V1.leader.praiseBadgeRadius : THEME_V1.leader.issueBadgeRadius
+                radius: Math.max(
+                    row.badgeRect.width / 2,
+                    row.kind === "praise" ? THEME_V1.leader.praiseBadgeRadius : THEME_V1.leader.issueBadgeRadius
+                )
             };
 
             currentY += row.rowHeight;
@@ -859,7 +867,7 @@
                     x="${row.overlayBadge.x.toFixed(2)}"
                     y="${row.overlayBadge.y.toFixed(2)}"
                     font-family="${pathEscape(THEME_V1.fontFamily)}"
-                    font-size="${plan.metrics.badgeFontSize.toFixed(2)}"
+                    font-size="${(plan.metrics.badgeFontSize * THEME_V1.overlayBadge.fontSizeScale).toFixed(2)}"
                     font-weight="${THEME_V1.badge.fontWeight}"
                     fill="${rgbaToCss(THEME_V1.badge.textColor)}"
                     text-anchor="middle"

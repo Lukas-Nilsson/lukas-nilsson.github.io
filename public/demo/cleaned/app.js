@@ -11,115 +11,11 @@ const IS_SITE_EMBEDDED_DEMO =
     window.location.pathname === `${SITE_DEMO_PATH}/` ||
     window.location.pathname.startsWith(`${SITE_DEMO_PATH}/`);
 const API_URL = IS_SITE_EMBEDDED_DEMO ? SITE_DEMO_PATH : (IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL);
-const debugLogStore = [];
-const DEBUG_LOG_LIMIT = 250;
 let maxObservedViewportHeight = 0;
 
-function formatDebugValue(value) {
-    if (typeof value === "string") return value;
-    if (value instanceof Error) return `${value.name}: ${value.message}`;
-    try {
-        return JSON.stringify(value);
-    } catch (_) {
-        return String(value);
-    }
-}
+function appendDebugLog() {}
 
-function appendDebugLog(level, args) {
-    const ts = new Date().toISOString();
-    const line = `[${ts}] ${level.toUpperCase()} ${args.map(formatDebugValue).join(" ")}`;
-    debugLogStore.push(line);
-    if (debugLogStore.length > DEBUG_LOG_LIMIT) {
-        debugLogStore.splice(0, debugLogStore.length - DEBUG_LOG_LIMIT);
-    }
-}
-
-function snapshotLayout(label, extra = {}) {
-    appendDebugLog("event", [{ label, ...extra }]);
-}
-
-function setupDebugOverlay() {
-    const originalConsole = {
-        log: console.log.bind(console),
-        warn: console.warn.bind(console),
-        error: console.error.bind(console),
-        info: console.info ? console.info.bind(console) : console.log.bind(console)
-    };
-
-    console.log = (...args) => {
-        appendDebugLog("log", args);
-        originalConsole.log(...args);
-    };
-    console.warn = (...args) => {
-        appendDebugLog("warn", args);
-        originalConsole.warn(...args);
-    };
-    console.error = (...args) => {
-        appendDebugLog("error", args);
-        originalConsole.error(...args);
-    };
-    console.info = (...args) => {
-        appendDebugLog("info", args);
-        originalConsole.info(...args);
-    };
-
-    window.addEventListener("error", (event) => {
-        appendDebugLog("window-error", [event.message, event.filename, event.lineno, event.colno]);
-    });
-    window.addEventListener("unhandledrejection", (event) => {
-        appendDebugLog("unhandledrejection", [event.reason]);
-    });
-
-    const overlay = document.createElement("div");
-    overlay.className = "debug-overlay";
-    overlay.innerHTML = `
-        <button class="debug-overlay-btn" id="copyDebugLogsBtn" type="button">Copy Debug Logs</button>
-    `;
-    document.body.appendChild(overlay);
-
-    async function copyLogs() {
-        appendDebugLog("copy", ["manual-copy"]);
-        const payload = debugLogStore.join("\n");
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(payload);
-            } else {
-                const ta = document.createElement("textarea");
-                ta.value = payload;
-                ta.setAttribute("readonly", "");
-                ta.style.position = "fixed";
-                ta.style.opacity = "0";
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand("copy");
-                ta.remove();
-            }
-            appendDebugLog("copy", ["copied-debug-logs"]);
-            const btn = document.getElementById("copyDebugLogsBtn");
-            if (btn) {
-                const old = btn.textContent;
-                btn.textContent = "Copied";
-                setTimeout(() => {
-                    btn.textContent = old;
-                }, 1200);
-            }
-        } catch (error) {
-            appendDebugLog("copy-error", [error]);
-            alert("Failed to copy logs");
-        }
-    }
-
-    const copyBtn = document.getElementById("copyDebugLogsBtn");
-    if (copyBtn) copyBtn.addEventListener("click", copyLogs);
-
-    appendDebugLog("debug", ["overlay-ready"]);
-}
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupDebugOverlay, { once: true });
-} else {
-    setupDebugOverlay();
-}
+function snapshotLayout() {}
 
 
 // DOM elements

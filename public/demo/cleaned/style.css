@@ -672,7 +672,7 @@ body {
     -webkit-backdrop-filter: blur(28px);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
-    padding: clamp(2px, 2.5cqi, 8px);
+    padding: clamp(4px, 3.2cqi, 12px);
     display: flex;
     flex-direction: column;
     gap: clamp(1px, 1.5cqi, 4px);
@@ -692,6 +692,7 @@ body {
     align-items: center;
     gap: 2cqi;
     margin-bottom: 2px;
+    padding-top: 0.45cqi;
 }
 
 .ai-panel-accent {
@@ -719,7 +720,7 @@ body {
 }
 
 .ai-panel-title h3 {
-    margin: 0 0 4px 0;
+    margin: 0 0 2px 0;
     padding: 0;
     font-size: 3.5cqi;
     font-weight: 700;
@@ -753,7 +754,7 @@ body {
     display: flex;
     align-items: center;
     gap: 2cqi;
-    padding: 1cqi 2cqi;
+    padding: 1.35cqi 2cqi;
     border-radius: 6px;
     border: 1px solid transparent;
     background: rgba(0, 0, 0, 0.2);
@@ -768,14 +769,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 5.5cqi;
-    height: 5.5cqi;
+    width: 6.6cqi;
+    height: 6.6cqi;
     border-radius: 50%;
     color: white;
-    font-size: 3.5cqi;
+    font-size: 3.2cqi;
     font-weight: 700;
     line-height: 0;
-    padding-bottom: 1px;
+    padding-bottom: 0;
     flex-shrink: 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
@@ -790,6 +791,7 @@ body {
     font-size: 3.5cqi;
     line-height: 1.25;
     width: 100%;
+    padding-top: 0.35cqi;
 }
 
 .ai-panel-text:focus {
@@ -918,31 +920,4 @@ body {
 .image-wrapper.hide-ui svg,
 .image-wrapper.hide-ui .ai-panel {
     display: none !important;
-}
-
-.debug-overlay {
-    position: fixed;
-    top: max(12px, env(safe-area-inset-top));
-    right: 12px;
-    z-index: 5000;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.debug-overlay-btn {
-    border: none;
-    border-radius: 999px;
-    background: rgba(12, 12, 18, 0.88);
-    color: white;
-    padding: 10px 14px;
-    font: 600 12px/1 var(--font);
-    letter-spacing: 0.2px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-}
-
-.debug-overlay-btn.secondary {
-    background: rgba(255, 255, 255, 0.14);
 }
