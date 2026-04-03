@@ -17,6 +17,23 @@ function appendDebugLog() {}
 
 function snapshotLayout() {}
 
+function resolveGreetingText() {
+    const params = new URLSearchParams(window.location.search);
+    const viewer = (params.get("viewer") || "").toLowerCase();
+    if (viewer === "horng") return "Hey Horng 👋";
+    if (viewer === "lukas") return "Hey Lukas 👋";
+    return "Hi 👋";
+}
+
+function applyGreeting() {
+    const greetingEl = document.getElementById("welcomeGreeting");
+    if (greetingEl) {
+        greetingEl.textContent = resolveGreetingText();
+    }
+}
+
+applyGreeting();
+
 
 // DOM elements
 const chat = document.getElementById("chat");

@@ -17,6 +17,14 @@ export default async function CleanedDemoPage() {
         redirect('/login?redirect=/demo/cleaned');
     }
 
+    const email = (user.email ?? '').toLowerCase();
+    const viewer =
+        email.includes('horng')
+            ? 'horng'
+            : email.includes('lukas')
+                ? 'lukas'
+                : 'unknown';
+
     return (
         <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0a0a0f' }}>
             <style dangerouslySetInnerHTML={{ __html: `
@@ -32,7 +40,7 @@ export default async function CleanedDemoPage() {
                 }
             ` }} />
             <iframe 
-                src="/demo/cleaned/index.html" 
+                src={`/demo/cleaned/index.html?viewer=${viewer}`}
                 style={{ 
                     position: 'absolute',
                     top: 0,
