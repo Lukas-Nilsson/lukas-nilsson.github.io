@@ -197,8 +197,8 @@ export const workItems: WorkItem[] = [
 /* ─── CTA ──────────────────────────────────────────────────── */
 
 export const contactCta = {
-    title: 'This site is a demonstration. Imagine what the full system can do.',
-    body: 'Reach out to Lukas directly.',
+    title: 'Lukas builds these systems for businesses. Imagine what one could do for yours.',
+    body: 'Reach out directly — or try the AI below.',
     primaryLabel: 'Email Lukas',
     secondaryLabel: 'LinkedIn',
 };

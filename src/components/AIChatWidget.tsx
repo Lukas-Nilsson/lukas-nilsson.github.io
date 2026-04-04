@@ -11,14 +11,14 @@ interface Message {
 const INITIAL_MESSAGE: Message = {
     role: 'assistant',
     content:
-        "I'm Lukas's AI briefing. Ask about The Human Archives, the automation work, or the thesis behind what he's building, and I'll do my best to represent him faithfully.",
+        "I'm part of the same AI system that built this site. Ask me about The Human Archives, the automation agency, or how Lukas builds AI systems for businesses — I'll give you the real picture.",
 };
 
 const SUGGESTIONS = [
+    'What kind of AI systems does Lukas build for businesses?',
     'What is The Human Archives?',
-    'What kind of AI systems is Lukas building for businesses?',
-    "How did South America change what he's building?",
-    "What's the connection between THA and the automation work?",
+    'How was this site actually built by AI?',
+    "What's the AIEO concept?",
 ] as const;
 
 export default function AIChatWidget() {

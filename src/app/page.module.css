@@ -248,3 +248,19 @@
     padding: var(--space-6);
   }
 }
+
+/* ─── Chat demo ────────────────────────────────────────── */
+
+.chatDemo {
+  margin-top: var(--space-12);
+  max-width: 640px;
+}
+
+.chatDemoLabel {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
+}

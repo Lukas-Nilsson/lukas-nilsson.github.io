@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import PublicCta from '@/components/PublicCta';
 import AieoSection from '@/components/AieoSection';
+import AIChatWidget from '@/components/AIChatWidget';
 import {
   currentFocus,
   homeSections,
@@ -99,6 +100,11 @@ export default function HomePage() {
             <AieoSection />
 
             <PublicCta />
+
+            <section className={styles.chatDemo}>
+              <p className={styles.chatDemoLabel}>Live demo — talk to the system</p>
+              <AIChatWidget />
+            </section>
           </div>
         </section>
 
