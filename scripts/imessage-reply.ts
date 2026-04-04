@@ -31,7 +31,7 @@ export function sendMessage(handle: string, text: string): void {
             stdio: 'pipe',
             timeout: 10000,
         });
-    } catch (err) {
+    } catch {
         // Fallback: try the simpler 'send to buddy' syntax
         const fallbackScript = `tell application "Messages" to send "${escapedText}" to buddy "${escapedHandle}" of (1st account whose service type = iMessage)`;
         execSync(`osascript -e '${fallbackScript.replace(/'/g, "'\\''")}'`, {

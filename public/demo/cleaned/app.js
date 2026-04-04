@@ -98,7 +98,7 @@ function applyMobileViewportLayout() {
 
 }
 
-function resetWindowScrollToTop(reason) {
+function resetWindowScrollToTop() {
     if (window.scrollY === 0) return;
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
@@ -116,10 +116,10 @@ if (!window.visualViewport) {
 
 if (textInput) {
     textInput.addEventListener("focus", () => {
-        resetWindowScrollToTop("focus");
+        resetWindowScrollToTop();
     });
     textInput.addEventListener("blur", () => {
-        resetWindowScrollToTop("blur");
+        resetWindowScrollToTop();
     });
 }
 
@@ -129,7 +129,6 @@ let globalActiveUploadFile = null;
 // Global pointer for edit syncing
 window._lastImageWrapper = null;
 let globalPreviousAnalysisData = null;
-let globalUndoStack = [];
 window.approvedPhotos = [];
 
 window.updateCartUI = function() {
@@ -638,7 +637,7 @@ function parseResponseDetail(responseText) {
     try {
         const parsed = JSON.parse(responseText);
         return parsed && typeof parsed.detail === "string" ? parsed.detail : responseText.slice(0, 500);
-    } catch (_) {
+    } catch {
         return responseText.slice(0, 500);
     }
 }
@@ -1386,10 +1385,10 @@ function addErrorMessage(errorText) {
 // Lightbox
 // ===========================
 
-function openLightbox(src) {
+window.openLightbox = function openLightbox(src) {
     lightboxImage.src = src;
     lightbox.classList.add("visible");
-}
+};
 
 lightboxClose.addEventListener("click", () => {
     lightbox.classList.remove("visible");
@@ -1490,7 +1489,7 @@ if (window.visualViewport) {
     const handleViewportChange = () => {
         applyMobileViewportLayout();
         if (document.activeElement === textInput) {
-            requestAnimationFrame(() => resetWindowScrollToTop("viewport-change"));
+            requestAnimationFrame(() => resetWindowScrollToTop());
         }
     };
     window.visualViewport.addEventListener("resize", handleViewportChange);
@@ -1512,7 +1511,7 @@ document.addEventListener('pointerdown', (e) => {
 
 window.addEventListener("scroll", () => {
     if (document.activeElement === textInput) {
-        resetWindowScrollToTop("window-scroll");
+        resetWindowScrollToTop();
     }
 }, { passive: true });
 
@@ -1745,7 +1744,7 @@ window.compileAndDownloadEmail = async function(btnOverride) {
                 }, 2000);
             }
         }
-    } catch(e) {
+    } catch {
         msg.innerHTML = `
             <div class="message-avatar">AI</div>
             <div class="message-content">
@@ -1767,7 +1766,7 @@ window.shareReportZip = async function(btnOverride) {
     
     // Quick device check for file share support
     let testFile;
-    try { testFile = new File([''], 'test.txt', {type: 'text/plain'}); } catch(e){}
+    try { testFile = new File([''], 'test.txt', {type: 'text/plain'}); } catch {}
     if (!navigator.canShare || !navigator.canShare({ files: [testFile] })) {
         addErrorMessage("Your browser or device does not support native file sharing. Use Download Zip or Email Draft instead.");
         return;
@@ -1832,7 +1831,7 @@ window.shareReportZip = async function(btnOverride) {
         } else {
             throw new Error("Compilation failed");
         }
-    } catch(e) {
+    } catch {
         addErrorMessage("Failed to prepare zip for sharing.");
         if (btnOverride) {
             btnOverride.innerHTML = originalText;

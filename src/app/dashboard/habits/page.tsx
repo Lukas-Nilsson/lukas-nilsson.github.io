@@ -74,7 +74,7 @@ function HabitModal({ state, date, onClose, onSave }: {
                 body: JSON.stringify({ date, habit_id: habitIdMap[state.key], done, value, notes: notes || null }),
             });
             if (res.ok) { onSave(state.key, done, value, notes || null); onClose(); }
-            else { const e = await res.json(); onClose(); }
+            else { await res.json(); onClose(); }
         } catch (e) { console.error('Save failed:', e); }
         setSaving(false);
     };

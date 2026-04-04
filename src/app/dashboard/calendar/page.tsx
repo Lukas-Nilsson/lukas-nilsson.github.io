@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef, type DragEvent } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import styles from '../dashboard.module.css';
 import DashboardShell from '../DashboardShell';
@@ -255,7 +255,15 @@ export default function CalendarPage() {
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const calendarBodyRef = useRef<HTMLDivElement>(null);
 
-    const toggleSource = (s: string) => setVisibleSources(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
+    const toggleSource = (s: string) => setVisibleSources(prev => {
+        const next = new Set(prev);
+        if (next.has(s)) {
+            next.delete(s);
+        } else {
+            next.add(s);
+        }
+        return next;
+    });
 
     const filteredEvents = useMemo(() => events.filter(ev => {
         // Google/calendar events: filter by account (personal/business)
@@ -931,9 +939,7 @@ function TimeGrid({ events, dates, tasks, showTaskUI, showHabitUI, onSlotClick, 
         if (gridRef.current) {
             gridRef.current.scrollTop = (7 - START_HOUR) * hourHeight;
         }
-    }, [dates.length]);
-
-    const handleDragOver = (e: DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; };
+    }, [dates.length, hourHeight]);
 
     return (
         <div ref={gridRef} style={{ display: 'flex', height: '100%', overflow: 'auto' }}>
@@ -1753,20 +1759,21 @@ function SyncIndicator({ status, lastSyncedAt, onSync }: {
     lastSyncedAt: Date | null;
     onSync: () => void;
 }) {
+    const [nowMs, setNowMs] = useState(() => Date.now());
+
     const formatAgo = (d: Date | null): string => {
         if (!d) return '';
-        const s = Math.floor((Date.now() - d.getTime()) / 1000);
+        const s = Math.floor((nowMs - d.getTime()) / 1000);
         if (s < 10) return 'just now';
         if (s < 60) return `${s}s ago`;
         if (s < 3600) return `${Math.floor(s / 60)}m ago`;
         return `${Math.floor(s / 3600)}h ago`;
     };
 
-    const [, setTick] = useState(0);
     // Update "X ago" every 15s
     useEffect(() => {
         if (!lastSyncedAt) return;
-        const t = setInterval(() => setTick(n => n + 1), 15_000);
+        const t = setInterval(() => setNowMs(Date.now()), 15_000);
         return () => clearInterval(t);
     }, [lastSyncedAt]);
 

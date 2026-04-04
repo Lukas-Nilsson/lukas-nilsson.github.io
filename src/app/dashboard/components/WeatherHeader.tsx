@@ -9,6 +9,22 @@ interface WeatherData {
     location: string; fetched_at: string; cached?: boolean;
 }
 
+function StatPill({ icon, label, value }: { icon: string; label: string; value: string }) {
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+            borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.15)',
+            border: '1px solid rgba(255,255,255,0.10)', fontSize: 'var(--text-xs)',
+        }}>
+            <span style={{ fontSize: 14 }}>{icon}</span>
+            <div>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                <div style={{ color: '#fff', fontWeight: 600 }}>{value}</div>
+            </div>
+        </div>
+    );
+}
+
 export default function WeatherHeader({ selectedDate }: { selectedDate?: string }) {
     const [weather, setWeather] = useState<WeatherData | null>(null);
 
@@ -26,20 +42,6 @@ export default function WeatherHeader({ selectedDate }: { selectedDate?: string 
     const gradientBg = isDay
         ? 'linear-gradient(135deg, rgba(40,90,140,0.35) 0%, rgba(70,140,200,0.20) 50%, rgba(200,160,60,0.12) 100%)'
         : 'linear-gradient(135deg, rgba(15,15,50,0.50) 0%, rgba(35,35,80,0.35) 50%, rgba(60,40,100,0.20) 100%)';
-
-    const StatPill = ({ icon, label, value }: { icon: string; label: string; value: string }) => (
-        <div style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-            borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.15)',
-            border: '1px solid rgba(255,255,255,0.10)', fontSize: 'var(--text-xs)',
-        }}>
-            <span style={{ fontSize: 14 }}>{icon}</span>
-            <div>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                <div style={{ color: '#fff', fontWeight: 600 }}>{value}</div>
-            </div>
-        </div>
-    );
 
     return (
         <div style={{

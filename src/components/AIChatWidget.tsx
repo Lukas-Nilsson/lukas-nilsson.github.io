@@ -11,8 +11,15 @@ interface Message {
 const INITIAL_MESSAGE: Message = {
     role: 'assistant',
     content:
-        'Hi — I\'m Lukas\'s AI. Ask me anything about his work, philosophy, or what he\'s building. I\'ll do my best to represent him faithfully.',
+        "I'm Lukas's AI briefing. Ask about The Human Archives, the automation work, or the thesis behind what he's building, and I'll do my best to represent him faithfully.",
 };
+
+const SUGGESTIONS = [
+    'What is The Human Archives?',
+    'What kind of AI systems is Lukas building for businesses?',
+    "How did South America change what he's building?",
+    "What's the connection between THA and the automation work?",
+] as const;
 
 export default function AIChatWidget() {
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
@@ -104,18 +111,11 @@ export default function AIChatWidget() {
         }
     };
 
-    const SUGGESTIONS = [
-        "What are you currently building?",
-        "What's your philosophy on technology?",
-        "Tell me about The Human Archives",
-        "What kind of work do you take on?",
-    ];
-
     return (
         <div className={styles.widget}>
             <div className={styles.header}>
                 <div className={styles.statusDot} aria-hidden="true" />
-                <span className={styles.headerLabel}>Ask Lukas anything</span>
+                <span className={styles.headerLabel}>AI briefing</span>
             </div>
 
             <div className={styles.messages} role="log" aria-live="polite" aria-label="Chat messages">
@@ -163,7 +163,7 @@ export default function AIChatWidget() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask me anything..."
+                    placeholder="Ask about the work..."
                     rows={1}
                     disabled={isLoading}
                     aria-label="Your message"

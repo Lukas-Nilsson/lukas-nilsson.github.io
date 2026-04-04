@@ -18,6 +18,13 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+interface CalendarApiEvent {
+    summary: string;
+    description: string;
+    start: { dateTime: string; timeZone: string };
+    end: { dateTime: string; timeZone: string };
+}
+
 async function getAccessToken(): Promise<string> {
     const { data, error } = await supabase
         .from('calendar_tokens')
@@ -43,7 +50,7 @@ async function getAccessToken(): Promise<string> {
     return json.access_token;
 }
 
-async function createEvent(accessToken: string, event: any) {
+async function createEvent(accessToken: string, event: CalendarApiEvent) {
     const res = await fetch(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events',
         {

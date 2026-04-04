@@ -19,7 +19,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getAccessToken as getClickUpToken, getAllTasks, mapClickUpTask } from '@/lib/clickup';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { createHash } from 'crypto';
 
 import type {
     StateSnapshot,

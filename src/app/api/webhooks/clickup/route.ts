@@ -11,10 +11,6 @@ import { NextRequest, NextResponse } from 'next/server';
  * We just invalidate the cache so the next GET is fresh.
  */
 
-// In-memory timestamp of last ClickUp change. The GET endpoint checks this
-// to decide whether to re-fetch from ClickUp or serve a cached response.
-let lastClickUpChange = Date.now();
-
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -28,9 +24,6 @@ export async function POST(req: NextRequest) {
         const taskId = body.task_id;
 
         console.log(`[ClickUp Webhook] ${event} — task ${taskId}`);
-
-        // Bump the change timestamp — signals to the frontend that data is stale
-        lastClickUpChange = Date.now();
 
         return NextResponse.json({ ok: true, event, task_id: taskId });
     } catch (e) {

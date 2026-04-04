@@ -85,8 +85,8 @@ function buildPriorityStack(
             const isCompleted = completedSet.has(taskName);
             const meta = metaMap.get(taskName) ?? null;
 
-            let dueStr = meta?.due_date ?? overdueEntry?.due ?? null;
-            let dueDate: Date | null = dueStr ? new Date(dueStr + 'T00:00:00') : null;
+            const dueStr = meta?.due_date ?? overdueEntry?.due ?? null;
+            const dueDate: Date | null = dueStr ? new Date(dueStr + 'T00:00:00') : null;
 
             let overdueDays = 0;
             if (dueDate && dueDate < today) {

@@ -10,7 +10,7 @@
         <string>/opt/homebrew/bin/npx</string>
         <string>tsx</string>
         <string>--require</string>
-        <string>./scripts/preload-env.js</string>
+        <string>./scripts/preload-env.cjs</string>
         <string>/Users/lukas/dev/lukas-nilsson.github.io/scripts/what-changed.ts</string>
         <string>--notify</string>
     </array>

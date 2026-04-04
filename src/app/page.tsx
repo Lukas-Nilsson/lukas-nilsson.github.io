@@ -1,73 +1,111 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
-import AIChatWidget from '@/components/AIChatWidget';
+import PublicCta from '@/components/PublicCta';
+import AieoSection from '@/components/AieoSection';
+import {
+  currentFocus,
+  homeSections,
+  homeSnapshot,
+  homeSubheadline,
+  personStructuredData,
+  selectedHeroHeadline,
+  siteDescription,
+} from '@/lib/site-content';
 import styles from './page.module.css';
+
+export const metadata: Metadata = {
+  description: siteDescription,
+  alternates: {
+    canonical: '/',
+  },
+};
 
 export default function HomePage() {
   return (
     <>
       <Navigation />
-      <main>
-        {/* Hero */}
+      <main className={styles.main}>
         <section className={styles.hero}>
-          {/* Background ambient glow */}
           <div className={styles.heroBg} aria-hidden="true">
             <div className={styles.glow1} />
             <div className={styles.glow2} />
           </div>
 
           <div className={`container ${styles.heroInner}`}>
-            {/* Left: Identity */}
             <div className={styles.heroLeft}>
               <p className={`${styles.eyebrow} animate-fade-in-up`}>
-                Tech creative · Founder · Truth seeker
+                Software engineer · Founder · Melbourne
               </p>
               <h1 className={`${styles.heroTitle} animate-fade-in-up`} style={{ animationDelay: '80ms' }}>
-                Lukas
-                <br />
-                <span className="gradient-text">Nilsson</span>
+                {selectedHeroHeadline}
               </h1>
-              <p className={`${styles.heroQuote} animate-fade-in-up`} style={{ animationDelay: '200ms' }}>
-                &ldquo;A visionary builder — philosopher, artist, and teacher —
-                who uses story, technology, and disciplined optimism to inspire
-                human agency and meaning by revealing the beauty in the world.&rdquo;
-              </p>
-              <p className={`${styles.quoteAttr} animate-fade-in-up`} style={{ animationDelay: '260ms' }}>
-                — ChatGPT, when asked to describe me in one sentence
+              <p className={`${styles.heroSubheadline} animate-fade-in-up`} style={{ animationDelay: '180ms' }}>
+                {homeSubheadline}
               </p>
 
-              <div className={`${styles.heroCta} animate-fade-in-up`} style={{ animationDelay: '340ms' }}>
-                <a href="/about" className="btn btn-primary">About me</a>
-                <a href="/projects" className="btn btn-ghost">Projects</a>
+              <div className={`${styles.heroCta} animate-fade-in-up`} style={{ animationDelay: '260ms' }}>
+                <a href="mailto:lukasnilssonbusiness@gmail.com" className="btn btn-primary">
+                  Email Lukas
+                </a>
+                <Link href="/work" className="btn btn-ghost">
+                  See the work
+                </Link>
               </div>
             </div>
 
-            {/* Right: AI Chat */}
-            <div className={`${styles.heroRight} animate-fade-in-up`} style={{ animationDelay: '200ms' }}>
-              <div className={styles.chatLabel}>
-                <div className={styles.chatLabelDot} />
-                <span>Chat with my AI — it knows me well</span>
+            <aside className={`${styles.heroRight} animate-fade-in-up`} style={{ animationDelay: '200ms' }}>
+              <div className={styles.focusCard}>
+                <p className={styles.cardEyebrow}>Current focus</p>
+                <ul className={styles.focusList}>
+                  {currentFocus.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
               </div>
-              <AIChatWidget />
-            </div>
+
+              <dl className={styles.snapshotGrid}>
+                {homeSnapshot.map(({ label, value }) => (
+                  <div key={label} className={styles.snapshotItem}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </aside>
           </div>
         </section>
 
-        {/* Brief intro strip */}
-        <section className={styles.intro}>
-          <div className={`container ${styles.introGrid}`}>
-            {[
-              { label: 'Currently building', value: 'The Human Archives' },
-              { label: 'Based in', value: 'Australia' },
-              { label: 'Focused on', value: 'AI × Human Potential' },
-              { label: 'Philosophy', value: 'Disciplined optimism' },
-            ].map(({ label, value }) => (
-              <div key={label} className={styles.introItem}>
-                <span className={styles.introLabel}>{label}</span>
-                <span className={styles.introValue}>{value}</span>
-              </div>
-            ))}
+        <section className={styles.sections}>
+          <div className="container">
+            <div className={styles.sectionGrid}>
+              {homeSections.map((section, index) => (
+                <article
+                  key={section.title}
+                  className={`${styles.sectionCard} animate-fade-in-up`}
+                  style={{ animationDelay: `${120 + index * 80}ms` }}
+                >
+                  <p className={styles.sectionEyebrow}>0{index + 1}</p>
+                  <h2 className={styles.sectionTitle}>{section.title}</h2>
+                  <div className={styles.sectionBody}>
+                    {section.body.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <AieoSection />
+
+            <PublicCta />
           </div>
         </section>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(personStructuredData) }}
+        />
       </main>
     </>
   );

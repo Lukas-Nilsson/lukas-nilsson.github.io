@@ -1,14 +1,11 @@
 'use client';
 
-import type { User } from '@supabase/supabase-js';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AreaChart, BarChart, LineChart } from '@/components/charts/Charts';
 import WeatherHeader from './components/WeatherHeader';
 import DashboardShell from './DashboardShell';
 import MessagesWidget from '@/components/MessagesWidget';
 import styles from './dashboard.module.css';
-
-interface Props { user: User; }
 
 interface HabitDefinition {
     habit_id: string;
@@ -66,6 +63,18 @@ const catColors: Record<string, string> = {
     Wedding: '#a07040', THA: '#7a5030', Home: '#8a7a5a',
     Fitness: '#5a8a5a', Finance: '#5a7a8a', Personal: '#7a5a8a', Dev: '#8a5a5a',
     Uncategorized: '#6a6a6a',
+};
+
+const recoveryAdvice: Record<string, string> = {
+    green: 'High recovery — great day for intense work & training',
+    yellow: 'Moderate recovery — pace yourself today',
+    red: 'Low recovery — prioritize rest and light activity',
+};
+
+const recoveryColors: Record<string, { bg: string; border: string; text: string }> = {
+    green: { bg: 'rgba(90,154,90,0.08)', border: 'rgba(90,154,90,0.25)', text: '#6db86d' },
+    yellow: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.25)', text: '#c9a84c' },
+    red: { bg: 'rgba(192,112,112,0.08)', border: 'rgba(192,112,112,0.25)', text: '#c07070' },
 };
 
 function fmt(dateStr: string) {
@@ -447,7 +456,7 @@ function WeeklyHeatmap({ history }: { history: DashboardData['habitHistory'] }) 
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return (
         <div className={styles.heatmapRow}>
-            {last7.map((d, i) => {
+            {last7.map((d) => {
                 const total = checkDefs.length;
                 const done = checkDefs.filter(c => d.checks?.[c.key]?.done).length;
                 const ratio = done / total;
@@ -636,11 +645,25 @@ function TasksWidget({ data }: { data: DashboardData['tasks'] }) {
     const toggleTask = async (name: string, cat: string, done: boolean) => {
         setSaving(name);
         const action = done ? 'uncomplete' : 'complete';
-        setCompletions(prev => { const n = new Set(prev); done ? n.delete(name) : n.add(name); return n; });
+        const applyCompletionChange = (shouldBeDone: boolean) => {
+            setCompletions(prev => {
+                const next = new Set(prev);
+                if (shouldBeDone) {
+                    next.add(name);
+                } else {
+                    next.delete(name);
+                }
+                return next;
+            });
+        };
+
+        applyCompletionChange(!done);
         try {
             const r = await fetch('/api/dashboard/tasks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_name: name, category: cat, action }) });
-            if (!r.ok) setCompletions(prev => { const n = new Set(prev); done ? n.add(name) : n.delete(name); return n; });
-        } catch { setCompletions(prev => { const n = new Set(prev); done ? n.add(name) : n.delete(name); return n; }); }
+            if (!r.ok) applyCompletionChange(done);
+        } catch {
+            applyCompletionChange(done);
+        }
         setSaving(null);
     };
 
@@ -895,8 +918,6 @@ function MorningBriefWidget({ data, selectedDate }: { data: DashboardData; selec
     const todayHabits = data.habitHistory?.[data.habitHistory.length - 1];
     const whoop = data.whoop;
     const tasks = data.tasks;
-    const history = data.habitHistory ?? [];
-
     // For past dates: load saved brief
     useEffect(() => {
         if (isPast && selectedDate) {
@@ -904,8 +925,6 @@ function MorningBriefWidget({ data, selectedDate }: { data: DashboardData; selec
                 .then(r => r.json())
                 .then(d => { if (d.brief) setSavedBrief(d.brief); else setSavedBrief(null); })
                 .catch(() => setSavedBrief(null));
-        } else {
-            setSavedBrief(null);
         }
     }, [isPast, selectedDate]);
 
@@ -921,35 +940,6 @@ function MorningBriefWidget({ data, selectedDate }: { data: DashboardData; selec
     // Recovery context
     const recovery = whoop?.recovery ?? null;
     const recoveryLevel = recovery !== null ? (recovery >= 67 ? 'green' : recovery >= 34 ? 'yellow' : 'red') : null;
-    const recoveryAdvice: Record<string, string> = {
-        green: 'High recovery — great day for intense work & training',
-        yellow: 'Moderate recovery — pace yourself today',
-        red: 'Low recovery — prioritize rest and light activity',
-    };
-    const recoveryColors: Record<string, { bg: string; border: string; text: string }> = {
-        green: { bg: 'rgba(90,154,90,0.08)', border: 'rgba(90,154,90,0.25)', text: '#6db86d' },
-        yellow: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.25)', text: '#c9a84c' },
-        red: { bg: 'rgba(192,112,112,0.08)', border: 'rgba(192,112,112,0.25)', text: '#c07070' },
-    };
-
-    // Overdue tasks
-    const overdueTasks = tasks?.overdue_tasks?.slice(0, 3) ?? [];
-    const overdueCount = tasks?.overdue_tasks?.length ?? 0;
-
-    // Streaks at risk
-    const streaksAtRisk: { label: string; icon: string; streak: number }[] = [];
-    if (todayHabits && history.length >= 2) {
-        for (const c of checkDefs) {
-            if (todayHabits.checks?.[c.key]?.done) continue;
-            let count = 0;
-            for (let i = history.length - 2; i >= 0; i--) {
-                if (history[i].checks?.[c.key]?.done) count++;
-                else break;
-            }
-            if (count > 0) streaksAtRisk.push({ label: c.label, icon: c.icon, streak: count });
-        }
-    }
-
     const todayDone = todayHabits ? checkDefs.filter(c => todayHabits.checks?.[c.key]?.done).length : 0;
     const todayTotal = checkDefs.length;
 
@@ -957,38 +947,61 @@ function MorningBriefWidget({ data, selectedDate }: { data: DashboardData; selec
     const hour = parseInt(melbourneHour, 10);
     const timeIcon = hour < 12 ? '☀️' : hour < 17 ? '⛅' : '🌙';
 
-    // Build items — primary items always visible, secondary toggled
-    const primaryItems: { icon: string; text: string; color?: string; accent?: boolean }[] = [];
-    const secondaryItems: { icon: string; text: string; color?: string }[] = [];
+    const { primaryItems, secondaryItems } = useMemo(() => {
+        const history = data.habitHistory ?? [];
+        const nextPrimary: { icon: string; text: string; color?: string; accent?: boolean }[] = [];
+        const nextSecondary: { icon: string; text: string; color?: string }[] = [];
+        const overdueTasks = tasks?.overdue_tasks?.slice(0, 3) ?? [];
+        const overdueCount = tasks?.overdue_tasks?.length ?? 0;
+        const streaksAtRisk: { label: string; icon: string; streak: number }[] = [];
 
-    if (recoveryLevel) {
-        primaryItems.push({ icon: '❤️', text: `Recovery ${recovery}% — ${recoveryAdvice[recoveryLevel]}`, color: recoveryColors[recoveryLevel].text, accent: true });
-    }
+        if (todayHabits && history.length >= 2) {
+            for (const c of checkDefs) {
+                if (todayHabits.checks?.[c.key]?.done) continue;
+                let count = 0;
+                for (let i = history.length - 2; i >= 0; i--) {
+                    if (history[i].checks?.[c.key]?.done) count++;
+                    else break;
+                }
+                if (count > 0) {
+                    streaksAtRisk.push({ label: c.label, icon: c.icon, streak: count });
+                }
+            }
+        }
 
-    primaryItems.push({ icon: '✅', text: `${todayDone}/${todayTotal} habits done today` });
+        if (recoveryLevel) {
+            nextPrimary.push({ icon: '❤️', text: `Recovery ${recovery}% — ${recoveryAdvice[recoveryLevel]}`, color: recoveryColors[recoveryLevel].text, accent: true });
+        }
 
-    if (overdueCount > 0) {
-        const names = overdueTasks.map(t => t.name).join(', ');
-        secondaryItems.push({ icon: '⚠️', text: `${overdueCount} overdue: ${names}`, color: '#c07070' });
-    }
+        nextPrimary.push({ icon: '✅', text: `${todayDone}/${todayTotal} habits done today` });
 
-    if (streaksAtRisk.length > 0) {
-        const riskText = streaksAtRisk.map(s => `${s.icon} ${s.label} (🔥${s.streak})`).join(', ');
-        secondaryItems.push({ icon: '💀', text: `Streaks at risk: ${riskText}`, color: '#e8973a' });
-    }
+        if (overdueCount > 0) {
+            const names = overdueTasks.map(t => t.name).join(', ');
+            nextSecondary.push({ icon: '⚠️', text: `${overdueCount} overdue: ${names}`, color: '#c07070' });
+        }
 
-    if (tasks) {
-        secondaryItems.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
-    }
+        if (streaksAtRisk.length > 0) {
+            const riskText = streaksAtRisk.map(s => `${s.icon} ${s.label} (🔥${s.streak})`).join(', ');
+            nextSecondary.push({ icon: '💀', text: `Streaks at risk: ${riskText}`, color: '#e8973a' });
+        }
 
-    // Email items
-    if (emails.length > 0) {
-        secondaryItems.push({ icon: '📧', text: `${emails.length} important email${emails.length > 1 ? 's' : ''}:`, color: '#7a9ec9' });
-    }
+        if (tasks) {
+            nextSecondary.push({ icon: '📝', text: `${tasks.total_open} tasks open, ${tasks.total_done} completed` });
+        }
+
+        if (emails.length > 0) {
+            nextSecondary.push({ icon: '📧', text: `${emails.length} important email${emails.length > 1 ? 's' : ''}:`, color: '#7a9ec9' });
+        }
+
+        return { primaryItems: nextPrimary, secondaryItems: nextSecondary };
+    }, [data.habitHistory, emails, recovery, recoveryLevel, tasks, todayDone, todayHabits, todayTotal]);
 
     // Auto-save today's brief (ref-based to avoid unstable deps)
     const briefDataRef = useRef({ primaryItems, secondaryItems, emails });
-    briefDataRef.current = { primaryItems, secondaryItems, emails };
+
+    useEffect(() => {
+        briefDataRef.current = { primaryItems, secondaryItems, emails };
+    }, [primaryItems, secondaryItems, emails]);
 
     useEffect(() => {
         if (!isToday || briefSaved) return;
@@ -1122,15 +1135,13 @@ function EmptyWidget({ icon, title, message }: { icon: string; title: string; me
 
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function DashboardClient({ user }: Props) {
+export default function DashboardClient() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [mounted, setMounted] = useState(false);
     // null = not yet loaded; number = index into habitHistory
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
     useEffect(() => {
-        setMounted(true);
         fetch('/api/dashboard')
             .then(r => r.json())
             .then(d => {
@@ -1151,7 +1162,6 @@ export default function DashboardClient({ user }: Props) {
 
     // ── Live polling: refresh every 60s ──
     useEffect(() => {
-        if (!mounted) return;
         const interval = setInterval(() => {
             fetch('/api/dashboard')
                 .then(r => r.json())
@@ -1164,19 +1174,21 @@ export default function DashboardClient({ user }: Props) {
                 .catch(() => { });
         }, 60_000);
         return () => clearInterval(interval);
-    }, [mounted]);
+    }, []);
 
 
-    // Defer Date rendering to client-only to prevent hydration mismatch (server=UTC, client=AEST)
-    const today = mounted ? new Date() : null;
-    const melbourneHourForGreeting = today
-        ? parseInt(today.toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false }), 10)
-        : 12;
-    const greeting = today
-        ? (melbourneHourForGreeting < 12 ? 'Good morning' : melbourneHourForGreeting < 17 ? 'Good afternoon' : 'Good evening')
-        : 'Welcome';
+    const today = new Date();
+    const melbourneHourForGreeting = parseInt(
+        today.toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false }),
+        10
+    );
+    const greeting = melbourneHourForGreeting < 12
+        ? 'Good morning'
+        : melbourneHourForGreeting < 17
+            ? 'Good afternoon'
+            : 'Good evening';
 
-    const lastSyncedLabel = data?.lastSynced && mounted
+    const lastSyncedLabel = data?.lastSynced
         ? `Synced ${new Date(data.lastSynced).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} at ${new Date(data.lastSynced).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}`
         : 'Not yet synced';
 
@@ -1185,9 +1197,9 @@ export default function DashboardClient({ user }: Props) {
             <main className={styles.main}>
                 <header className={styles.header}>
                     <div style={{ flex: 1 }}>
-                        <h1 className={styles.greeting}>{greeting}, Lukas.</h1>
-                        <p className={styles.date}>
-                            {today ? today.toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                        <h1 className={styles.greeting} suppressHydrationWarning>{greeting}, Lukas.</h1>
+                        <p className={styles.date} suppressHydrationWarning>
+                            {today.toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                     </div>
 
@@ -1225,7 +1237,7 @@ export default function DashboardClient({ user }: Props) {
                     )}
 
                     <div className={styles.headerMeta}>
-                        <span className={styles.userBadge} title={lastSyncedLabel}>{lastSyncedLabel}</span>
+                        <span className={styles.userBadge} title={lastSyncedLabel} suppressHydrationWarning>{lastSyncedLabel}</span>
                     </div>
                 </header>
 

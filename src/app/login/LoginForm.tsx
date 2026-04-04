@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -94,7 +95,7 @@ export default function LoginForm() {
                     </button>
                 </form>
 
-                <a href="/" className={styles.back}>← Back to site</a>
+                <Link href="/" className={styles.back}>← Back to site</Link>
             </div>
         </div>
     );

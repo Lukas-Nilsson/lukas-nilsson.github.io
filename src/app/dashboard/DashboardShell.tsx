@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, type ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
@@ -71,7 +72,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                         {navLinks.map(({ icon, label, href }, i) => {
                             const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
                             return (
-                                <a
+                                <Link
                                     key={href}
                                     href={href}
                                     className={`${styles.mobileNavItem} ${active ? styles.mobileNavItemActive : ''}`}
@@ -81,20 +82,20 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                                     <span className={styles.mobileNavIcon}>{icon}</span>
                                     <span className={styles.mobileNavLabel}>{label}</span>
                                     {active && <span className={styles.mobileNavDot} />}
-                                </a>
+                                </Link>
                             );
                         })}
                     </nav>
 
                     {/* Footer */}
                     <div className={styles.mobileNavFooter}>
-                        <a
+                        <Link
                             href="/"
                             className={styles.mobileNavFooterLink}
                             style={{ transitionDelay: menuOpen ? `${60 + navLinks.length * 40}ms` : '0ms' }}
                         >
                             ← Public site
-                        </a>
+                        </Link>
                         <button
                             className={styles.mobileNavSignOut}
                             onClick={handleSignOut}
@@ -114,15 +115,15 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                     {navLinks.map(({ icon, label, href }) => {
                         const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
                         return (
-                            <a key={href} href={href} className={`${styles.navLink} ${active ? styles.navActive : ''}`}>
+                            <Link key={href} href={href} className={`${styles.navLink} ${active ? styles.navActive : ''}`}>
                                 <span className={styles.navIcon}>{icon}</span>
                                 <span className={styles.navLabel}>{label}</span>
-                            </a>
+                            </Link>
                         );
                     })}
                 </nav>
                 <div className={styles.sidebarFooter}>
-                    <a href="/" className={styles.siteLink}>← Public site</a>
+                    <Link href="/" className={styles.siteLink}>← Public site</Link>
                     <button className={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
                 </div>
             </aside>

@@ -142,10 +142,6 @@ export async function GET() {
         let totalOpen = 0;
         let totalDone = 0;
 
-        // Track top-level vs subtask for pile counts
-        const subtaskIds = new Set(clickupTasks.filter(t => t.parent).map(t => t.id));
-        let subtaskCount = subtaskIds.size;
-
         // Include ALL tasks in categories (needed for task page hierarchy)
         // but only count top-level tasks for pile metrics
         for (const cuTask of clickupTasks) {

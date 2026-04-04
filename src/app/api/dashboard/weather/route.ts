@@ -104,8 +104,6 @@ async function fetchDayWeather(targetDate: string): Promise<WeatherData> {
     const todayAEST = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
     const isToday = targetDate === todayAEST;
     const isFuture = targetDate > todayAEST;
-    const isPast = targetDate < todayAEST;
-
     if (isToday) {
         return fetchLiveWeather();
     }

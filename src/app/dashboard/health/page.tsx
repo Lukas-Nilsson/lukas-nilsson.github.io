@@ -5,7 +5,7 @@ import { LineChart, BarChart } from '@/components/charts/Charts';
 import DashboardShell from '../DashboardShell';
 import styles from '../dashboard.module.css';
 
-interface WhoopDay { date: string; recovery: number; hrv: number; strain: number; sleep_hours: number; sleep_performance: number; }
+interface WhoopDay { date: string; recovery: number; hrv: number; strain: number; sleep_hours: number; sleep_performance: number; rhr?: number; }
 interface SleepDay { date: string; performance: number; hours_in_bed: number; deep: number; rem: number; light: number; }
 interface HabitDay { date: string; discipline_score: number; checks: Record<string, { done: boolean }> }
 
@@ -55,7 +55,7 @@ export default function HealthPage() {
 
         const avg = (dates: string[], key: 'recovery' | 'hrv') => {
             if (!dates.length) return null;
-            return Math.round(dates.reduce((s, d) => s + ((recoveryByDate.get(d) as any)?.[key] ?? 0), 0) / dates.length);
+                return Math.round(dates.reduce((s, d) => s + (recoveryByDate.get(d)?.[key] ?? 0), 0) / dates.length);
         };
 
         const overlayData = pairedDays.sort().map(d => ({
@@ -125,7 +125,7 @@ export default function HealthPage() {
                             {[
                                 { label: 'Recovery', value: `${latest.recovery}%`, color: recoveryColor(latest.recovery) },
                                 { label: 'HRV', value: `${latest.hrv} ms`, color: '#7aaac9' },
-                                { label: 'RHR', value: `${(latest as any).rhr ?? '—'} bpm`, color: 'var(--color-text)' },
+                                { label: 'RHR', value: `${latest.rhr ?? '—'} bpm`, color: 'var(--color-text)' },
                                 { label: 'Strain', value: latest.strain?.toFixed(1) ?? '—', color: 'var(--accent-400)' },
                                 { label: 'Sleep', value: `${latest.sleep_hours}h`, color: 'var(--accent-300)' },
                                 { label: 'Sleep Perf', value: `${latest.sleep_performance}%`, color: latest.sleep_performance >= 85 ? '#6db86d' : '#c9a84c' },

@@ -8,7 +8,7 @@ import styles from './Navigation.module.css';
 const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/about', label: 'About' },
-    { href: '/projects', label: 'Projects' },
+    { href: '/work', label: 'Work' },
 ];
 
 export default function Navigation() {
@@ -22,11 +22,6 @@ export default function Navigation() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // Close on route change
-    useEffect(() => {
-        setMenuOpen(false);
-    }, [pathname]);
-
     // Lock body scroll when menu is open
     useEffect(() => {
         if (menuOpen) {
@@ -37,10 +32,18 @@ export default function Navigation() {
         return () => { document.body.style.overflow = ''; };
     }, [menuOpen]);
 
+    const closeMenu = () => setMenuOpen(false);
+
+    const isActive = (href: string) => {
+        if (href === '/') return pathname === '/';
+        if (href === '/work') return pathname === '/work' || pathname === '/projects';
+        return pathname === href || pathname.startsWith(`${href}/`);
+    };
+
     return (
         <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
             <nav className={`${styles.nav} container`}>
-                <Link href="/" className={styles.logo} aria-label="Lukas Nilsson">
+                <Link href="/" className={styles.logo} onClick={closeMenu}>
                     <span className={styles.logoMark}>LN</span>
                     <span className={styles.logoText}>Lukas Nilsson</span>
                 </Link>
@@ -51,7 +54,9 @@ export default function Navigation() {
                         <li key={href}>
                             <Link
                                 href={href}
-                                className={`${styles.link} ${pathname === href ? styles.active : ''}`}
+                                className={`${styles.link} ${isActive(href) ? styles.active : ''}`}
+                                aria-current={isActive(href) ? 'page' : undefined}
+                                onClick={closeMenu}
                             >
                                 {label}
                             </Link>
@@ -66,6 +71,7 @@ export default function Navigation() {
 
                 {/* Mobile hamburger */}
                 <button
+                    type="button"
                     className={`${styles.menuBtn} ${menuOpen ? styles.menuOpen : ''}`}
                     onClick={() => setMenuOpen(!menuOpen)}
                     aria-label="Toggle menu"
@@ -87,8 +93,9 @@ export default function Navigation() {
                         <Link
                             key={href}
                             href={href}
-                            className={`${styles.mobileLink} ${pathname === href ? styles.mobileLinkActive : ''}`}
-                            onClick={() => setMenuOpen(false)}
+                            className={`${styles.mobileLink} ${isActive(href) ? styles.mobileLinkActive : ''}`}
+                            aria-current={isActive(href) ? 'page' : undefined}
+                            onClick={closeMenu}
                             style={{ transitionDelay: menuOpen ? `${80 + i * 50}ms` : '0ms' }}
                         >
                             {label}
@@ -97,7 +104,7 @@ export default function Navigation() {
                     <Link
                         href="/dashboard"
                         className={styles.mobileDashboardLink}
-                        onClick={() => setMenuOpen(false)}
+                        onClick={closeMenu}
                         style={{ transitionDelay: menuOpen ? `${80 + navLinks.length * 50}ms` : '0ms' }}
                     >
                         Dashboard →

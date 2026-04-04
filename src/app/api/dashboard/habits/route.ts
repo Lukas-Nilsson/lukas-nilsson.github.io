@@ -12,17 +12,6 @@ import { NextRequest, NextResponse } from 'next/server';
  *   - Updates habit_records table with best_streak and total_completions
  */
 
-const HABIT_LABELS: Record<string, { label: string; icon: string }> = {
-    teeth: { label: 'Brush Teeth', icon: '🦷' },
-    bedtime: { label: 'In Bed by 11pm', icon: '🌙' },
-    wake: { label: 'Up by 7am', icon: '🌅' },
-    phone_down: { label: 'Phone Down', icon: '📱' },
-    meditation: { label: 'Meditation', icon: '🧘' },
-    hydration: { label: 'Hydration', icon: '💧' },
-    reading: { label: 'Reading', icon: '📖' },
-    exercise: { label: 'Exercise', icon: '🏋️' },
-};
-
 export async function PATCH(req: NextRequest) {
     const { error: authError } = await requireAuth();
     if (authError) return authError;
@@ -110,4 +99,3 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
-

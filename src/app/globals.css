@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Inter+Tight:wght@700;800;900&display=swap');
-
 /* =========================================
    RESET
    ========================================= */
@@ -20,7 +18,13 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Typography — must be on body because Next.js font variables are injected here */
+  --font-body: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: var(--font-inter-tight), var(--font-inter), sans-serif;
+  --font-editorial: var(--font-display), var(--font-inter-tight), sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  font-family: var(--font-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -97,16 +101,13 @@ select {
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-strong: rgba(255, 255, 255, 0.16);
   --color-text: var(--white);
-  --color-text-secondary: var(--neutral-400);
-  --color-text-muted: var(--neutral-600);
+  --color-text-secondary: #c8c8d0;
+  --color-text-muted: #737380;
   --color-accent: var(--accent-500);
   --color-accent-hover: var(--accent-400);
   --color-accent-glow: var(--accent-glow);
 
-  /* Typography */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Inter Tight', 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  /* Typography — see body {} below (Next.js injects font vars on body) */
 
   /* Type scale */
   --text-xs: 0.75rem;
@@ -168,29 +169,8 @@ select {
   --duration-slower: 600ms;
 }
 
-/* Public site light mode — follows system preference */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-bg: #fafbfc;
-    --color-bg-secondary: #f2f3f5;
-    --color-bg-tertiary: #e8e9ec;
-    --color-surface: #ffffff;
-    --color-surface-hover: #f5f6f8;
-    --color-border: rgba(0, 0, 0, 0.08);
-    --color-border-strong: rgba(0, 0, 0, 0.15);
-    --color-text: #0f0f12;
-    --color-text-secondary: #4a4a55;
-    --color-text-muted: #9a9aa8;
-    --color-accent: var(--accent-600);
-    --color-accent-hover: var(--accent-700);
-    --color-accent-glow: rgba(2, 132, 199, 0.12);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.10);
-    --shadow-glow: 0 0 40px rgba(2, 132, 199, 0.15);
-  }
-}
+/* Public site light mode DISABLED — force dark for AI-first aesthetic.
+   Dashboard has its own theme. */
 
 /* =========================================
    DASHBOARD THEME (light mode override)
@@ -260,9 +240,8 @@ h6 {
 }
 
 p {
-  line-height: 1.75;
+  line-height: 1.7;
   color: var(--color-text-secondary);
-  max-width: 65ch;
 }
 
 a {
@@ -654,48 +633,4 @@ code {
   display: block;
 }
 
-/* =========================================
-   PUBLIC SITE LIGHT MODE — element overrides
-   (prefers-color-scheme: light)
-   ========================================= */
-
-@media (prefers-color-scheme: light) {
-
-  /* Glass: semi-transparent white instead of near-transparent */
-  .glass {
-    background: rgba(255, 255, 255, 0.65);
-  }
-
-  /* Gradient text: deeper tones for contrast on light bg */
-  .gradient-text {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 40%, #075985 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Noise: near-invisible on light */
-  .noise::before {
-    opacity: 0.015;
-  }
-
-  /* Tooltips: dark bg on light mode */
-  .tip-wrap .tip-label {
-    background: var(--neutral-900);
-    color: var(--neutral-100);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  .tip-wrap .tip-label::after {
-    border-top-color: var(--neutral-900);
-  }
-
-  /* Scrollbar: visible on light backgrounds */
-  ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.25);
-  }
-}
+/* Public site light mode overrides removed — dark mode forced for public pages */

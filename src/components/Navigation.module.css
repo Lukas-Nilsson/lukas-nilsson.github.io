@@ -20,15 +20,7 @@
     border-bottom-color: var(--color-border);
 }
 
-@media (prefers-color-scheme: light) {
-    .header {
-        background: var(--color-bg);
-    }
-
-    .header.scrolled {
-        background: rgba(250, 251, 252, 0.85);
-    }
-}
+/* Public site is dark-only — light mode header overrides removed */
 
 .nav {
     height: var(--nav-height);
@@ -124,8 +116,12 @@
 .menuBtn {
     display: none;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 5px;
     padding: var(--space-2);
+    min-width: 44px;
+    min-height: 44px;
     background: none;
     border: none;
     cursor: pointer;
@@ -289,13 +285,4 @@
     }
 }
 
-@media (prefers-color-scheme: light) {
-    .mobileOverlay {
-        background: rgba(248, 250, 252, 0.97);
-    }
-
-    .mobileLink:hover,
-    .mobileLink:active {
-        background: rgba(0, 0, 0, 0.04);
-    }
-}
+/* Public site is dark-only — light mode nav overrides removed */

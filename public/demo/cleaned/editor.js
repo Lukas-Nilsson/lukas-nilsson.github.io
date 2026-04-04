@@ -5,8 +5,6 @@
  * and styling plan. Editing affordances sit above it as a separate layer.
  */
 
-let sceneIdCounter = 0;
-
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
@@ -70,7 +68,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
     const imageWidth = img.naturalWidth || 1000;
     const imageHeight = img.naturalHeight || 1000;
     const svgNS = "http://www.w3.org/2000/svg";
-    const sceneId = ++sceneIdCounter;
+    sceneIdCounter += 1;
 
     container.style.position = "relative";
     container.style.lineHeight = "0";
