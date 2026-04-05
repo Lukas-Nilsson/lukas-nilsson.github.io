@@ -10,7 +10,7 @@ const IS_SITE_EMBEDDED_DEMO =
     window.location.pathname === SITE_DEMO_PATH ||
     window.location.pathname === `${SITE_DEMO_PATH}/` ||
     window.location.pathname.startsWith(`${SITE_DEMO_PATH}/`);
-const API_URL = IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL;
+const API_URL = IS_SITE_EMBEDDED_DEMO ? SITE_DEMO_PATH : (IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL);
 let maxObservedViewportHeight = 0;
 
 function appendDebugLog() {}
