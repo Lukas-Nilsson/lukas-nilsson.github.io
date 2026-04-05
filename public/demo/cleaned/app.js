@@ -1485,8 +1485,12 @@ function syncEditorToPreview() {
 
 if (editorSave) {
     editorSave.addEventListener('click', () => {
+        // Commit local editor clone back to globalPreviousAnalysisData before syncing
+        const editorWrapper = editorContent ? editorContent.querySelector('.image-wrapper') : null;
+        if (editorWrapper && editorWrapper._editorLocalData) {
+            Object.assign(globalPreviousAnalysisData, editorWrapper._editorLocalData);
+        }
         syncEditorToPreview();
-        // Flash the button to confirm save
         if (editorSave) {
             editorSave.textContent = '✓ Saved!';
             setTimeout(() => { editorSave.textContent = '✓ Save'; }, 1200);

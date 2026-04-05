@@ -64,6 +64,11 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         return;
     }
 
+    // Deep-clone so edits don't auto-save to globalPreviousAnalysisData
+    // Only commit back when Save is pressed (handled in app.js syncEditorToPreview)
+    data = deepClone(data);
+    container._editorLocalData = data;
+
     const img = container.querySelector("img");
     if (!img) return;
 
@@ -213,6 +218,40 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         if (!isEditable) return;
         if (activeEditor && activeEditor.field.key === field.key) return;
         closeActiveEditor(true);
+
+        // On mobile: use bottom sheet instead of tiny inline editor
+        const isMobile = 'ontouchstart' in window;
+        if (isMobile) {
+            const sheet = document.getElementById('bottomSheet');
+            const input = document.getElementById('bottomSheetInput');
+            const label = document.getElementById('bottomSheetLabel');
+            const saveBtn = document.getElementById('bottomSheetSave');
+            const cancelBtn = document.getElementById('bottomSheetCancel');
+            if (sheet && input) {
+                const currentVal = getFieldValue(field);
+                if (label) label.textContent = field.kind === 'issue' ? 'Edit issue label' : field.kind === 'praise' ? 'Edit praise label' : 'Edit label';
+                input.value = currentVal;
+                sheet.classList.add('visible');
+                requestAnimationFrame(() => input.focus());
+                const doSave = () => {
+                    pushUndoSnapshot();
+                    setFieldValue(field, input.value.trim() || currentVal);
+                    sheet.classList.remove('visible');
+                    rerender();
+                    saveBtn.removeEventListener('click', doSave);
+                    cancelBtn.removeEventListener('click', doCancel);
+                };
+                const doCancel = () => {
+                    sheet.classList.remove('visible');
+                    saveBtn.removeEventListener('click', doSave);
+                    cancelBtn.removeEventListener('click', doCancel);
+                };
+                saveBtn.addEventListener('click', doSave);
+                cancelBtn.addEventListener('click', doCancel);
+                return;
+            }
+        }
+
         pushUndoSnapshot();
 
         const panelRect = renderResult.layoutMap.panel.rect;
@@ -550,28 +589,31 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         panelBox.appendChild(resizeHandle);
     }
 
-    // rAF-throttled rerender to eliminate stutter during drag
+    // rAF-throttled rerender
     let _rafPending = false;
-    let _pendingFullRerender = false;
 
-    function rerender(fullRerender = true) {
-        _pendingFullRerender = _pendingFullRerender || fullRerender;
+    function rerender() {
         if (_rafPending) return;
         _rafPending = true;
         requestAnimationFrame(() => {
             _rafPending = false;
-            if (_pendingFullRerender) {
-                renderDisplay();
-            }
+            renderDisplay();
             renderInteractionSvg();
             renderPanelOverlay();
-            _pendingFullRerender = false;
         });
     }
 
-    // Lightweight drag-only rerender (skips expensive renderDisplay)
+    // During drag: skip full display re-render, just update interaction SVG
+    // BUT still update polygon display paths for live feedback
+    let _dragRafPending = false;
     function rerenderDragOnly() {
-        rerender(false);
+        if (_dragRafPending) return;
+        _dragRafPending = true;
+        requestAnimationFrame(() => {
+            _dragRafPending = false;
+            renderDisplay(); // needed for live polygon shape update
+            renderInteractionSvg();
+        });
     }
 
     function handleDrag(event) {
@@ -658,6 +700,10 @@ function buildInteractiveSVG(container, data, isEditable = true) {
             pushUndoSnapshot();
             activeResize.undoCaptured = true;
         }
+        // Use rAF for resize too
+        if (_dragRafPending) return;
+        _dragRafPending = true;
+        requestAnimationFrame(() => { _dragRafPending = false; });
         const containerRect = container.getBoundingClientRect();
         const scaleX = imageWidth / containerRect.width;
         const scaleY = imageHeight / containerRect.height;
@@ -692,7 +738,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         nextRect.width = Math.min(nextRect.width, imageWidth - nextRect.x);
         nextRect.height = Math.min(nextRect.height, imageHeight - nextRect.y);
         setScenePanelFromRect(nextRect);
-        rerender();
+        rerenderDragOnly();
     }
 
     function endResize() {
