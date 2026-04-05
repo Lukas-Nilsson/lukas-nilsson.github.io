@@ -1452,10 +1452,26 @@ if (editorClose) {
         const img = lastWrapper ? lastWrapper.querySelector('img') : null;
         if (lastWrapper && img && globalPreviousAnalysisData && window.buildInteractiveSVG) {
             const dataRaw = img.getAttribute('data-raw') || img.src;
+            const cachedSize = lastWrapper._annotationImageSize;
+            const sourceFile = lastWrapper._sourceFile || window.globalActiveImageFile;
+            const uploadFile = lastWrapper._uploadFile || window.globalActiveUploadFile;
             // Unmount old interactive SVG logic entirely
             lastWrapper.innerHTML = `<img src="${img.src}" data-raw="${dataRaw}" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">`;
-            window.buildInteractiveSVG(lastWrapper, globalPreviousAnalysisData, false);
-            bindSceneStateToWrapper(lastWrapper, globalPreviousAnalysisData, lastWrapper._sourceFile || window.globalActiveImageFile, lastWrapper._uploadFile || window.globalActiveUploadFile);
+            const newImg = lastWrapper.querySelector('img');
+            // Restore cached image size so SVG coords stay consistent with the editor
+            if (cachedSize && newImg) {
+                Object.defineProperty(newImg, 'naturalWidth', { get: () => cachedSize.width, configurable: true });
+                Object.defineProperty(newImg, 'naturalHeight', { get: () => cachedSize.height, configurable: true });
+            }
+            const doRebuild = () => {
+                window.buildInteractiveSVG(lastWrapper, globalPreviousAnalysisData, false);
+                bindSceneStateToWrapper(lastWrapper, globalPreviousAnalysisData, sourceFile, uploadFile);
+            };
+            if (newImg && newImg.complete && newImg.naturalWidth > 0) {
+                doRebuild();
+            } else if (newImg) {
+                newImg.addEventListener('load', doRebuild, { once: true });
+            }
         }
         
         const textContainer = document.querySelector('.message.ai:last-child .dynamic-message-text');
