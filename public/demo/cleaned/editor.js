@@ -603,17 +603,83 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         });
     }
 
-    // During drag: skip full display re-render, just update interaction SVG
-    // BUT still update polygon display paths for live feedback
+    // Lightweight drag rerender: skip expensive renderDisplay().
+    // Show live polygon shapes via cheap SVG paths drawn directly in interactionSvg.
     let _dragRafPending = false;
     function rerenderDragOnly() {
         if (_dragRafPending) return;
         _dragRafPending = true;
         requestAnimationFrame(() => {
             _dragRafPending = false;
-            renderDisplay(); // needed for live polygon shape update
+            // Draw live polygon shapes directly in interaction SVG (cheap)
+            renderLivePolygons();
             renderInteractionSvg();
         });
+    }
+
+    const svgNS_local = "http://www.w3.org/2000/svg";
+
+    function renderLivePolygons() {
+        // Remove existing live-polygon group
+        const existing = interactionSvg.querySelector('[data-live-polygons]');
+        if (existing) existing.remove();
+
+        const group = document.createElementNS(svgNS_local, 'g');
+        group.setAttribute('data-live-polygons', '1');
+
+        const allRows = [
+            ...(data.issues || []).map((item, i) => ({ item, kind: 'issue', index: i })),
+            ...(data.praise || []).map((item, i) => ({ item, kind: 'praise', index: i }))
+        ];
+
+        // Color palette matching ISSUE_COLORS in pipeline.py
+        const colors = [
+            'rgba(255,90,40,0.5)',
+            'rgba(100,160,255,0.5)',
+            'rgba(255,200,60,0.5)',
+            'rgba(200,100,255,0.5)',
+            'rgba(255,100,130,0.5)',
+        ];
+        const borders = [
+            'rgba(255,90,40,0.9)',
+            'rgba(100,160,255,0.9)',
+            'rgba(255,200,60,0.9)',
+            'rgba(200,100,255,0.9)',
+            'rgba(255,100,130,0.9)',
+        ];
+        const praiseColor = 'rgba(80,220,120,0.5)';
+        const praiseBorder = 'rgba(80,220,120,0.9)';
+
+        allRows.forEach(({ item, kind, index }) => {
+            const polygons = kind === 'issue'
+                ? (item.frontend_polygons || (item.frontend_points ? [item.frontend_points] : []))
+                : (item.frontend_points ? [item.frontend_points] : []);
+
+            const fill = kind === 'praise' ? praiseColor : (colors[index % colors.length]);
+            const border = kind === 'praise' ? praiseBorder : (borders[index % borders.length]);
+
+            polygons.forEach((polygon) => {
+                if (!polygon || polygon.length < 3) return;
+                // Build smooth path from normalized coords
+                const pts = polygon.map(p => [p[0] * imageWidth, p[1] * imageHeight]);
+                let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+                for (let i = 1; i < pts.length; i++) {
+                    d += ` L ${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)}`;
+                }
+                d += ' Z';
+                const path = document.createElementNS(svgNS_local, 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', fill);
+                path.setAttribute('stroke', border);
+                path.setAttribute('stroke-width', '2.5');
+                path.setAttribute('stroke-dasharray', '8 6');
+                path.style.pointerEvents = 'none';
+                group.appendChild(path);
+            });
+        });
+
+        // Insert at bottom of interactionSvg so handles render on top
+        interactionSvg.insertBefore(group, interactionSvg.firstChild);
     }
 
     function handleDrag(event) {
@@ -771,6 +837,67 @@ function buildInteractiveSVG(container, data, isEditable = true) {
     };
 
     rerender();
+
+    // ── Pinch-to-zoom ──────────────────────────────────────────────────
+    // Attach to the editor-content scroll container so pinch zooms the
+    // image-wrapper (container). Single-finger touches fall through to
+    // the normal pointer handlers above.
+    const editorContentEl = document.getElementById('editorContent');
+    if (editorContentEl && isEditable) {
+        let pinch = null;
+        let currentScale = 1.0;
+
+        function getPinchDist(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function applyScale(scale) {
+            currentScale = Math.max(1.0, Math.min(4.0, scale));
+            container.style.transformOrigin = 'center top';
+            container.style.transform = currentScale === 1.0 ? '' : `scale(${currentScale})`;
+        }
+
+        const onPinchStart = (e) => {
+            if (e.touches.length !== 2) return;
+            e.preventDefault();
+            pinch = { startDist: getPinchDist(e.touches), startScale: currentScale };
+        };
+        const onPinchMove = (e) => {
+            if (!pinch || e.touches.length !== 2) return;
+            e.preventDefault();
+            const dist = getPinchDist(e.touches);
+            applyScale(pinch.startScale * (dist / pinch.startDist));
+        };
+        const onPinchEnd = (e) => {
+            if (e.touches.length < 2) pinch = null;
+            // Snap back if nearly 1x
+            if (currentScale < 1.1) applyScale(1.0);
+        };
+
+        editorContentEl.addEventListener('touchstart', onPinchStart, { passive: false });
+        editorContentEl.addEventListener('touchmove', onPinchMove, { passive: false });
+        editorContentEl.addEventListener('touchend', onPinchEnd, { passive: true });
+
+        // Also handle on the SVG layer directly
+        interactionSvg.addEventListener('touchstart', onPinchStart, { passive: false });
+        interactionSvg.addEventListener('touchmove', onPinchMove, { passive: false });
+        interactionSvg.addEventListener('touchend', onPinchEnd, { passive: true });
+
+        // Clean up when modal closes
+        const origCleanup = container._interactiveSceneCleanup || (() => {});
+        container._interactiveSceneCleanup = () => {
+            origCleanup();
+            editorContentEl.removeEventListener('touchstart', onPinchStart);
+            editorContentEl.removeEventListener('touchmove', onPinchMove);
+            editorContentEl.removeEventListener('touchend', onPinchEnd);
+            interactionSvg.removeEventListener('touchstart', onPinchStart);
+            interactionSvg.removeEventListener('touchmove', onPinchMove);
+            interactionSvg.removeEventListener('touchend', onPinchEnd);
+            applyScale(1.0);
+        };
+    }
 }
 
 window.destroyInteractiveSVG = destroyInteractiveSVG;
