@@ -1411,6 +1411,7 @@ document.addEventListener("keydown", (e) => {
 
 const editorModal = document.getElementById("editorModal");
 const editorClose = document.getElementById("editorClose");
+const editorSave = document.getElementById("editorSave");
 const editorContent = document.getElementById("editorContent");
 
 window.openStandardEditorModal = function(data, imgSrc) {
@@ -1445,38 +1446,50 @@ window.openStandardEditorModal = function(data, imgSrc) {
 
 if (editorClose) {
     editorClose.addEventListener("click", () => {
+        // Sync any unsaved changes before closing
+        syncEditorToPreview();
         editorModal.classList.remove("visible");
-        
-        // Auto-sync: re-render the inline SVG in the chat.
-        const lastWrapper = document.querySelector('.message.ai:last-child .image-wrapper');
-        const img = lastWrapper ? lastWrapper.querySelector('img') : null;
-        if (lastWrapper && img && globalPreviousAnalysisData && window.buildInteractiveSVG) {
-            const dataRaw = img.getAttribute('data-raw') || img.src;
-            const cachedSize = lastWrapper._annotationImageSize;
-            const sourceFile = lastWrapper._sourceFile || window.globalActiveImageFile;
-            const uploadFile = lastWrapper._uploadFile || window.globalActiveUploadFile;
-            // Unmount old interactive SVG logic entirely
-            lastWrapper.innerHTML = `<img src="${img.src}" data-raw="${dataRaw}" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">`;
-            const newImg = lastWrapper.querySelector('img');
-            // Restore cached image size so SVG coords stay consistent with the editor
-            if (cachedSize && newImg) {
-                Object.defineProperty(newImg, 'naturalWidth', { get: () => cachedSize.width, configurable: true });
-                Object.defineProperty(newImg, 'naturalHeight', { get: () => cachedSize.height, configurable: true });
-            }
-            const doRebuild = () => {
-                window.buildInteractiveSVG(lastWrapper, globalPreviousAnalysisData, false);
-                bindSceneStateToWrapper(lastWrapper, globalPreviousAnalysisData, sourceFile, uploadFile);
-            };
-            if (newImg && newImg.complete && newImg.naturalWidth > 0) {
-                doRebuild();
-            } else if (newImg) {
-                newImg.addEventListener('load', doRebuild, { once: true });
-            }
+    });
+}
+
+// Save button — commits edits from editor modal back to chat preview
+function syncEditorToPreview() {
+    const lastWrapper = document.querySelector('.message.ai:last-child .image-wrapper');
+    const img = lastWrapper ? lastWrapper.querySelector('img') : null;
+    if (lastWrapper && img && globalPreviousAnalysisData && window.buildInteractiveSVG) {
+        const dataRaw = img.getAttribute('data-raw') || img.src;
+        const cachedSize = lastWrapper._annotationImageSize;
+        const sourceFile = lastWrapper._sourceFile || window.globalActiveImageFile;
+        const uploadFile = lastWrapper._uploadFile || window.globalActiveUploadFile;
+        lastWrapper.innerHTML = `<img src="${img.src}" data-raw="${dataRaw}" style="width: 100%; height: auto; display: block;" crossorigin="anonymous">`;
+        const newImg = lastWrapper.querySelector('img');
+        if (cachedSize && newImg) {
+            Object.defineProperty(newImg, 'naturalWidth', { get: () => cachedSize.width, configurable: true });
+            Object.defineProperty(newImg, 'naturalHeight', { get: () => cachedSize.height, configurable: true });
         }
-        
-        const textContainer = document.querySelector('.message.ai:last-child .dynamic-message-text');
-        if (textContainer && globalPreviousAnalysisData) {
-            textContainer.innerHTML = window.buildTextSummary(globalPreviousAnalysisData);
+        const doRebuild = () => {
+            window.buildInteractiveSVG(lastWrapper, globalPreviousAnalysisData, false);
+            bindSceneStateToWrapper(lastWrapper, globalPreviousAnalysisData, sourceFile, uploadFile);
+        };
+        if (newImg && newImg.complete && newImg.naturalWidth > 0) {
+            doRebuild();
+        } else if (newImg) {
+            newImg.addEventListener('load', doRebuild, { once: true });
+        }
+    }
+    const textContainer = document.querySelector('.message.ai:last-child .dynamic-message-text');
+    if (textContainer && globalPreviousAnalysisData) {
+        textContainer.innerHTML = window.buildTextSummary(globalPreviousAnalysisData);
+    }
+}
+
+if (editorSave) {
+    editorSave.addEventListener('click', () => {
+        syncEditorToPreview();
+        // Flash the button to confirm save
+        if (editorSave) {
+            editorSave.textContent = '✓ Saved!';
+            setTimeout(() => { editorSave.textContent = '✓ Save'; }, 1200);
         }
     });
 }

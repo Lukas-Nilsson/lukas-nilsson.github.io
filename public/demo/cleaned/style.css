@@ -898,6 +898,22 @@ body {
     transform: scale(0.95);
 }
 
+.editor-save {
+    background: rgba(100, 200, 120, 0.85);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+.editor-save:active {
+    transform: scale(0.95);
+    background: rgba(80, 180, 100, 0.95);
+}
+
 .editor-content {
     flex: 1;
     display: flex;
@@ -907,6 +923,8 @@ body {
     padding: max(10px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    /* Only allow two-finger pan — single finger is reserved for node dragging */
+    touch-action: pan-x pan-y;
 }
 
 .editor-content .image-wrapper {

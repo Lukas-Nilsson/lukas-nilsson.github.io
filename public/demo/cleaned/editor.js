@@ -92,6 +92,8 @@ function buildInteractiveSVG(container, data, isEditable = true) {
     interactionSvg.style.zIndex = "20";
     interactionSvg.style.overflow = "hidden";
     interactionSvg.style.pointerEvents = isEditable ? "auto" : "none";
+    // Prevent browser native pan/zoom interfering with single-finger node drags
+    interactionSvg.style.touchAction = "none";
 
     const panelOverlay = document.createElement("div");
     panelOverlay.dataset.interactiveLayer = "true";
@@ -548,10 +550,28 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         panelBox.appendChild(resizeHandle);
     }
 
-    function rerender() {
-        renderDisplay();
-        renderInteractionSvg();
-        renderPanelOverlay();
+    // rAF-throttled rerender to eliminate stutter during drag
+    let _rafPending = false;
+    let _pendingFullRerender = false;
+
+    function rerender(fullRerender = true) {
+        _pendingFullRerender = _pendingFullRerender || fullRerender;
+        if (_rafPending) return;
+        _rafPending = true;
+        requestAnimationFrame(() => {
+            _rafPending = false;
+            if (_pendingFullRerender) {
+                renderDisplay();
+            }
+            renderInteractionSvg();
+            renderPanelOverlay();
+            _pendingFullRerender = false;
+        });
+    }
+
+    // Lightweight drag-only rerender (skips expensive renderDisplay)
+    function rerenderDragOnly() {
+        rerender(false);
     }
 
     function handleDrag(event) {
@@ -570,7 +590,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
             point[0] = activeDrag.originalPoints[index][0] + deltaX;
             point[1] = activeDrag.originalPoints[index][1] + deltaY;
         });
-        rerender();
+        rerenderDragOnly();
     }
 
     function endDrag() {
@@ -593,7 +613,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         const points = getPolygonRef(activeWarp.kind, activeWarp.sourceIndex, activeWarp.polygonIndex);
         if (!points || !points[activeWarp.pointIndex]) return;
         points[activeWarp.pointIndex] = [nx, ny];
-        rerender();
+        rerenderDragOnly();
     }
 
     function endWarp() {
