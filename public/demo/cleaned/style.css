@@ -914,6 +914,22 @@ body {
     background: rgba(80, 180, 100, 0.95);
 }
 
+.editor-delete {
+    background: rgba(220, 50, 50, 0.85);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+.editor-delete:active {
+    transform: scale(0.95);
+    background: rgba(200, 30, 30, 0.95);
+}
+
 /* Bottom Sheet Text Editor */
 .bottom-sheet {
     position: fixed;

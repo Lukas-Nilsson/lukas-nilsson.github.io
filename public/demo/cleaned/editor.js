@@ -442,43 +442,70 @@ function buildInteractiveSVG(container, data, isEditable = true) {
             row.kind === selectedTarget.kind && row.sourceIndex === selectedTarget.sourceIndex
         );
         if (selectedRow) {
-            const removeX = selectedRow.overlayBadge.x + 28;
-            const removeY = selectedRow.overlayBadge.y - 28;
-            const removeBg = document.createElementNS(svgNS, "circle");
-            removeBg.setAttribute("cx", removeX);
-            removeBg.setAttribute("cy", removeY);
-            removeBg.setAttribute("r", 14);
-            removeBg.setAttribute("fill", "rgba(220,50,50,0.92)");
-            removeBg.setAttribute("stroke", "white");
-            removeBg.setAttribute("stroke-width", 2);
-            removeBg.style.pointerEvents = "all";
-            removeBg.style.cursor = "pointer";
-            removeBg.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                pushUndoSnapshot();
-                if (selectedTarget.kind === "issue") {
-                    data.issues.splice(selectedTarget.sourceIndex, 1);
-                } else {
-                    data.praise.splice(selectedTarget.sourceIndex, 1);
-                }
-                selectedTarget = null;
-                rerender();
-            });
+            const _isTouchDevice = 'ontouchstart' in window;
 
-            const removeText = document.createElementNS(svgNS, "text");
-            removeText.setAttribute("x", removeX);
-            removeText.setAttribute("y", removeY);
-            removeText.setAttribute("fill", "white");
-            removeText.setAttribute("font-family", renderer.THEME_V1.fontFamily);
-            removeText.setAttribute("font-size", "16");
-            removeText.setAttribute("font-weight", "700");
-            removeText.setAttribute("text-anchor", "middle");
-            removeText.setAttribute("dominant-baseline", "central");
-            removeText.textContent = "✕";
+            // On touch: expose delete via topbar button instead of tiny SVG ✕
+            const deleteBtn = document.getElementById('editorDelete');
+            if (deleteBtn) {
+                deleteBtn.style.display = 'inline-block';
+                deleteBtn.onclick = (event) => {
+                    event.preventDefault();
+                    pushUndoSnapshot();
+                    if (selectedTarget.kind === 'issue') {
+                        data.issues.splice(selectedTarget.sourceIndex, 1);
+                    } else {
+                        data.praise.splice(selectedTarget.sourceIndex, 1);
+                    }
+                    selectedTarget = null;
+                    deleteBtn.style.display = 'none';
+                    rerender();
+                };
+            }
 
-            handleGroup.appendChild(removeBg);
-            handleGroup.appendChild(removeText);
+            // On non-touch: also show in-SVG ✕
+            if (!_isTouchDevice) {
+                const removeX = selectedRow.overlayBadge.x + 28;
+                const removeY = selectedRow.overlayBadge.y - 28;
+                const removeBg = document.createElementNS(svgNS, "circle");
+                removeBg.setAttribute("cx", removeX);
+                removeBg.setAttribute("cy", removeY);
+                removeBg.setAttribute("r", 14);
+                removeBg.setAttribute("fill", "rgba(220,50,50,0.92)");
+                removeBg.setAttribute("stroke", "white");
+                removeBg.setAttribute("stroke-width", 2);
+                removeBg.style.pointerEvents = "all";
+                removeBg.style.cursor = "pointer";
+                removeBg.addEventListener("pointerdown", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    pushUndoSnapshot();
+                    if (selectedTarget.kind === "issue") {
+                        data.issues.splice(selectedTarget.sourceIndex, 1);
+                    } else {
+                        data.praise.splice(selectedTarget.sourceIndex, 1);
+                    }
+                    selectedTarget = null;
+                    rerender();
+                });
+
+                const removeText = document.createElementNS(svgNS, "text");
+                removeText.setAttribute("x", removeX);
+                removeText.setAttribute("y", removeY);
+                removeText.setAttribute("fill", "white");
+                removeText.setAttribute("font-family", renderer.THEME_V1.fontFamily);
+                removeText.setAttribute("font-size", "16");
+                removeText.setAttribute("font-weight", "700");
+                removeText.setAttribute("text-anchor", "middle");
+                removeText.setAttribute("dominant-baseline", "central");
+                removeText.textContent = "✕";
+
+                handleGroup.appendChild(removeBg);
+                handleGroup.appendChild(removeText);
+            }
+        } else {
+            // Nothing selected: hide delete button
+            const deleteBtn = document.getElementById('editorDelete');
+            if (deleteBtn) deleteBtn.style.display = 'none';
         }
 
         interactionSvg.appendChild(handleGroup);
@@ -557,8 +584,8 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         resizeHandle.style.position = "absolute";
         resizeHandle.style[panelAnchorX === "right" ? "left" : "right"] = "0";
         resizeHandle.style[panelAnchorY === "bottom" ? "top" : "bottom"] = "0";
-        resizeHandle.style.width = "20px";
-        resizeHandle.style.height = "20px";
+        resizeHandle.style.width = "44px";
+        resizeHandle.style.height = "44px";
         const isDiagonalForward = panelAnchorX === panelAnchorY;
         resizeHandle.style.cursor = isDiagonalForward ? "nwse-resize" : "nesw-resize";
         resizeHandle.style.pointerEvents = "auto";
@@ -611,9 +638,9 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         _dragRafPending = true;
         requestAnimationFrame(() => {
             _dragRafPending = false;
-            // Draw live polygon shapes directly in interaction SVG (cheap)
-            renderLivePolygons();
             renderInteractionSvg();
+            // Draw live polygon shapes AFTER interaction SVG rebuild
+            renderLivePolygons();
         });
     }
 
