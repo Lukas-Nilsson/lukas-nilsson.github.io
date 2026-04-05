@@ -10,7 +10,7 @@ const IS_SITE_EMBEDDED_DEMO =
     window.location.pathname === SITE_DEMO_PATH ||
     window.location.pathname === `${SITE_DEMO_PATH}/` ||
     window.location.pathname.startsWith(`${SITE_DEMO_PATH}/`);
-const API_URL = IS_SITE_EMBEDDED_DEMO ? SITE_DEMO_PATH : (IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL);
+const API_URL = IS_LOCAL_DEV_HOST ? "" : REMOTE_API_URL;
 let maxObservedViewportHeight = 0;
 
 function appendDebugLog() {}
@@ -98,7 +98,7 @@ function applyMobileViewportLayout() {
 
 }
 
-function resetWindowScrollToTop() {
+function resetWindowScrollToTop(reason) {
     if (window.scrollY === 0) return;
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
@@ -116,10 +116,10 @@ if (!window.visualViewport) {
 
 if (textInput) {
     textInput.addEventListener("focus", () => {
-        resetWindowScrollToTop();
+        resetWindowScrollToTop("focus");
     });
     textInput.addEventListener("blur", () => {
-        resetWindowScrollToTop();
+        resetWindowScrollToTop("blur");
     });
 }
 
@@ -129,6 +129,7 @@ let globalActiveUploadFile = null;
 // Global pointer for edit syncing
 window._lastImageWrapper = null;
 let globalPreviousAnalysisData = null;
+let globalUndoStack = [];
 window.approvedPhotos = [];
 
 window.updateCartUI = function() {
@@ -637,7 +638,7 @@ function parseResponseDetail(responseText) {
     try {
         const parsed = JSON.parse(responseText);
         return parsed && typeof parsed.detail === "string" ? parsed.detail : responseText.slice(0, 500);
-    } catch {
+    } catch (_) {
         return responseText.slice(0, 500);
     }
 }
@@ -1385,10 +1386,10 @@ function addErrorMessage(errorText) {
 // Lightbox
 // ===========================
 
-window.openLightbox = function openLightbox(src) {
+function openLightbox(src) {
     lightboxImage.src = src;
     lightbox.classList.add("visible");
-};
+}
 
 lightboxClose.addEventListener("click", () => {
     lightbox.classList.remove("visible");
@@ -1489,7 +1490,7 @@ if (window.visualViewport) {
     const handleViewportChange = () => {
         applyMobileViewportLayout();
         if (document.activeElement === textInput) {
-            requestAnimationFrame(() => resetWindowScrollToTop());
+            requestAnimationFrame(() => resetWindowScrollToTop("viewport-change"));
         }
     };
     window.visualViewport.addEventListener("resize", handleViewportChange);
@@ -1511,7 +1512,7 @@ document.addEventListener('pointerdown', (e) => {
 
 window.addEventListener("scroll", () => {
     if (document.activeElement === textInput) {
-        resetWindowScrollToTop();
+        resetWindowScrollToTop("window-scroll");
     }
 }, { passive: true });
 
@@ -1744,7 +1745,7 @@ window.compileAndDownloadEmail = async function(btnOverride) {
                 }, 2000);
             }
         }
-    } catch {
+    } catch(e) {
         msg.innerHTML = `
             <div class="message-avatar">AI</div>
             <div class="message-content">
@@ -1766,7 +1767,7 @@ window.shareReportZip = async function(btnOverride) {
     
     // Quick device check for file share support
     let testFile;
-    try { testFile = new File([''], 'test.txt', {type: 'text/plain'}); } catch {}
+    try { testFile = new File([''], 'test.txt', {type: 'text/plain'}); } catch(e){}
     if (!navigator.canShare || !navigator.canShare({ files: [testFile] })) {
         addErrorMessage("Your browser or device does not support native file sharing. Use Download Zip or Email Draft instead.");
         return;
@@ -1831,7 +1832,7 @@ window.shareReportZip = async function(btnOverride) {
         } else {
             throw new Error("Compilation failed");
         }
-    } catch {
+    } catch(e) {
         addErrorMessage("Failed to prepare zip for sharing.");
         if (btnOverride) {
             btnOverride.innerHTML = originalText;
