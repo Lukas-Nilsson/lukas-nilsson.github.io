@@ -1,4 +1,3 @@
-import { requireAuth } from '@/lib/supabase/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -16,9 +15,6 @@ type RouteContext = {
 };
 
 async function proxyRequest(request: NextRequest, context: RouteContext) {
-    const { error: authError } = await requireAuth();
-    if (authError) return authError;
-
     const { path } = await context.params;
     const normalizedPath = path.filter(Boolean).join('/');
     const targetUrl = new URL(`/api/${normalizedPath}${request.nextUrl.search}`, BACKEND_ORIGIN);
