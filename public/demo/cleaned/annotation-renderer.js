@@ -975,7 +975,7 @@
         `.trim();
     }
 
-    function renderAnnotatedScene(sceneInput, assets) {
+    function renderAnnotatedScene(sceneInput, assets, options = {}) {
         const imageWidth = Number(assets && assets.imageWidth);
         const imageHeight = Number(assets && assets.imageHeight);
         if (!imageWidth || !imageHeight) {
@@ -1009,7 +1009,7 @@
             throw new Error("rasterizeAnnotatedScene is only available in a browser environment");
         }
 
-        const result = renderAnnotatedScene(sceneInput, assets);
+        const result = renderAnnotatedScene(sceneInput, assets, options);
         return rasterizeRenderedScene(result, assets, options);
     }
 
