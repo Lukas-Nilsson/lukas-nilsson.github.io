@@ -1412,10 +1412,16 @@ document.addEventListener("keydown", (e) => {
 const editorModal = document.getElementById("editorModal");
 const editorClose = document.getElementById("editorClose");
 const editorSave = document.getElementById("editorSave");
+const editorDelete = document.getElementById("editorDelete");
 const editorContent = document.getElementById("editorContent");
 
 window.openStandardEditorModal = function(data, imgSrc) {
     editorContent.innerHTML = "";
+    if (editorSave) editorSave.textContent = '✓ Save';
+    if (editorDelete) {
+        editorDelete.style.display = 'none';
+        editorDelete.onclick = null;
+    }
     
     const wrapper = document.createElement("div");
     wrapper.className = "image-wrapper";
@@ -1444,11 +1450,22 @@ window.openStandardEditorModal = function(data, imgSrc) {
     if (editorModal) editorModal.classList.add("visible");
 };
 
+function commitEditorChangesToGlobalState() {
+    const editorWrapper = editorContent ? editorContent.querySelector('.image-wrapper') : null;
+    if (editorWrapper && editorWrapper._editorLocalData && globalPreviousAnalysisData) {
+        Object.assign(globalPreviousAnalysisData, editorWrapper._editorLocalData);
+    }
+}
+
 if (editorClose) {
     editorClose.addEventListener("click", () => {
-        // Sync any unsaved changes before closing
+        commitEditorChangesToGlobalState();
         syncEditorToPreview();
         editorModal.classList.remove("visible");
+        if (editorDelete) {
+            editorDelete.style.display = 'none';
+            editorDelete.onclick = null;
+        }
     });
 }
 
@@ -1485,11 +1502,7 @@ function syncEditorToPreview() {
 
 if (editorSave) {
     editorSave.addEventListener('click', () => {
-        // Commit local editor clone back to globalPreviousAnalysisData before syncing
-        const editorWrapper = editorContent ? editorContent.querySelector('.image-wrapper') : null;
-        if (editorWrapper && editorWrapper._editorLocalData) {
-            Object.assign(globalPreviousAnalysisData, editorWrapper._editorLocalData);
-        }
+        commitEditorChangesToGlobalState();
         syncEditorToPreview();
         if (editorSave) {
             editorSave.textContent = '✓ Saved!';

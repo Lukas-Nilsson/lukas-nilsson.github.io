@@ -118,6 +118,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
     let activePanelDrag = null;
     let activeResize = null;
     let activeEditor = null;
+    let activeBottomSheetSession = null;
     const undoStack = [];
     const undoBtn = getUndoButton();
 
@@ -214,10 +215,34 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         activeEditor = null;
     }
 
+    function hideDeleteButton() {
+        const deleteBtn = document.getElementById('editorDelete');
+        if (deleteBtn) {
+            deleteBtn.style.display = 'none';
+            deleteBtn.onclick = null;
+        }
+    }
+
+    function cleanupBottomSheetSession() {
+        if (!activeBottomSheetSession) return;
+        const {
+            sheet,
+            saveBtn,
+            cancelBtn,
+            onSave,
+            onCancel,
+        } = activeBottomSheetSession;
+        saveBtn?.removeEventListener('click', onSave);
+        cancelBtn?.removeEventListener('click', onCancel);
+        sheet?.classList.remove('visible');
+        activeBottomSheetSession = null;
+    }
+
     function openTextEditor(field) {
         if (!isEditable) return;
         if (activeEditor && activeEditor.field.key === field.key) return;
         closeActiveEditor(true);
+        cleanupBottomSheetSession();
 
         // On mobile: use bottom sheet instead of tiny inline editor
         const isMobile = 'ontouchstart' in window;
@@ -236,15 +261,18 @@ function buildInteractiveSVG(container, data, isEditable = true) {
                 const doSave = () => {
                     pushUndoSnapshot();
                     setFieldValue(field, input.value.trim() || currentVal);
-                    sheet.classList.remove('visible');
+                    cleanupBottomSheetSession();
                     rerender();
-                    saveBtn.removeEventListener('click', doSave);
-                    cancelBtn.removeEventListener('click', doCancel);
                 };
                 const doCancel = () => {
-                    sheet.classList.remove('visible');
-                    saveBtn.removeEventListener('click', doSave);
-                    cancelBtn.removeEventListener('click', doCancel);
+                    cleanupBottomSheetSession();
+                };
+                activeBottomSheetSession = {
+                    sheet,
+                    saveBtn,
+                    cancelBtn,
+                    onSave: doSave,
+                    onCancel: doCancel,
                 };
                 saveBtn.addEventListener('click', doSave);
                 cancelBtn.addEventListener('click', doCancel);
@@ -391,6 +419,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
     function renderHandles() {
         const existing = interactionSvg.querySelector("[data-overlay='handles']");
         if (existing) existing.remove();
+        hideDeleteButton();
         if (!isEditable || !selectedTarget) return;
 
         const points = getPolygonRef(selectedTarget.kind, selectedTarget.sourceIndex, selectedTarget.polygonIndex);
@@ -502,10 +531,6 @@ function buildInteractiveSVG(container, data, isEditable = true) {
                 handleGroup.appendChild(removeBg);
                 handleGroup.appendChild(removeText);
             }
-        } else {
-            // Nothing selected: hide delete button
-            const deleteBtn = document.getElementById('editorDelete');
-            if (deleteBtn) deleteBtn.style.display = 'none';
         }
 
         interactionSvg.appendChild(handleGroup);
@@ -849,6 +874,8 @@ function buildInteractiveSVG(container, data, isEditable = true) {
 
     container._interactiveSceneCleanup = () => {
         closeActiveEditor(false);
+        cleanupBottomSheetSession();
+        hideDeleteButton();
         window.removeEventListener("pointermove", handleDrag);
         window.removeEventListener("pointerup", endDrag);
         window.removeEventListener("pointercancel", endDrag);
