@@ -1,0 +1,1003 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+
+import {
+  approveRoom,
+  createRoomRevision,
+  deleteRoom,
+  getChatSession,
+  listRecentJobs,
+  postChatMessage,
+  postChatUpload
+} from "@/lib/cleaned-v2/backend";
+import { createCleanedClient as createClient } from "@/lib/cleaned-v2/supabase-client";
+import { RoomEditor } from "@/components/cleaned-v2/room-editor";
+import type {
+  ChatMessageResponse,
+  ChatSessionResponse,
+  JobResponse,
+  RecentJobResponse,
+  ReportResponse,
+  RoomResponse
+} from "@/lib/cleaned-v2/types";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type PendingMessage = ChatMessageResponse & { pending?: boolean };
+type ActiveOperation = {
+  kind: "message" | "upload";
+  startedAt: number;
+  baseMessageCount: number;
+  baseRoomCount: number;
+};
+type ViewMode = "jobs" | "chat" | "gallery";
+
+// ---------------------------------------------------------------------------
+// Pure helpers (no hooks, no side-effects)
+// ---------------------------------------------------------------------------
+
+function greetingForEmail(email: string) {
+  const lower = email.toLowerCase();
+  if (lower.includes("horng")) return "Hey Horng";
+  if (lower.includes("lukas")) return "Hey Lukas";
+  return "Hi";
+}
+
+function timeLabel(iso?: string | null) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function roomFromMessage(message: ChatMessageResponse, currentJob?: JobResponse | null) {
+  const roomId = typeof message.metadata.room_id === "string" ? message.metadata.room_id : (message.metadata.room as RoomResponse | undefined)?.id;
+  if (roomId && currentJob) {
+    const liveRoom = currentJob.rooms.find((room) => room.id === roomId);
+    if (liveRoom) return liveRoom;
+  }
+  return (message.metadata.room as RoomResponse | undefined) || null;
+}
+
+function reportFromMessage(message: ChatMessageResponse, currentJob?: JobResponse | null) {
+  const metadataReport = message.metadata.report as ReportResponse | undefined;
+  if (metadataReport) return metadataReport;
+  return currentJob?.latest_report || null;
+}
+
+function statusTextForMessage(message: ChatMessageResponse) {
+  if (typeof message.metadata.status_label === "string" && message.metadata.status_label.trim()) {
+    return message.metadata.status_label.trim();
+  }
+  switch (message.message_type) {
+    case "system_event":
+      return message.body || "Update";
+    case "job_switched":
+      return "Job switched";
+    case "room_created":
+      return "Room ready";
+    case "room_updated":
+      return "Room updated";
+    case "room_approved":
+      return "Room approved";
+    case "report_ready":
+      return "Report ready";
+    case "report_blocked":
+      return "Report blocked";
+    default:
+      return "";
+  }
+}
+
+function detailTextForMessage(message: ChatMessageResponse) {
+  if (typeof message.metadata.status_detail === "string" && message.metadata.status_detail.trim()) {
+    return message.metadata.status_detail.trim();
+  }
+  return message.body || "";
+}
+
+function isCompactStatusMessage(message: PendingMessage) {
+  return (
+    message.message_type === "system_event" ||
+    message.message_type === "job_switched" ||
+    message.message_type === "room_created" ||
+    message.message_type === "room_updated" ||
+    message.message_type === "room_approved" ||
+    message.message_type === "report_ready" ||
+    message.message_type === "report_blocked" ||
+    Boolean(message.metadata.thinking)
+  );
+}
+
+/** Filter chat messages to the ones relevant for the current context. */
+function filterMessagesForJob(
+  messages: PendingMessage[],
+  currentJobId: string | undefined
+): PendingMessage[] {
+  if (currentJobId) {
+    // Active job: show messages tagged to this job, plus optimistic pending
+    // messages which haven't been persisted yet (they have no job_id).
+    return messages.filter(
+      (m) => m.job_id === currentJobId || Boolean(m.pending)
+    );
+  }
+  // Intake / no job: only show messages with no job association.
+  return messages.filter((m) => !m.job_id);
+}
+
+/** Group consecutive system_event status messages by room_id into activity cards. */
+function buildActivityGroups(messages: PendingMessage[]) {
+  const skipIds = new Set<string>();
+  const groups = new Map<string, PendingMessage[]>();
+  let i = 0;
+  while (i < messages.length) {
+    const msg = messages[i];
+    if (msg.message_type !== "system_event" || typeof msg.metadata?.status_label !== "string") {
+      i++;
+      continue;
+    }
+    const roomId = typeof msg.metadata?.room_id === "string" ? msg.metadata.room_id : null;
+    const groupMsgs: PendingMessage[] = [msg];
+    if (roomId) {
+      let j = i + 1;
+      while (j < messages.length) {
+        const next = messages[j];
+        const nextRoomId = typeof next.metadata?.room_id === "string" ? next.metadata.room_id : null;
+        if (next.message_type === "system_event" && typeof next.metadata?.status_label === "string" && nextRoomId === roomId) {
+          groupMsgs.push(next);
+          skipIds.add(next.id);
+          j++;
+        } else {
+          break;
+        }
+      }
+      i = j;
+    } else {
+      i++;
+    }
+    groups.set(msg.id, groupMsgs);
+  }
+  return { skipIds, groups };
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function CleanedChatApp({
+  viewerEmail,
+  initialJobId
+}: {
+  viewerEmail: string;
+  initialJobId?: string;
+}) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const hasAppliedInitialJob = useRef(false);
+
+  // ---- Core state ---------------------------------------------------------
+  const [accessToken, setAccessToken] = useState("");
+  const [chatSession, setChatSession] = useState<ChatSessionResponse | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const [activeOperation, setActiveOperation] = useState<ActiveOperation | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(initialJobId ? "chat" : "jobs");
+
+  // ---- UI state -----------------------------------------------------------
+  const [messageText, setMessageText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [editingRoom, setEditingRoom] = useState<RoomResponse | null>(null);
+  const [editorRoomName, setEditorRoomName] = useState("");
+  const [editorRoomNote, setEditorRoomNote] = useState("");
+  const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
+  const [pendingUploadName, setPendingUploadName] = useState("");
+  const [recentJobs, setRecentJobs] = useState<RecentJobResponse[]>([]);
+  const [recentJobsLoading, setRecentJobsLoading] = useState(false);
+
+  // ---- Derived data -------------------------------------------------------
+  const currentJob = chatSession?.current_job;
+  const currentJobId = currentJob?.id;
+  const greeting = greetingForEmail(viewerEmail);
+
+  const allMessages = useMemo<PendingMessage[]>(
+    () => [...(chatSession?.messages || []), ...pendingMessages] as PendingMessage[],
+    [chatSession?.messages, pendingMessages]
+  );
+
+  const chatMessages = useMemo(
+    () => filterMessagesForJob(allMessages, currentJobId),
+    [allMessages, currentJobId]
+  );
+
+  const latestCardIndexByRoomId = useMemo(() => {
+    const map = new Map<string, number>();
+    chatMessages.forEach((msg, index) => {
+      const roomId = msg.metadata?.room_id || (msg.metadata?.room as RoomResponse | undefined)?.id;
+      if (typeof roomId === "string" && ["room_created", "room_updated", "room_approved", "room_needs_review"].includes(msg.message_type)) {
+        map.set(roomId, index);
+      }
+    });
+    return map;
+  }, [chatMessages]);
+
+  const activityGroupInfo = useMemo(
+    () => buildActivityGroups(chatMessages),
+    [chatMessages]
+  );
+
+  // ---- Navigation helper --------------------------------------------------
+  // Only navigate when the job actually changes relative to the URL.
+  const navigateToJob = useCallback(
+    (jobId: string | undefined) => {
+      if (!jobId) return;
+      if (jobId !== initialJobId) {
+        router.replace(`/demo-v2/cleaned/jobs/${jobId}`);
+      }
+    },
+    [initialJobId, router]
+  );
+
+  // ---- Auth bootstrap -----------------------------------------------------
+  useEffect(() => {
+    async function bootstrap() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        router.replace("/demo-v2/cleaned/login");
+        return;
+      }
+      setAccessToken(session.access_token);
+      try {
+        const data = await getChatSession(session.access_token);
+        setChatSession(data);
+      } catch (e) {
+        setError(typeof e === "string" ? e : "Failed to load chat session");
+      }
+    }
+
+    bootstrap();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setAccessToken(session.access_token);
+      } else {
+        router.replace("/demo-v2/cleaned/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router, supabase]);
+
+  // ---- Apply initialJobId from URL (once) ---------------------------------
+  useEffect(() => {
+    if (!accessToken || !chatSession || !initialJobId || hasAppliedInitialJob.current) return;
+    hasAppliedInitialJob.current = true;
+    if (chatSession.current_job?.id === initialJobId) return;
+    void handleSend({ selectedJobId: initialJobId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, chatSession, initialJobId]);
+
+  // ---- Load recent jobs when Jobs tab is active ---------------------------
+  useEffect(() => {
+    if (!accessToken || viewMode !== "jobs") return;
+    setRecentJobsLoading(true);
+    listRecentJobs(accessToken)
+      .then(setRecentJobs)
+      .catch(() => {})
+      .finally(() => setRecentJobsLoading(false));
+  }, [accessToken, viewMode]);
+
+  // ---- Auto-scroll chat ---------------------------------------------------
+  useEffect(() => {
+    if (!chatScrollRef.current) return;
+    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }, [chatMessages, selectedFile, currentJobId]);
+
+  // ---- Polling during active operations -----------------------------------
+  useEffect(() => {
+    if (!accessToken || !activeOperation) return;
+    let cancelled = false;
+    let noChangePollCount = 0;
+    let timeoutId: number;
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const data = await getChatSession(accessToken);
+        if (cancelled) return;
+        const hasFreshMessages =
+          data.messages.length > activeOperation.baseMessageCount ||
+          data.messages.some((m) => Date.parse(m.created_at) >= activeOperation.startedAt - 1500);
+        const hasRoomChange = (data.current_job?.rooms.length ?? 0) !== activeOperation.baseRoomCount;
+
+        setChatSession(data);
+        if (hasFreshMessages || hasRoomChange) {
+          noChangePollCount = 0;
+          setPendingMessages([]);
+        } else {
+          noChangePollCount++;
+        }
+      } catch {
+        // Keep optimistic state during network drops
+      } finally {
+        if (!cancelled) {
+          const delay = Math.min(1200 * Math.pow(1.6, noChangePollCount), 5000);
+          timeoutId = window.setTimeout(() => void poll(), delay);
+        }
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [accessToken, activeOperation]);
+
+  // ---- Actions ------------------------------------------------------------
+
+  async function refreshSession(token = accessToken) {
+    const data = await getChatSession(token);
+    setChatSession(data);
+    setPendingMessages([]);
+    setPendingUploadName("");
+  }
+
+  function clearSelectedFile() {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace("/demo-v2/cleaned/login");
+    router.refresh();
+  }
+
+  async function handleSend({
+    presetBody,
+    selectedJobId
+  }: {
+    presetBody?: string;
+    selectedJobId?: string;
+  } = {}) {
+    if (!accessToken || busy) return;
+    const body = (presetBody ?? messageText).trim();
+    if (!body && !selectedJobId) return;
+
+    // -- Optimistic UI --
+    const optimistic: PendingMessage | null = body
+      ? {
+          id: `pending-${Date.now()}`,
+          direction: "user",
+          message_type: "user_text",
+          body,
+          metadata: {},
+          created_at: new Date().toISOString(),
+          pending: true
+        }
+      : null;
+    const statusMessage: PendingMessage = selectedJobId
+      ? {
+          id: `pending-status-${Date.now()}`,
+          direction: "system",
+          message_type: "job_switched",
+          body: "Switching job context",
+          metadata: {
+            thinking: true,
+            status_label: "Switching job",
+            status_detail: "Loading the selected inspection context."
+          },
+          created_at: new Date().toISOString(),
+          pending: true
+        }
+      : {
+          id: `pending-status-${Date.now()}`,
+          direction: "system",
+          message_type: "system_event",
+          body: currentJob ? "Updating inspection chat" : "Updating job setup",
+          metadata: {
+            thinking: true,
+            status_label: currentJob ? "Working on it" : "Updating job",
+            status_detail: currentJob
+              ? "Saving your latest message and deciding the next step."
+              : "Adding details and moving the job setup forward."
+          },
+          created_at: new Date().toISOString(),
+          pending: true
+        };
+
+    setPendingMessages((prev) =>
+      optimistic ? [...prev, optimistic, statusMessage] : [...prev, statusMessage]
+    );
+    setActiveOperation({
+      kind: "message",
+      startedAt: Date.now(),
+      baseMessageCount: chatSession?.messages.length ?? 0,
+      baseRoomCount: currentJob?.rooms.length ?? 0
+    });
+    setBusy(true);
+    setError("");
+    setMessageText("");
+
+    try {
+      const next = await postChatMessage(accessToken, {
+        body: body || null,
+        selected_job_id: selectedJobId || null
+      });
+      setChatSession(next);
+      setPendingMessages([]);
+
+      // Navigate only when the backend switched to a different job.
+      if (next.current_job) {
+        navigateToJob(next.current_job.id);
+      }
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to send message");
+      setPendingMessages([]);
+      if (body) setMessageText(body);
+    } finally {
+      setBusy(false);
+      setActiveOperation(null);
+    }
+  }
+
+  async function handleUpload() {
+    if (!accessToken || !selectedFile || !currentJob || busy) return;
+    const file = selectedFile;
+    const note = messageText.trim();
+    const optimistic: PendingMessage = {
+      id: `pending-upload-${Date.now()}`,
+      direction: "user",
+      message_type: "user_text",
+      body: note || "Uploaded a room photo",
+      metadata: { has_image: true, file_name: file.name },
+      created_at: new Date().toISOString(),
+      pending: true
+    };
+    const processingMessage: PendingMessage = {
+      id: `pending-processing-${Date.now()}`,
+      direction: "system",
+      message_type: "system_event",
+      body: `Processing ${file.name}...`,
+      metadata: {
+        processing_upload: true,
+        thinking: true,
+        file_name: file.name,
+        status_label: "Processing room photo",
+        status_detail: "Analyzing the image, writing findings, and preparing the review card."
+      },
+      created_at: new Date().toISOString(),
+      pending: true
+    };
+    setPendingMessages((prev) => [...prev, optimistic, processingMessage]);
+    setActiveOperation({
+      kind: "upload",
+      startedAt: Date.now(),
+      baseMessageCount: chatSession?.messages.length ?? 0,
+      baseRoomCount: currentJob.rooms.length
+    });
+    setBusy(true);
+    setError("");
+    setMessageText("");
+    clearSelectedFile();
+    setPendingUploadName(file.name);
+
+    try {
+      const next = await postChatUpload(accessToken, { file, note });
+      setChatSession(next);
+      setPendingMessages([]);
+      setPendingUploadName("");
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to upload room");
+      setPendingMessages([]);
+      setMessageText(note);
+      setSelectedFile(file);
+      setPendingUploadName("");
+    } finally {
+      setBusy(false);
+      setActiveOperation(null);
+    }
+  }
+
+  function handleNewInspection() {
+    if (!accessToken || busy) return;
+    setViewMode("chat");
+    void handleSend({ presetBody: "start new job" });
+  }
+
+  function openEditor(room: RoomResponse) {
+    if (!room.latest_revision) return;
+    setEditingRoom(room);
+    setEditorRoomName(room.room_name);
+    setEditorRoomNote(room.supervisor_note);
+  }
+
+  async function saveEditor(roomName: string, supervisorNote: string, sceneJson: Record<string, unknown>) {
+    if (!accessToken || !editingRoom) return;
+    const targetRoomId = editingRoom.id;
+    setEditingRoom(null);
+    setBusyRoomId(targetRoomId);
+    setError("");
+    try {
+      await createRoomRevision(accessToken, targetRoomId, {
+        scene_json: sceneJson,
+        room_name: roomName.trim() || null,
+        supervisor_note: supervisorNote.trim() || null
+      });
+      await refreshSession();
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to save room revision");
+    } finally {
+      setBusyRoomId(null);
+    }
+  }
+
+  async function handleApprove(room: RoomResponse) {
+    if (!accessToken || busyRoomId) return;
+    setBusyRoomId(room.id);
+    setError("");
+    try {
+      await approveRoom(accessToken, room.id);
+      await refreshSession();
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to approve room");
+    } finally {
+      setBusyRoomId(null);
+    }
+  }
+
+  async function handleDeleteRoom(room: RoomResponse) {
+    if (!accessToken || busyRoomId) return;
+    if (!window.confirm(`Delete "${room.room_name}"? This cannot be undone.`)) return;
+    setBusyRoomId(room.id);
+    setError("");
+    try {
+      const updatedJob = await deleteRoom(accessToken, room.id);
+      setChatSession((prev) => (prev ? { ...prev, current_job: updatedJob } : prev));
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to delete room");
+    } finally {
+      setBusyRoomId(null);
+    }
+  }
+
+  function handleRespond(room: RoomResponse) {
+    setViewMode("chat");
+    setMessageText(`Regarding "${room.room_name}": `);
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+      chatScrollRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  }
+
+  // ---- Render helpers -----------------------------------------------------
+
+  const renderRoomCard = (room: RoomResponse) => (
+    <article key={room.id} className="room-card">
+      {room.latest_revision?.rendered_asset?.access_url ? (
+        <img alt={room.room_name} src={room.latest_revision.rendered_asset.access_url} />
+      ) : null}
+      <div className="room-card-body">
+        <div className="badge-row">
+          <span className={`badge ${room.status}`}>{room.status.replace("_", " ")}</span>
+          <span className={`badge ${room.approval_status === "approved" ? "approved" : "needs_review"}`}>
+            {room.approval_status}
+          </span>
+        </div>
+        <h3>
+          {room.sequence_number}. {room.room_name}
+        </h3>
+        <p>{room.supervisor_note}</p>
+        {room.latest_revision?.summary_json?.checklist?.length ? (
+          <ul className="room-checklist">
+            {room.latest_revision.summary_json.checklist.map((item, index) => (
+              <li key={`${room.id}-${index}`}>
+                <span>{item.type}</span>
+                <strong>{item.text}</strong>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="room-actions">
+          <button className="ghost-chip" onClick={() => openEditor(room)} type="button">
+            Edit
+          </button>
+          <button className="ghost-chip" onClick={() => handleRespond(room)} type="button">
+            Respond
+          </button>
+          {viewMode === "gallery" ? (
+            <button
+              className="ghost-chip danger"
+              disabled={!!busyRoomId}
+              onClick={() => void handleDeleteRoom(room)}
+              type="button"
+            >
+              {busyRoomId === room.id ? "Deleting..." : "Delete"}
+            </button>
+          ) : null}
+          <button
+            className="primary-button compact"
+            disabled={room.status === "processing" || room.status === "failed" || room.approval_status === "approved" || busyRoomId === room.id}
+            onClick={() => handleApprove(room)}
+            type="button"
+          >
+            {busyRoomId === room.id ? "Processing..." : room.approval_status === "approved" ? "Approved" : "Approve"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+
+  // ---- JSX ----------------------------------------------------------------
+
+  return (
+    <div className="chat-shell">
+      {/* Header */}
+      <header className="chat-header">
+        <div>
+          <div className="brand-row">
+            <div className="brand-mark">C</div>
+            <div>
+              <p className="brand-eyebrow">CLEANED V2</p>
+              <h1>{viewMode === "jobs" ? `${greeting} 👋` : (currentJob?.site_name || `${greeting} 👋`)}</h1>
+            </div>
+          </div>
+          <p className="header-subtitle">
+            {currentJob && viewMode !== "jobs"
+              ? `${currentJob.site_address || "No address"} • ${currentJob.cleaner_name || "No cleaner"}`
+              : "Select an inspection or start a new one"}
+          </p>
+        </div>
+        <div className="header-actions">
+          <div className="view-toggle">
+            <button className={viewMode === "jobs" ? "active" : ""} onClick={() => setViewMode("jobs")} type="button">Jobs</button>
+            <button className={viewMode === "chat" ? "active" : ""} onClick={() => setViewMode("chat")} type="button">Chat</button>
+            <button className={viewMode === "gallery" ? "active" : ""} onClick={() => setViewMode("gallery")} type="button">Gallery</button>
+          </div>
+          {currentJob ? (
+            <Link className="ghost-chip" href={`/demo-v2/cleaned/jobs/${currentJob.id}`}>
+              Open job
+            </Link>
+          ) : null}
+          <button className="ghost-chip" onClick={handleSignOut} type="button">
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      {/* Jobs panel */}
+      {viewMode === "jobs" ? (
+        <main className="gallery-main jobs-panel">
+          <button
+            className="job-new-card"
+            disabled={busy}
+            onClick={handleNewInspection}
+            type="button"
+          >
+            <span className="job-new-icon">+</span>
+            <strong>New Inspection</strong>
+            <span>Start a fresh job via chat</span>
+          </button>
+          {recentJobsLoading ? (
+            <div className="jobs-loading">Loading jobs…</div>
+          ) : recentJobs.map((job) => (
+            <Link key={job.id} href={`/demo-v2/cleaned/jobs/${job.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <article className="room-card job-card">
+                <div className="room-card-body">
+                  <div className="badge-row">
+                    <span className={`badge ${job.status}`}>{job.status}</span>
+                  </div>
+                  <h3>{job.site_name}</h3>
+                  <p>{job.site_address || "No address"}</p>
+                  <p className="job-card-meta">
+                    {job.cleaner_name || "No cleaner"} · Updated {new Date(job.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </article>
+            </Link>
+          ))}
+        </main>
+
+      /* Chat view */
+      ) : viewMode === "chat" ? (
+        <>
+          <main className="chat-main" ref={chatScrollRef}>
+            {chatMessages.map((message, index) => {
+              if (activityGroupInfo.skipIds.has(message.id)) return null;
+
+              const activityGroup = activityGroupInfo.groups.get(message.id);
+              if (activityGroup) {
+                return (
+                  <div key={message.id} className={`thread-row status${message.pending ? " pending" : ""}`}>
+                    <div className="activity-card status-stack">
+                      {activityGroup.map((step, stepIdx) => {
+                        const isActive = Boolean(step.metadata.thinking);
+                        return (
+                          <div
+                            key={step.id}
+                            className={`activity-step${isActive ? " active" : ""}`}
+                            style={{ animationDelay: `${stepIdx * 55}ms` }}
+                          >
+                            <div className="activity-step-icon" aria-hidden="true">
+                              {isActive ? (
+                                <span className="activity-step-spinner" />
+                              ) : (
+                                <svg className="activity-step-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                                  <path d="M4.5 7l1.8 1.8 3.2-3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="activity-step-body">
+                              <span className="activity-step-label">{String(step.metadata.status_label)}</span>
+                              {step.metadata.status_detail ? (
+                                <span className="activity-step-detail">{String(step.metadata.status_detail)}</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              const room = roomFromMessage(message, currentJob);
+              const report = reportFromMessage(message, currentJob);
+              const candidates = Array.isArray(message.metadata.candidates)
+                ? (message.metadata.candidates as RecentJobResponse[])
+                : [];
+              const isCompactStatus = isCompactStatusMessage(message);
+              const isThinking = Boolean(message.metadata.thinking);
+              const isRoomVisualType = ["room_created", "room_updated", "room_approved", "room_needs_review"].includes(message.message_type);
+              const isObsoleteCard = isRoomVisualType && room && latestCardIndexByRoomId.get(room.id) !== index;
+
+              const hasCard =
+                (room && isRoomVisualType && !isObsoleteCard) ||
+                (message.message_type === "report_ready" && Boolean(report?.pdf_asset)) ||
+                message.message_type === "report_blocked" ||
+                (message.message_type === "clarification_needed" && candidates.length > 0);
+
+              return (
+                <div
+                  key={message.id}
+                  className={`thread-row ${isCompactStatus ? "status" : message.direction} ${message.pending ? "pending" : ""}`}
+                >
+                  <div className={isCompactStatus ? "status-stack" : `bubble ${message.direction} ${message.pending ? "pending" : ""}`}>
+                    {isCompactStatus ? (
+                      isThinking ? (
+                        <div className="typing-bubble" aria-live="polite">
+                          <div className="typing-dots" aria-hidden="true">
+                            <span /><span /><span />
+                          </div>
+                          {detailTextForMessage(message) ? (
+                            <span className="typing-subtitle">{detailTextForMessage(message)}</span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="status-line">
+                          <div className="status-copy">
+                            <span className="status-label">
+                              {statusTextForMessage(message)}
+                            </span>
+                            {detailTextForMessage(message) && !hasCard ? (
+                              <span className="status-detail">{detailTextForMessage(message)}</span>
+                            ) : null}
+                          </div>
+                          <span className="status-time">{timeLabel(message.created_at)}</span>
+                        </div>
+                      )
+                    ) : message.body ? (
+                      <p>{message.body} {isObsoleteCard ? "(Superseded)" : ""}</p>
+                    ) : null}
+
+                    {room && isRoomVisualType && !isObsoleteCard ? renderRoomCard(room) : null}
+
+                    {message.message_type === "report_ready" && report?.pdf_asset ? (
+                      <div className="report-card">
+                        <span className="report-pill">PDF ready</span>
+                        <div>
+                          <strong>Report v{report.version_number}</strong>
+                          <p>Open the generated PDF report for this inspection.</p>
+                        </div>
+                        <a className="primary-button compact" href={report.pdf_asset.access_url} rel="noreferrer" target="_blank">
+                          Open PDF
+                        </a>
+                      </div>
+                    ) : null}
+
+                    {message.message_type === "report_blocked" ? (
+                      <div className="report-card blocked">
+                        <span className="report-pill blocked">Blocked</span>
+                        <div>
+                          <strong>Unapproved rooms</strong>
+                          <p>{message.body}</p>
+                          {Array.isArray(message.metadata.unapproved_rooms) ? (
+                            <ul className="blocked-list">
+                              {(message.metadata.unapproved_rooms as Array<{ sequence_number: number; room_name: string }>).map((item) => {
+                                const targetRoom = currentJob?.rooms.find((r) => r.sequence_number === item.sequence_number && r.room_name === item.room_name);
+                                return (
+                                  <li key={`${item.sequence_number}-${item.room_name}`}>
+                                    {targetRoom ? (
+                                      <button
+                                        className="ghost-chip"
+                                        onClick={() => openEditor(targetRoom)}
+                                        type="button"
+                                        style={{ margin: "2px 0", textAlign: "left" }}
+                                      >
+                                        {item.sequence_number}. {item.room_name} <span>&rarr;</span>
+                                      </button>
+                                    ) : (
+                                      <span>{item.sequence_number}. {item.room_name}</span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {message.message_type === "clarification_needed" && candidates.length ? (
+                      <div className="choice-card">
+                        {candidates.map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            className="choice-button"
+                            disabled={busy}
+                            onClick={() => handleSend({ selectedJobId: candidate.id })}
+                            type="button"
+                          >
+                            <strong>{candidate.site_name}</strong>
+                            <span>{candidate.site_address || "No address"} • {candidate.cleaner_name || "No cleaner"}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {!isCompactStatus ? <span className="timestamp">{timeLabel(message.created_at)}</span> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </main>
+
+          <footer className="composer-shell">
+            {chatSession?.suggested_actions?.length ? (
+              <div className="suggested-actions">
+                {chatSession.suggested_actions.map((action) => (
+                  <button
+                    key={action.value}
+                    className="ghost-chip"
+                    disabled={busy}
+                    onClick={() => handleSend({ presetBody: action.value })}
+                    type="button"
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {selectedFile ? (
+              <div className="attachment-preview">
+                <span>{selectedFile.name}</span>
+                <button onClick={clearSelectedFile} type="button">
+                  Remove
+                </button>
+              </div>
+            ) : null}
+
+            {error ? <p className="chat-error">{error}</p> : null}
+
+            <div className="composer-row">
+              <button
+                className="attach-button"
+                disabled={!currentJob || busy}
+                onClick={() => fileInputRef.current?.click()}
+                title={currentJob ? "Attach room photo" : "Create or switch to a job first"}
+                type="button"
+              >
+                +
+              </button>
+              <input
+                accept="image/*"
+                hidden
+                onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                ref={fileInputRef}
+                type="file"
+              />
+              <textarea
+                className="composer-input"
+                ref={chatInputRef}
+                onChange={(event) => setMessageText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    if (selectedFile) {
+                      void handleUpload();
+                    } else {
+                      void handleSend();
+                    }
+                  }
+                }}
+                placeholder={
+                  currentJob
+                    ? "Add a room note, switch jobs, or ask for the report..."
+                    : "Reply to the assistant to set up the job..."
+                }
+                rows={1}
+                value={messageText}
+              />
+              <button
+                className="primary-button send-button"
+                disabled={busy || (!selectedFile && !messageText.trim())}
+                onClick={() => {
+                  if (selectedFile) {
+                    void handleUpload();
+                  } else {
+                    void handleSend();
+                  }
+                }}
+                type="button"
+              >
+                {busy ? (pendingUploadName ? "Processing" : "...") : selectedFile ? "Upload" : "Send"}
+              </button>
+            </div>
+          </footer>
+        </>
+
+      /* Gallery view */
+      ) : (
+        <main className="gallery-main">
+          {currentJob?.rooms.length ? (
+            currentJob.rooms.map((room) => renderRoomCard(room))
+          ) : (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--muted)" }}>
+              No rooms yet. Switch to Chat to upload some.
+            </div>
+          )}
+        </main>
+      )}
+
+      {/* Room editor modal */}
+      {editingRoom ? (
+        <RoomEditor
+          room={editingRoom}
+          initialRoomName={editorRoomName}
+          initialSupervisorNote={editorRoomNote}
+          onClose={() => setEditingRoom(null)}
+          onSave={saveEditor}
+          onApprove={async () => {
+            const target = chatSession?.current_job?.rooms.find((r) => r.id === editingRoom.id);
+            setEditingRoom(null);
+            if (target) {
+              await handleApprove(target);
+            }
+          }}
+          onRespond={async (note) => {
+            const currentEditingRoom = editingRoom;
+            setEditingRoom(null);
+            if (currentEditingRoom) {
+              const contextualMessage = `Regarding room "${currentEditingRoom.room_name}": ${note}`;
+              await handleSend({ presetBody: contextualMessage });
+            }
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
