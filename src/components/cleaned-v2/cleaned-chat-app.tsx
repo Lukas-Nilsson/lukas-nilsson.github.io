@@ -4,15 +4,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
+// Track the previous initialJobId to detect navigation between jobs.
+function usePreviousValue<T>(value: T): T | undefined {
+  const ref = useRef<T | undefined>(undefined);
+  useEffect(() => { ref.current = value; });
+  return ref.current;
+}
+
 import {
   approveRoom,
   createRoomRevision,
   deleteRoom,
   getChatSession,
-  listRecentJobs,
   postChatMessage,
   postChatUpload
 } from "@/lib/cleaned-v2/backend";
+import { useJobCache } from "@/lib/cleaned-v2/use-job-cache";
 import { createCleanedClient as createClient } from "@/lib/cleaned-v2/supabase-client";
 import { RoomEditor } from "@/components/cleaned-v2/room-editor";
 import type {
@@ -43,9 +50,9 @@ type ViewMode = "jobs" | "chat" | "gallery";
 
 function greetingForEmail(email: string) {
   const lower = email.toLowerCase();
-  if (lower.includes("horng")) return "Hey Horng";
-  if (lower.includes("lukas")) return "Hey Lukas";
-  return "Hi";
+  if (lower.includes("horng")) return "Hola Horng";
+  if (lower.includes("lukas")) return "Hola Lukas";
+  return "Hola";
 }
 
 function timeLabel(iso?: string | null) {
@@ -184,6 +191,11 @@ export function CleanedChatApp({
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const hasAppliedInitialJob = useRef(false);
+  const prevInitialJobId = usePreviousValue(initialJobId);
+  const jobSelectorRef = useRef<HTMLDivElement>(null);
+
+  // ---- Cache --------------------------------------------------------------
+  const cache = useJobCache();
 
   // ---- Core state ---------------------------------------------------------
   const [accessToken, setAccessToken] = useState("");
@@ -191,6 +203,7 @@ export function CleanedChatApp({
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [activeOperation, setActiveOperation] = useState<ActiveOperation | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(initialJobId ? "chat" : "jobs");
+  const [activeJobId, setActiveJobId] = useState<string | null>(initialJobId || null);
 
   // ---- UI state -----------------------------------------------------------
   const [messageText, setMessageText] = useState("");
@@ -202,13 +215,16 @@ export function CleanedChatApp({
   const [editorRoomNote, setEditorRoomNote] = useState("");
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
   const [pendingUploadName, setPendingUploadName] = useState("");
-  const [recentJobs, setRecentJobs] = useState<RecentJobResponse[]>([]);
-  const [recentJobsLoading, setRecentJobsLoading] = useState(false);
+  const [jobSelectorOpen, setJobSelectorOpen] = useState(false);
 
   // ---- Derived data -------------------------------------------------------
-  const currentJob = chatSession?.current_job;
-  const currentJobId = currentJob?.id;
+  // Resolve currentJob from cache (instant) or fall back to session response.
+  const currentJob = activeJobId
+    ? (cache.getJob(activeJobId) || chatSession?.current_job)
+    : chatSession?.current_job;
+  const currentJobId = activeJobId || currentJob?.id;
   const greeting = greetingForEmail(viewerEmail);
+  const { recentJobs, recentJobsLoading } = cache;
 
   const allMessages = useMemo<PendingMessage[]>(
     () => [...(chatSession?.messages || []), ...pendingMessages] as PendingMessage[],
@@ -260,6 +276,11 @@ export function CleanedChatApp({
       try {
         const data = await getChatSession(session.access_token);
         setChatSession(data);
+        // Seed cache with session's current job if present.
+        if (data.current_job) {
+          cache.putJob(data.current_job);
+          setActiveJobId(data.current_job.id);
+        }
       } catch (e) {
         setError(typeof e === "string" ? e : "Failed to load chat session");
       }
@@ -276,26 +297,42 @@ export function CleanedChatApp({
     });
 
     return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, supabase]);
 
-  // ---- Apply initialJobId from URL (once) ---------------------------------
+  // ---- Apply initialJobId from URL (once per ID) --------------------------
   useEffect(() => {
+    // Reset the guard when the URL-level job changes (navigating between jobs)
+    if (prevInitialJobId && prevInitialJobId !== initialJobId) {
+      hasAppliedInitialJob.current = false;
+    }
     if (!accessToken || !chatSession || !initialJobId || hasAppliedInitialJob.current) return;
     hasAppliedInitialJob.current = true;
+    // Instantly switch the active job from cache if available.
+    setActiveJobId(initialJobId);
     if (chatSession.current_job?.id === initialJobId) return;
     void handleSend({ selectedJobId: initialJobId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, chatSession, initialJobId]);
+  }, [accessToken, chatSession, initialJobId, prevInitialJobId]);
 
-  // ---- Load recent jobs when Jobs tab is active ---------------------------
+  // ---- Load recent jobs eagerly (for the dropdown + Jobs tab) -------------
   useEffect(() => {
-    if (!accessToken || viewMode !== "jobs") return;
-    setRecentJobsLoading(true);
-    listRecentJobs(accessToken)
-      .then(setRecentJobs)
-      .catch(() => {})
-      .finally(() => setRecentJobsLoading(false));
-  }, [accessToken, viewMode]);
+    if (!accessToken) return;
+    void cache.refreshRecentJobs(accessToken);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, activeJobId]);
+
+  // ---- Close job selector on outside click --------------------------------
+  useEffect(() => {
+    if (!jobSelectorOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (jobSelectorRef.current && !jobSelectorRef.current.contains(e.target as Node)) {
+        setJobSelectorOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [jobSelectorOpen]);
 
   // ---- Auto-scroll chat ---------------------------------------------------
   useEffect(() => {
@@ -347,11 +384,17 @@ export function CleanedChatApp({
 
   // ---- Actions ------------------------------------------------------------
 
+  /** Sync chat session state from backend (messages, stage, etc). */
   async function refreshSession(token = accessToken) {
     const data = await getChatSession(token);
     setChatSession(data);
     setPendingMessages([]);
     setPendingUploadName("");
+    // Update cache with the fresh job from the session response.
+    if (data.current_job) {
+      cache.putJob(data.current_job);
+      setActiveJobId(data.current_job.id);
+    }
   }
 
   function clearSelectedFile() {
@@ -360,6 +403,7 @@ export function CleanedChatApp({
   }
 
   async function handleSignOut() {
+    cache.clearAll();
     await supabase.auth.signOut();
     router.replace("/demo-v2/cleaned/login");
     router.refresh();
@@ -439,10 +483,14 @@ export function CleanedChatApp({
       setChatSession(next);
       setPendingMessages([]);
 
-      // Navigate only when the backend switched to a different job.
+      // Update cache with the fresh job from the response.
       if (next.current_job) {
+        cache.putJob(next.current_job);
+        setActiveJobId(next.current_job.id);
         navigateToJob(next.current_job.id);
       }
+      // Refresh recent jobs list after any job-related action.
+      void cache.refreshRecentJobs(accessToken);
     } catch (e) {
       setError(typeof e === "string" ? e : "Failed to send message");
       setPendingMessages([]);
@@ -499,6 +547,10 @@ export function CleanedChatApp({
       setChatSession(next);
       setPendingMessages([]);
       setPendingUploadName("");
+      // Cache the updated job (which now includes the new room).
+      if (next.current_job) {
+        cache.putJob(next.current_job);
+      }
     } catch (e) {
       setError(typeof e === "string" ? e : "Failed to upload room");
       setPendingMessages([]);
@@ -517,6 +569,16 @@ export function CleanedChatApp({
     void handleSend({ presetBody: "start new job" });
   }
 
+  function handleJobSelect(jobId: string) {
+    setJobSelectorOpen(false);
+    if (jobId === currentJobId) return;
+    // Instantly switch to cached job data.
+    setActiveJobId(jobId);
+    setViewMode("chat");
+    // Sync the backend session in the background.
+    void handleSend({ selectedJobId: jobId });
+  }
+
   function openEditor(room: RoomResponse) {
     if (!room.latest_revision) return;
     setEditingRoom(room);
@@ -531,12 +593,15 @@ export function CleanedChatApp({
     setBusyRoomId(targetRoomId);
     setError("");
     try {
-      await createRoomRevision(accessToken, targetRoomId, {
+      const updatedJob = await createRoomRevision(accessToken, targetRoomId, {
         scene_json: sceneJson,
         room_name: roomName.trim() || null,
         supervisor_note: supervisorNote.trim() || null
       });
-      await refreshSession();
+      // Use mutation response directly — no full session refetch needed.
+      cache.putJob(updatedJob);
+      // Refresh chat messages (session state) in the background.
+      refreshSession().catch(() => {});
     } catch (e) {
       setError(typeof e === "string" ? e : "Failed to save room revision");
     } finally {
@@ -549,8 +614,11 @@ export function CleanedChatApp({
     setBusyRoomId(room.id);
     setError("");
     try {
-      await approveRoom(accessToken, room.id);
-      await refreshSession();
+      const updatedJob = await approveRoom(accessToken, room.id);
+      // Use mutation response directly — instant UI update.
+      cache.putJob(updatedJob);
+      // Refresh chat messages in the background.
+      refreshSession().catch(() => {});
     } catch (e) {
       setError(typeof e === "string" ? e : "Failed to approve room");
     } finally {
@@ -565,6 +633,8 @@ export function CleanedChatApp({
     setError("");
     try {
       const updatedJob = await deleteRoom(accessToken, room.id);
+      // Use mutation response directly.
+      cache.putJob(updatedJob);
       setChatSession((prev) => (prev ? { ...prev, current_job: updatedJob } : prev));
     } catch (e) {
       setError(typeof e === "string" ? e : "Failed to delete room");
@@ -646,19 +716,9 @@ export function CleanedChatApp({
     <div className="chat-shell">
       {/* Header */}
       <header className="chat-header">
-        <div>
-          <div className="brand-row">
-            <div className="brand-mark">C</div>
-            <div>
-              <p className="brand-eyebrow">CLEANED V2</p>
-              <h1>{viewMode === "jobs" ? `${greeting} 👋` : (currentJob?.site_name || `${greeting} 👋`)}</h1>
-            </div>
-          </div>
-          <p className="header-subtitle">
-            {currentJob && viewMode !== "jobs"
-              ? `${currentJob.site_address || "No address"} • ${currentJob.cleaner_name || "No cleaner"}`
-              : "Select an inspection or start a new one"}
-          </p>
+        <div className="brand-row">
+          <div className="brand-mark">C</div>
+          <h1>{viewMode === "jobs" ? `${greeting}` : (currentJob?.site_name || `${greeting}`)}</h1>
         </div>
         <div className="header-actions">
           <div className="view-toggle">
@@ -666,11 +726,41 @@ export function CleanedChatApp({
             <button className={viewMode === "chat" ? "active" : ""} onClick={() => setViewMode("chat")} type="button">Chat</button>
             <button className={viewMode === "gallery" ? "active" : ""} onClick={() => setViewMode("gallery")} type="button">Gallery</button>
           </div>
-          {currentJob ? (
-            <Link className="ghost-chip" href={`/demo-v2/cleaned/jobs/${currentJob.id}`}>
-              Open job
-            </Link>
-          ) : null}
+          {/* Job selector dropdown */}
+          <div className={`job-selector${jobSelectorOpen ? " open" : ""}`} ref={jobSelectorRef}>
+            <button
+              className="job-selector-trigger"
+              onClick={() => setJobSelectorOpen((v) => !v)}
+              type="button"
+            >
+              <span className="job-selector-name">
+                {currentJob?.site_name || "Select job"}
+              </span>
+              <span className="job-selector-chevron" aria-hidden>▼</span>
+            </button>
+            <div className="job-selector-panel">
+              {recentJobs.length === 0 ? (
+                <div className="job-selector-empty">
+                  {recentJobsLoading ? "Loading…" : "No jobs yet"}
+                </div>
+              ) : (
+                recentJobs.map((job) => (
+                  <button
+                    key={job.id}
+                    className={`job-selector-item${job.id === currentJobId ? " active" : ""}`}
+                    disabled={busy}
+                    onClick={() => handleJobSelect(job.id)}
+                    type="button"
+                  >
+                    <span className="job-selector-item-name">{job.site_name}</span>
+                    <span className="job-selector-item-meta">
+                      {job.site_address || "No address"} · {job.cleaner_name || "No cleaner"}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
           <button className="ghost-chip" onClick={handleSignOut} type="button">
             Sign out
           </button>
@@ -911,7 +1001,7 @@ export function CleanedChatApp({
                 title={currentJob ? "Attach room photo" : "Create or switch to a job first"}
                 type="button"
               >
-                +
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
               <input
                 accept="image/*"
@@ -954,7 +1044,11 @@ export function CleanedChatApp({
                 }}
                 type="button"
               >
-                {busy ? (pendingUploadName ? "Processing" : "...") : selectedFile ? "Upload" : "Send"}
+                {busy ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 6v6"/><circle cx="12" cy="12" r="10" strokeDasharray="31.4" strokeDashoffset="10" style={{animation: 'activitySpin 1s linear infinite'}}/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                )}
               </button>
             </div>
           </footer>
