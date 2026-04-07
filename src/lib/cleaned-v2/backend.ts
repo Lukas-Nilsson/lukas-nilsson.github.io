@@ -121,3 +121,8 @@ export async function listRecentJobs(accessToken: string): Promise<RecentJobResp
 export async function debugClearUserData(accessToken: string): Promise<Record<string, unknown>> {
   return backendFetch<Record<string, unknown>>("/v2/debug/clear-user-data", accessToken, { method: "POST" });
 }
+
+export async function debugHealth(): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_PREFIX}/v2/debug/health`);
+  return res.json();
+}

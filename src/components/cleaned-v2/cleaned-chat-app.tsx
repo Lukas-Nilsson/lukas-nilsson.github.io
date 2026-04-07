@@ -16,6 +16,7 @@ import {
   approveRoom,
   createRoomRevision,
   debugClearUserData,
+  debugHealth,
   deleteRoom,
   getChatSession,
   postChatMessage,
@@ -220,6 +221,8 @@ export function CleanedChatApp({
   const hasAppliedInitialJob = useRef(false);
   const prevInitialJobId = usePreviousValue(initialJobId);
   const jobSelectorRef = useRef<HTMLDivElement>(null);
+  const bootstrappedRef = useRef(false);
+  const lastSessionFetchRef = useRef(0);
 
   // ---- Cache --------------------------------------------------------------
   const cache = useJobCache();
@@ -243,6 +246,8 @@ export function CleanedChatApp({
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
   const [pendingUploadName, setPendingUploadName] = useState("");
   const [jobSelectorOpen, setJobSelectorOpen] = useState(false);
+  const [connectionOk, setConnectionOk] = useState(true);
+  const [backendRevision, setBackendRevision] = useState("");
 
   // ---- Derived data -------------------------------------------------------
   // Resolve currentJob from cache (instant) or fall back to session response.
@@ -293,6 +298,9 @@ export function CleanedChatApp({
 
   // ---- Auth bootstrap -----------------------------------------------------
   useEffect(() => {
+    if (bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
+
     async function bootstrap() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -302,15 +310,21 @@ export function CleanedChatApp({
       setAccessToken(session.access_token);
       try {
         const data = await getChatSession(session.access_token);
+        lastSessionFetchRef.current = Date.now();
         setChatSession(data);
+        setConnectionOk(true);
         // Seed cache with session's current job if present.
         if (data.current_job) {
           cache.putJob(data.current_job);
           setActiveJobId(data.current_job.id);
         }
       } catch (e) {
+        setConnectionOk(false);
         setError(typeof e === "string" ? e : "Failed to load chat session");
       }
+
+      // Fire-and-forget: fetch backend revision for the status indicator.
+      debugHealth().then(h => setBackendRevision((h as any)?.service_info?.k_revision || "unknown")).catch(() => {});
     }
 
     bootstrap();
@@ -324,8 +338,8 @@ export function CleanedChatApp({
     });
 
     return () => subscription.unsubscribe();
-   
-  }, [router, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---- Apply initialJobId from URL (once per ID) --------------------------
   useEffect(() => {
@@ -413,7 +427,9 @@ export function CleanedChatApp({
 
   /** Sync chat session state from backend (messages, stage, etc). */
   async function refreshSession(token = accessToken) {
+    if (Date.now() - lastSessionFetchRef.current < 1000) return;
     const data = await getChatSession(token);
+    lastSessionFetchRef.current = Date.now();
     setChatSession(data);
     setPendingMessages([]);
     setPendingUploadName("");
@@ -535,6 +551,7 @@ export function CleanedChatApp({
       });
       setChatSession(next);
       setPendingMessages([]);
+      setConnectionOk(true);
 
       // Update cache with the fresh job from the response.
       if (next.current_job) {
@@ -547,6 +564,7 @@ export function CleanedChatApp({
       // Refresh recent jobs list after any job-related action.
       void cache.refreshRecentJobs(accessToken);
     } catch (e) {
+      setConnectionOk(false);
       setError(typeof e === "string" ? e : "Failed to send message");
       setPendingMessages([]);
       if (body) setMessageText(body);
@@ -602,11 +620,13 @@ export function CleanedChatApp({
       setChatSession(next);
       setPendingMessages([]);
       setPendingUploadName("");
+      setConnectionOk(true);
       // Cache the updated job (which now includes the new room).
       if (next.current_job) {
         cache.putJob(next.current_job);
       }
     } catch (e) {
+      setConnectionOk(false);
       setError(typeof e === "string" ? e : "Failed to upload room");
       setPendingMessages([]);
       setMessageText(note);
@@ -816,6 +836,19 @@ export function CleanedChatApp({
               )}
             </div>
           </div>
+          <span
+            className="connection-dot"
+            title={connectionOk ? `Connected${backendRevision ? ` (${backendRevision})` : ""}` : "Connection error"}
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: connectionOk ? "#34c759" : "#ff3b30",
+              marginRight: 8,
+              flexShrink: 0,
+            }}
+          />
           <button className="ghost-chip" onClick={handleClearData} disabled={busy} type="button" style={{ color: "#e55" }}>
             Clear data
           </button>
