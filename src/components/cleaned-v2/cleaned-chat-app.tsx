@@ -81,6 +81,9 @@ function roomFromMessage(message: ChatMessageResponse, currentJob?: JobResponse 
 
 function reportFromMessage(message: ChatMessageResponse, currentJob?: JobResponse | null) {
   const metadataReport = message.metadata.report as ReportResponse | undefined;
+  // Prefer metadata report if it has a pdf_asset with access_url, otherwise fall back to job's latest_report
+  if (metadataReport?.pdf_asset?.access_url) return metadataReport;
+  if (currentJob?.latest_report?.pdf_asset?.access_url) return currentJob.latest_report;
   if (metadataReport) return metadataReport;
   return currentJob?.latest_report || null;
 }
