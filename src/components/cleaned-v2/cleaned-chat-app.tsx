@@ -45,7 +45,7 @@ type ActiveOperation = {
   baseMessageCount: number;
   baseRoomCount: number;
 };
-type ViewMode = "jobs" | "chat" | "gallery";
+type ViewMode = "jobs" | "chat" | "gallery" | "debug";
 
 // ---------------------------------------------------------------------------
 // Pure helpers (no hooks, no side-effects)
@@ -246,6 +246,18 @@ export function CleanedChatApp({
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
   const [pendingUploadName, setPendingUploadName] = useState("");
   const [jobSelectorOpen, setJobSelectorOpen] = useState(false);
+
+  // ---- Debug tab state ----------------------------------------------------
+  const debugFileRef = useRef<HTMLInputElement | null>(null);
+  const [debugFile, setDebugFile] = useState<File | null>(null);
+  const [debugDescription, setDebugDescription] = useState("Inspect this room for cleaning issues");
+  const [debugAnalyzing, setDebugAnalyzing] = useState(false);
+  const [debugRendering, setDebugRendering] = useState(false);
+  const [debugSceneJson, setDebugSceneJson] = useState("");
+  const [debugRawImageB64, setDebugRawImageB64] = useState("");
+  const [debugRenderedUrl, setDebugRenderedUrl] = useState("");
+  const [debugError, setDebugError] = useState("");
+  const [debugTimings, setDebugTimings] = useState<{ analyze?: number; render?: number }>({});
   const [connectionOk, setConnectionOk] = useState(true);
   const [backendRevision, setBackendRevision] = useState("");
 
@@ -439,6 +451,84 @@ export function CleanedChatApp({
       setActiveJobId(data.current_job.id);
     } else {
       setActiveJobId(null);
+    }
+  }
+
+  // ---- Debug tab handlers --------------------------------------------------
+
+  async function debugAnalyze() {
+    if (!debugFile) return;
+    setDebugError("");
+    setDebugAnalyzing(true);
+    setDebugRenderedUrl("");
+    setDebugSceneJson("");
+    setDebugRawImageB64("");
+    const t0 = Date.now();
+    try {
+      const formData = new FormData();
+      formData.append("image", debugFile);
+      formData.append("description", debugDescription);
+      const res = await fetch("/demo-v2/cleaned/api/process", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+      const data = await res.json();
+      const analyzeMs = Date.now() - t0;
+      setDebugTimings((prev) => ({ ...prev, analyze: analyzeMs }));
+      setDebugRawImageB64(data.raw_image || "");
+      // Build scene JSON from the response
+      const scene = {
+        issues: data.issues || [],
+        exclusions: data.exclusions || [],
+        praise: data.praise || [],
+        location_name: data.location_name || "Room",
+        location_specified: false,
+        header_title: "Debug Test",
+        is_inspection_complete: data.is_inspection_complete || false,
+        frontend_panel_rect: data.frontend_panel_rect || [],
+      };
+      const sceneStr = JSON.stringify(scene, null, 2);
+      setDebugSceneJson(sceneStr);
+      // Auto-render
+      await debugRender(data.raw_image, sceneStr);
+    } catch (e: unknown) {
+      setDebugError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDebugAnalyzing(false);
+    }
+  }
+
+  async function debugRender(rawB64?: string, sceneStr?: string) {
+    const raw = rawB64 || debugRawImageB64;
+    const scene = sceneStr || debugSceneJson;
+    if (!raw || !scene) {
+      setDebugError("Need both a raw image and scene JSON to render");
+      return;
+    }
+    setDebugError("");
+    setDebugRendering(true);
+    const t0 = Date.now();
+    try {
+      const parsedScene = JSON.parse(scene);
+      const formData = new FormData();
+      formData.append("scene", JSON.stringify(parsedScene));
+      formData.append("raw_image", `data:image/png;base64,${raw}`);
+      const res = await fetch("/demo-v2/cleaned/api/render-annotated", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+      const blob = await res.blob();
+      const renderMs = Date.now() - t0;
+      setDebugTimings((prev) => ({ ...prev, render: renderMs }));
+      // Revoke previous URL
+      if (debugRenderedUrl) URL.revokeObjectURL(debugRenderedUrl);
+      setDebugRenderedUrl(URL.createObjectURL(blob));
+    } catch (e: unknown) {
+      setDebugError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDebugRendering(false);
     }
   }
 
@@ -800,6 +890,7 @@ export function CleanedChatApp({
             <button className={viewMode === "jobs" ? "active" : ""} onClick={() => setViewMode("jobs")} type="button">Jobs</button>
             <button className={viewMode === "chat" ? "active" : ""} onClick={() => setViewMode("chat")} type="button">Chat</button>
             <button className={viewMode === "gallery" ? "active" : ""} onClick={() => setViewMode("gallery")} type="button">Gallery</button>
+            <button className={viewMode === "debug" ? "active" : ""} onClick={() => setViewMode("debug")} type="button">Debug</button>
           </div>
           {/* Job selector dropdown */}
           <div className={`job-selector${jobSelectorOpen ? " open" : ""}`} ref={jobSelectorRef}>
@@ -1144,6 +1235,95 @@ export function CleanedChatApp({
             </div>
           </footer>
         </>
+
+      /* Debug view */
+      ) : viewMode === "debug" ? (
+        <main className="gallery-main" style={{ display: "block", padding: "var(--space-4)", overflow: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 900, margin: "0 auto" }}>
+            {/* Upload + Analyze */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                ref={debugFileRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setDebugFile(e.target.files?.[0] || null)}
+                style={{ flex: 1, minWidth: 200 }}
+              />
+              <input
+                type="text"
+                value={debugDescription}
+                onChange={(e) => setDebugDescription(e.target.value)}
+                placeholder="Description for Gemini"
+                style={{ flex: 2, minWidth: 200, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--separator)", fontSize: 13, background: "var(--bg)" }}
+              />
+              <button
+                className="primary-button compact"
+                disabled={!debugFile || debugAnalyzing}
+                onClick={() => void debugAnalyze()}
+                type="button"
+              >
+                {debugAnalyzing ? "Analyzing..." : "Analyze + Render"}
+              </button>
+            </div>
+
+            {debugError ? <p style={{ color: "#e55", fontSize: 13, margin: 0 }}>{debugError}</p> : null}
+
+            {debugTimings.analyze || debugTimings.render ? (
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
+                {debugTimings.analyze ? `Analysis: ${(debugTimings.analyze / 1000).toFixed(1)}s` : ""}
+                {debugTimings.analyze && debugTimings.render ? " · " : ""}
+                {debugTimings.render ? `Render: ${(debugTimings.render / 1000).toFixed(1)}s` : ""}
+              </p>
+            ) : null}
+
+            {/* Rendered result */}
+            {debugRenderedUrl ? (
+              <div>
+                <h3 style={{ fontSize: 14, margin: "0 0 6px" }}>Rendered Output</h3>
+                <img
+                  src={debugRenderedUrl}
+                  alt="Rendered"
+                  style={{ width: "100%", borderRadius: 8, border: "1px solid var(--separator)" }}
+                />
+              </div>
+            ) : null}
+
+            {/* Scene JSON editor + re-render */}
+            {debugSceneJson ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ fontSize: 14, margin: 0 }}>Scene JSON</h3>
+                  <button
+                    className="primary-button compact"
+                    disabled={debugRendering || !debugRawImageB64}
+                    onClick={() => void debugRender()}
+                    type="button"
+                  >
+                    {debugRendering ? "Rendering..." : "Re-render"}
+                  </button>
+                </div>
+                <textarea
+                  value={debugSceneJson}
+                  onChange={(e) => setDebugSceneJson(e.target.value)}
+                  spellCheck={false}
+                  style={{
+                    width: "100%",
+                    minHeight: 300,
+                    fontFamily: "monospace",
+                    fontSize: 11,
+                    lineHeight: 1.4,
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid var(--separator)",
+                    background: "var(--bg-secondary)",
+                    color: "var(--text)",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+        </main>
 
       /* Gallery view */
       ) : (
