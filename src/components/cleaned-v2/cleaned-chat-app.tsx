@@ -15,6 +15,7 @@ function usePreviousValue<T>(value: T): T | undefined {
 import {
   approveRoom,
   createRoomRevision,
+  debugClearUserData,
   deleteRoom,
   getChatSession,
   postChatMessage,
@@ -437,6 +438,30 @@ export function CleanedChatApp({
     router.refresh();
   }
 
+  async function handleClearData() {
+    if (!accessToken) return;
+    if (!window.confirm("This will delete ALL your jobs, chat history, rooms, and reports. Continue?")) return;
+    setBusy(true);
+    try {
+      const result = await debugClearUserData(accessToken);
+      console.log("[debug] clear-user-data result:", result);
+      cache.clearAll();
+      setChatSession(null);
+      setPendingMessages([]);
+      setActiveJobId(null);
+      setActiveOperation(null);
+      // Re-bootstrap a fresh session
+      const fresh = await getChatSession(accessToken);
+      setChatSession(fresh);
+      setViewMode("jobs");
+      void cache.refreshRecentJobs(accessToken);
+    } catch (e) {
+      setError(typeof e === "string" ? e : "Failed to clear data");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleSend({
     presetBody,
     selectedJobId
@@ -791,6 +816,9 @@ export function CleanedChatApp({
               )}
             </div>
           </div>
+          <button className="ghost-chip" onClick={handleClearData} disabled={busy} type="button" style={{ color: "#e55" }}>
+            Clear data
+          </button>
           <button className="ghost-chip" onClick={handleSignOut} type="button">
             Sign out
           </button>

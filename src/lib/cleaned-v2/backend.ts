@@ -117,3 +117,7 @@ export async function createJob(accessToken: string, payload: { site_name: strin
 export async function listRecentJobs(accessToken: string): Promise<RecentJobResponse[]> {
   return backendFetch<RecentJobResponse[]>("/v2/jobs/recent", accessToken);
 }
+
+export async function debugClearUserData(accessToken: string): Promise<Record<string, unknown>> {
+  return backendFetch<Record<string, unknown>>("/v2/debug/clear-user-data", accessToken, { method: "POST" });
+}
