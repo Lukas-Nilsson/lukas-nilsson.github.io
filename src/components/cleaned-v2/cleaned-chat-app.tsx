@@ -21,6 +21,7 @@ import {
   debugHealth,
   deleteRoom,
   getChatSession,
+  emailReport,
   postChatMessage,
   postChatUpload
 } from "@/lib/cleaned-v2/backend";
@@ -367,6 +368,10 @@ export function CleanedChatApp({
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
   const [pendingUploadName, setPendingUploadName] = useState("");
   const [jobSelectorOpen, setJobSelectorOpen] = useState(false);
+  const [emailingReportId, setEmailingReportId] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   // ---- Debug tab state ----------------------------------------------------
   const debugFileRef = useRef<HTMLInputElement | null>(null);
@@ -1233,11 +1238,63 @@ export function CleanedChatApp({
                         <span className="report-pill">PDF ready</span>
                         <div>
                           <strong>Report v{report.version_number}</strong>
-                          <p>Open the generated PDF report for this inspection.</p>
+                          <p>Open or email the inspection report.</p>
                         </div>
-                        <a className="primary-button compact" href={report.pdf_asset.access_url} rel="noreferrer" target="_blank">
-                          Open PDF
-                        </a>
+                        <div className="report-actions">
+                          <a className="primary-button compact" href={report.pdf_asset.access_url} rel="noreferrer" target="_blank">
+                            Open PDF
+                          </a>
+                          <button
+                            className="primary-button compact secondary"
+                            onClick={() => {
+                              setEmailingReportId(emailingReportId === report.id ? null : report.id);
+                              setEmailSent(null);
+                            }}
+                          >
+                            Email
+                          </button>
+                        </div>
+                        {emailingReportId === report.id ? (
+                          <div className="email-input-row">
+                            {emailSent ? (
+                              <p className="email-sent">Sent to {emailSent}</p>
+                            ) : (
+                              <>
+                                <input
+                                  type="email"
+                                  placeholder="recipient@example.com"
+                                  value={emailInput}
+                                  onChange={(e) => setEmailInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && emailInput && !emailSending) {
+                                      e.preventDefault();
+                                      document.getElementById("email-send-btn")?.click();
+                                    }
+                                  }}
+                                />
+                                <button
+                                  id="email-send-btn"
+                                  className="primary-button compact"
+                                  disabled={emailSending || !emailInput}
+                                  onClick={async () => {
+                                    setEmailSending(true);
+                                    try {
+                                      await emailReport(accessToken, report.id, emailInput);
+                                      setEmailSent(emailInput);
+                                      setEmailInput("");
+                                    } catch (e) {
+                                      setError(typeof e === "string" ? e : "Failed to send email");
+                                    } finally {
+                                      setEmailSending(false);
+                                    }
+                                  }}
+                                >
+                                  {emailSending ? "Sending…" : "Send"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
 

@@ -118,6 +118,18 @@ export async function listRecentJobs(accessToken: string): Promise<RecentJobResp
   return backendFetch<RecentJobResponse[]>("/v2/jobs/recent", accessToken);
 }
 
+export async function emailReport(
+  accessToken: string,
+  reportId: string,
+  recipientEmail: string
+): Promise<{ status: string; recipient: string }> {
+  return backendFetch(`/v2/reports/${reportId}/email`, accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient_email: recipientEmail }),
+  });
+}
+
 export async function debugClearUserData(accessToken: string): Promise<Record<string, unknown>> {
   return backendFetch<Record<string, unknown>>("/v2/debug/clear-user-data", accessToken, { method: "POST" });
 }
