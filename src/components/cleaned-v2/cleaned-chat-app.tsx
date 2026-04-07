@@ -25,6 +25,7 @@ import {
   postChatMessage,
   postChatUpload
 } from "@/lib/cleaned-v2/backend";
+import { logInfo, logWarn, logError, startTrace, endTrace } from "@/lib/cleaned-v2/logger";
 import { useJobCache } from "@/lib/cleaned-v2/use-job-cache";
 import { createCleanedClient as createClient } from "@/lib/cleaned-v2/supabase-client";
 import { RoomEditor } from "@/components/cleaned-v2/room-editor";
@@ -215,29 +216,49 @@ function buildActivityGroups(messages: PendingMessage[]) {
 type ActivityEvent = {
   ts: string;
   level: string;
+  source?: string;
   category: string;
   action: string;
-  user: string | null;
-  duration_ms: number | null;
+  user?: string | null;
+  trace_id?: string | null;
+  duration_ms?: number | null;
   detail: Record<string, unknown>;
-  error: string | null;
+  error?: string | null;
 };
 
 function ActivityLog() {
-  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [serverEvents, setServerEvents] = useState<ActivityEvent[]>([]);
+  const [clientEvents, setClientEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<{ category: string; level: string }>({ category: "", level: "" });
+  const [filter, setFilter] = useState<{ category: string; level: string; source: string; traceId: string }>({
+    category: "", level: "", source: "", traceId: "",
+  });
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
-  const fetchEvents = useCallback(async () => {
+  // Subscribe to client-side log entries
+  useEffect(() => {
+    let mounted = true;
+    import("@/lib/cleaned-v2/logger").then(({ subscribe, getRecentEntries }) => {
+      if (!mounted) return;
+      setClientEvents(getRecentEntries() as unknown as ActivityEvent[]);
+      const unsub = subscribe((entries) => {
+        if (mounted) setClientEvents(entries as unknown as ActivityEvent[]);
+      });
+      return unsub;
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  const fetchServerEvents = useCallback(async () => {
     setLoading(true);
     try {
       const result = await debugActivity({
-        limit: 200,
+        limit: 300,
         category: filter.category || undefined,
         level: filter.level || undefined,
       }) as { events: ActivityEvent[] };
-      setEvents(result.events || []);
+      setServerEvents(result.events || []);
     } catch {
       // ignore
     } finally {
@@ -245,15 +266,39 @@ function ActivityLog() {
     }
   }, [filter.category, filter.level]);
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
+  useEffect(() => { fetchServerEvents(); }, [fetchServerEvents]);
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(fetchEvents, 3000);
+    const id = setInterval(fetchServerEvents, 3000);
     return () => clearInterval(id);
-  }, [autoRefresh, fetchEvents]);
+  }, [autoRefresh, fetchServerEvents]);
+
+  // Merge and sort all events by timestamp (newest first)
+  const allEvents = useMemo(() => {
+    const tagged = [
+      ...serverEvents.map((e) => ({ ...e, source: e.source || "server" })),
+      ...clientEvents.map((e) => ({ ...e, source: (e as any).source || "client" })),
+    ];
+    // Apply filters
+    let filtered = tagged;
+    if (filter.source) filtered = filtered.filter((e) => e.source === filter.source);
+    if (filter.category) filtered = filtered.filter((e) => e.category === filter.category);
+    if (filter.level) filtered = filtered.filter((e) => e.level === filter.level);
+    if (filter.traceId) filtered = filtered.filter((e) => (e as any).trace_id === filter.traceId);
+    // Sort newest first
+    filtered.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    return filtered.slice(0, 300);
+  }, [serverEvents, clientEvents, filter]);
+
+  // Collect unique trace IDs for the dropdown
+  const traceIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of [...serverEvents, ...clientEvents]) {
+      const tid = (e as any).trace_id;
+      if (tid) ids.add(tid);
+    }
+    return Array.from(ids).slice(0, 20);
+  }, [serverEvents, clientEvents]);
 
   const levelColor = (level: string) => {
     if (level === "error") return "#e55";
@@ -261,65 +306,117 @@ function ActivityLog() {
     return "var(--muted)";
   };
 
+  const sourceTag = (src: string) => {
+    const isClient = src === "client";
+    return (
+      <span style={{
+        display: "inline-block", fontSize: 9, padding: "1px 4px", borderRadius: 3,
+        background: isClient ? "#3b82f620" : "#10b98120",
+        color: isClient ? "#3b82f6" : "#10b981",
+        fontWeight: 600, letterSpacing: 0.3,
+      }}>
+        {isClient ? "FE" : "BE"}
+      </span>
+    );
+  };
+
+  const clearClientLogs = () => {
+    import("@/lib/cleaned-v2/logger").then(({ clearEntries }) => clearEntries());
+  };
+
+  const sel = { fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--separator)", background: "var(--bg)" };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h3 style={{ fontSize: 14, margin: 0 }}>Activity Log ({events.length})</h3>
+        <h3 style={{ fontSize: 14, margin: 0 }}>Unified Timeline ({allEvents.length})</h3>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <select value={filter.category} onChange={(e) => setFilter(f => ({ ...f, category: e.target.value }))}
-            style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--separator)", background: "var(--bg)" }}>
+          <select value={filter.source} onChange={(e) => setFilter(f => ({ ...f, source: e.target.value }))} style={sel}>
+            <option value="">All sources</option>
+            <option value="client">Frontend</option>
+            <option value="server">Backend</option>
+          </select>
+          <select value={filter.category} onChange={(e) => setFilter(f => ({ ...f, category: e.target.value }))} style={sel}>
             <option value="">All categories</option>
-            {["auth", "chat", "upload", "job", "room", "report", "pipeline", "render"].map(c => (
+            {["auth", "chat", "upload", "job", "room", "report", "pipeline", "render", "ui", "network", "poll", "state"].map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select value={filter.level} onChange={(e) => setFilter(f => ({ ...f, level: e.target.value }))}
-            style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--separator)", background: "var(--bg)" }}>
+          <select value={filter.level} onChange={(e) => setFilter(f => ({ ...f, level: e.target.value }))} style={sel}>
             <option value="">All levels</option>
-            <option value="error">errors only</option>
+            <option value="error">errors</option>
             <option value="warn">warnings</option>
             <option value="info">info</option>
           </select>
+          {traceIds.length > 0 && (
+            <select value={filter.traceId} onChange={(e) => setFilter(f => ({ ...f, traceId: e.target.value }))} style={sel}>
+              <option value="">All traces</option>
+              {traceIds.map(tid => (
+                <option key={tid} value={tid}>{tid.slice(0, 8)}...</option>
+              ))}
+            </select>
+          )}
           <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
             Auto
           </label>
-          <button className="ghost-chip" onClick={fetchEvents} disabled={loading} type="button" style={{ fontSize: 11, padding: "3px 8px" }}>
+          <button className="ghost-chip" onClick={fetchServerEvents} disabled={loading} type="button" style={{ fontSize: 11, padding: "3px 8px" }}>
             {loading ? "..." : "Refresh"}
+          </button>
+          <button className="ghost-chip" onClick={clearClientLogs} type="button" style={{ fontSize: 11, padding: "3px 8px" }}>
+            Clear FE
           </button>
         </div>
       </div>
       <div style={{
-        maxHeight: 400, overflow: "auto", fontSize: 11, fontFamily: "monospace",
+        maxHeight: 500, overflow: "auto", fontSize: 11, fontFamily: "monospace",
         background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--separator)",
       }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", borderBottom: "1px solid var(--separator)" }}>
+            <tr style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", borderBottom: "1px solid var(--separator)", zIndex: 1 }}>
+              <th style={{ padding: "6px 4px", textAlign: "center", width: 30 }}></th>
               <th style={{ padding: "6px 8px", textAlign: "left" }}>Time</th>
               <th style={{ padding: "6px 8px", textAlign: "left" }}>Category</th>
               <th style={{ padding: "6px 8px", textAlign: "left" }}>Action</th>
-              <th style={{ padding: "6px 8px", textAlign: "right" }}>Duration</th>
-              <th style={{ padding: "6px 8px", textAlign: "left" }}>Detail</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>Dur</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>Info</th>
             </tr>
           </thead>
           <tbody>
-            {events.map((ev, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid var(--separator)", color: levelColor(ev.level) }}>
-                <td style={{ padding: "4px 8px", whiteSpace: "nowrap" }}>{new Date(ev.ts).toLocaleTimeString()}</td>
-                <td style={{ padding: "4px 8px" }}>{ev.category}</td>
-                <td style={{ padding: "4px 8px" }}>{ev.action}</td>
-                <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                  {ev.duration_ms != null ? `${(ev.duration_ms / 1000).toFixed(1)}s` : "—"}
-                </td>
-                <td style={{ padding: "4px 8px", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {ev.error ? <span style={{ color: "#e55" }}>{ev.error}</span> : JSON.stringify(ev.detail)}
-                </td>
-              </tr>
-            ))}
-            {events.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: "20px 8px", textAlign: "center", color: "var(--muted)" }}>No events yet</td></tr>
-            ) : null}
+            {allEvents.map((ev, i) => {
+              const isExpanded = expandedRow === i;
+              return (
+                <tr key={`${ev.ts}-${i}`}
+                  style={{ borderBottom: "1px solid var(--separator)", color: levelColor(ev.level), cursor: "pointer" }}
+                  onClick={() => setExpandedRow(isExpanded ? null : i)}
+                >
+                  <td style={{ padding: "4px 4px", textAlign: "center" }}>{sourceTag(ev.source || "server")}</td>
+                  <td style={{ padding: "4px 8px", whiteSpace: "nowrap" }}>{new Date(ev.ts).toLocaleTimeString()}</td>
+                  <td style={{ padding: "4px 8px" }}>{ev.category}</td>
+                  <td style={{ padding: "4px 8px", fontWeight: ev.level === "error" ? 600 : 400 }}>{ev.action}</td>
+                  <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                    {ev.duration_ms != null ? `${(ev.duration_ms / 1000).toFixed(1)}s` : "—"}
+                  </td>
+                  <td style={{ padding: "4px 8px", maxWidth: 350, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isExpanded ? "pre-wrap" : "nowrap" }}>
+                    {ev.error
+                      ? <span style={{ color: "#e55" }}>{ev.error}</span>
+                      : isExpanded
+                        ? JSON.stringify(ev.detail, null, 2)
+                        : JSON.stringify(ev.detail)
+                    }
+                    {isExpanded && (ev as any).trace_id && (
+                      <div style={{ marginTop: 4, fontSize: 10, color: "var(--muted)" }}>
+                        trace: {(ev as any).trace_id}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {allEvents.length === 0 && (
+              <tr><td colSpan={6} style={{ padding: "20px 8px", textAlign: "center", color: "var(--muted)" }}>No events yet</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -535,9 +632,17 @@ export function CleanedChatApp({
     if (!accessToken || !activeOperation) return;
     let cancelled = false;
     let intervalId: ReturnType<typeof setInterval>;
+    let pollCount = 0;
+
+    logInfo("poll", "poll_started", {
+      kind: activeOperation.kind,
+      baseMessageCount: activeOperation.baseMessageCount,
+      baseRoomCount: activeOperation.baseRoomCount,
+    });
 
     const poll = async () => {
       if (cancelled) return;
+      pollCount++;
       try {
         const data = await getChatSession(accessToken);
         if (cancelled) return;
@@ -546,6 +651,16 @@ export function CleanedChatApp({
         const msgCountNow = data.messages.length;
         const hasRoomChange = roomCountNow !== activeOperation.baseRoomCount;
         const hasFreshMessages = msgCountNow > activeOperation.baseMessageCount;
+
+        logInfo("poll", "poll_result", {
+          pollCount,
+          kind: activeOperation.kind,
+          roomCountNow,
+          msgCountNow,
+          hasRoomChange,
+          hasFreshMessages,
+          elapsedMs: Date.now() - activeOperation.startedAt,
+        });
 
         // Always update the UI with latest data
         setChatSession(data);
@@ -561,8 +676,10 @@ export function CleanedChatApp({
               Date.parse(m.created_at) >= activeOperation.startedAt - 2000
           );
           if (done) {
+            logInfo("poll", "poll_upload_done", { pollCount, hasRoomChange, roomCountNow });
             setActiveOperation(null);
             setPendingMessages([]);
+            endTrace();
             return;
           }
         }
@@ -573,11 +690,13 @@ export function CleanedChatApp({
             m.message_type === "report_ready" &&
             Date.parse(m.created_at) >= activeOperation.startedAt - 2000
         )) {
+          logInfo("poll", "poll_report_done", { pollCount });
           setActiveOperation(null);
+          endTrace();
           return;
         }
-      } catch {
-        // Keep optimistic state during network drops
+      } catch (e) {
+        logWarn("poll", "poll_error", { pollCount }, e instanceof Error ? e.message : String(e));
       }
     };
 
@@ -589,8 +708,14 @@ export function CleanedChatApp({
     // Safety timeout: stop after 90s no matter what
     const safetyTimeout = setTimeout(() => {
       if (!cancelled) {
+        logWarn("poll", "poll_safety_timeout", {
+          kind: activeOperation.kind,
+          pollCount,
+          elapsedMs: Date.now() - activeOperation.startedAt,
+        });
         setActiveOperation(null);
         setPendingMessages([]);
+        endTrace();
       }
     }, 90_000);
 
@@ -598,6 +723,9 @@ export function CleanedChatApp({
       cancelled = true;
       clearInterval(intervalId);
       clearTimeout(safetyTimeout);
+      if (pollCount > 0) {
+        logInfo("poll", "poll_cleanup", { pollCount, kind: activeOperation.kind });
+      }
     };
   }, [accessToken, activeOperation]);
 
@@ -736,7 +864,7 @@ export function CleanedChatApp({
 
   async function handleSend({
     presetBody,
-    selectedJobId
+    selectedJobId,
   }: {
     presetBody?: string;
     selectedJobId?: string;
@@ -744,6 +872,9 @@ export function CleanedChatApp({
     if (!accessToken || busy) return;
     const body = (presetBody ?? messageText).trim();
     if (!body && !selectedJobId) return;
+
+    startTrace("message");
+    logInfo("ui", "send_message", { body: body.slice(0, 60), selectedJobId });
 
     // -- Optimistic UI --
     const optimistic: PendingMessage | null = body
@@ -834,6 +965,7 @@ export function CleanedChatApp({
     if (!accessToken || !selectedFile || !currentJob || busy) return;
     const file = selectedFile;
     const note = messageText.trim();
+    const traceId = startTrace("upload");
     const optimistic: PendingMessage = {
       id: `pending-upload-${Date.now()}`,
       direction: "user",
@@ -858,12 +990,18 @@ export function CleanedChatApp({
       created_at: new Date().toISOString(),
       pending: true
     };
+    const baseMsgCount = chatSession?.messages.length ?? 0;
+    const baseRoomCount = currentJob.rooms.length;
+    logInfo("upload", "upload_start", {
+      traceId, fileName: file.name, fileSize: file.size, note: note.slice(0, 60),
+      baseMsgCount, baseRoomCount, jobId: currentJob.id,
+    });
     setPendingMessages((prev) => [...prev, optimistic, processingMessage]);
     setActiveOperation({
       kind: "upload",
       startedAt: Date.now(),
-      baseMessageCount: chatSession?.messages.length ?? 0,
-      baseRoomCount: currentJob.rooms.length
+      baseMessageCount: baseMsgCount,
+      baseRoomCount,
     });
     setBusy(true);
     setError("");
@@ -873,18 +1011,20 @@ export function CleanedChatApp({
 
     try {
       const next = await postChatUpload(accessToken, { file, note });
+      logInfo("upload", "upload_post_returned", {
+        traceId,
+        newMsgCount: next.messages.length,
+        newRoomCount: next.current_job?.rooms.length ?? 0,
+      });
       setChatSession(next);
-      // Keep pending "Processing..." message visible — polling will clear it
-      // when room_card arrives or room count changes.
       setPendingUploadName("");
       setConnectionOk(true);
-      // Cache the updated job (which now includes the new room).
       if (next.current_job) {
         cache.putJob(next.current_job);
       }
-      // Don't clear activeOperation here — let polling continue until
-      // the background room processing completes and a room_card arrives.
+      // Don't clear activeOperation — polling continues until room_created arrives
     } catch (e) {
+      logError("upload", "upload_failed", { traceId }, e instanceof Error ? e.message : String(e));
       setConnectionOk(false);
       setError(typeof e === "string" ? e : "Failed to upload room");
       setPendingMessages([]);
@@ -892,6 +1032,7 @@ export function CleanedChatApp({
       setSelectedFile(file);
       setPendingUploadName("");
       setActiveOperation(null);
+      endTrace();
     } finally {
       setBusy(false);
     }
