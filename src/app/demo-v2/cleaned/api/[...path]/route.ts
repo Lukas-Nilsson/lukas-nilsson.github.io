@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const BACKEND_ORIGIN =
   process.env.CLEANED_DEMO_BACKEND_ORIGIN ??
-  "https://cleaned-demo-api-dqjwhahagq-ts.a.run.app";
+  "https://cleaned-demo-api-347926612645.australia-southeast1.run.app";
 
 const STRIP_REQUEST = ["connection", "content-length", "host", "origin", "referer"];
 const STRIP_RESPONSE = ["connection", "content-encoding", "keep-alive", "transfer-encoding"];

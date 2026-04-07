@@ -348,6 +348,7 @@ export function CleanedChatApp({
   const jobSelectorRef = useRef<HTMLDivElement>(null);
   const bootstrappedRef = useRef(false);
   const lastSessionFetchRef = useRef(0);
+  const sessionVersionRef = useRef(0);
 
   // ---- Cache --------------------------------------------------------------
   const cache = useJobCache();
@@ -538,9 +539,13 @@ export function CleanedChatApp({
 
     const poll = async () => {
       if (cancelled) return;
+      const versionBefore = sessionVersionRef.current;
       try {
         const data = await getChatSession(accessToken);
         if (cancelled) return;
+        // If the session was updated by another handler (e.g. upload) while we
+        // were polling, discard this stale response.
+        if (sessionVersionRef.current !== versionBefore) return;
         const hasFreshMessages =
           data.messages.length > activeOperation.baseMessageCount ||
           data.messages.some((m) => Date.parse(m.created_at) >= activeOperation.startedAt - 1500);
@@ -839,9 +844,12 @@ export function CleanedChatApp({
       pending: true
     };
     setPendingMessages((prev) => [...prev, optimistic, processingMessage]);
-    // Don't set activeOperation for uploads — the upload is a single synchronous
-    // request that returns the full session. Polling during upload causes a race
-    // condition where stale poll data overwrites the fresh upload response.
+    setActiveOperation({
+      kind: "upload",
+      startedAt: Date.now(),
+      baseMessageCount: chatSession?.messages.length ?? 0,
+      baseRoomCount: currentJob.rooms.length
+    });
     setBusy(true);
     setError("");
     setMessageText("");
@@ -850,6 +858,8 @@ export function CleanedChatApp({
 
     try {
       const next = await postChatUpload(accessToken, { file, note });
+      // Bump version so any in-flight poll discards its stale response
+      sessionVersionRef.current++;
       setChatSession(next);
       setPendingMessages([]);
       setPendingUploadName("");
@@ -867,6 +877,7 @@ export function CleanedChatApp({
       setPendingUploadName("");
     } finally {
       setBusy(false);
+      setActiveOperation(null);
     }
   }
 

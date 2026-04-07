@@ -72,27 +72,11 @@ export async function postChatUpload(
   const formData = new FormData();
   formData.append("image", payload.file);
   if (payload.note) formData.append("note", payload.note);
-
-  // Upload can take 10-20s (analyze + render). Use a single attempt with no
-  // retry to avoid duplicate rooms, and go directly to the backend to bypass
-  // the Vercel proxy timeout.
-  const idempotencyKey = crypto.randomUUID();
-  const headers = new Headers();
-  headers.set("Authorization", `Bearer ${accessToken}`);
-  headers.set("X-Idempotency-Key", idempotencyKey);
-
-  const response = await fetch(
-    `https://cleaned-demo-api-347926612645.australia-southeast1.run.app/api/v2/chat/uploads`,
-    { method: "POST", headers, body: formData }
-  );
-
-  const contentType = response.headers.get("content-type") || "";
-  const result = contentType.includes("application/json") ? await response.json() : await response.text();
-  if (!response.ok) {
-    const detail = result && typeof result === "object" && "detail" in result ? result.detail : result;
-    throw detail;
-  }
-  return result as ChatSessionResponse;
+  return backendFetch<ChatSessionResponse>("/v2/chat/uploads", accessToken, {
+    method: "POST",
+    headers: { "X-Idempotency-Key": crypto.randomUUID() },
+    body: formData,
+  });
 }
 
 export async function createRoomRevision(
