@@ -649,20 +649,26 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         _rafPending = true;
         requestAnimationFrame(() => {
             _rafPending = false;
+            displayLayer.style.opacity = "1";
             renderDisplay();
             renderInteractionSvg();
             renderPanelOverlay();
+            // Remove live polygon overlay since display layer is now current
+            const liveGroup = interactionSvg.querySelector('[data-live-polygons]');
+            if (liveGroup) liveGroup.remove();
         });
     }
 
     // Lightweight drag rerender: skip expensive renderDisplay().
     // Show live polygon shapes via cheap SVG paths drawn directly in interactionSvg.
+    // Hide the display layer so old curved polygons don't ghost behind the live ones.
     let _dragRafPending = false;
     function rerenderDragOnly() {
         if (_dragRafPending) return;
         _dragRafPending = true;
         requestAnimationFrame(() => {
             _dragRafPending = false;
+            displayLayer.style.opacity = "0";
             renderInteractionSvg();
             // Draw live polygon shapes AFTER interaction SVG rebuild
             renderLivePolygons();
@@ -758,6 +764,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         window.removeEventListener("pointermove", handleDrag);
         window.removeEventListener("pointerup", endDrag);
         window.removeEventListener("pointercancel", endDrag);
+        rerender();
     }
 
     function handleWarp(event) {
@@ -781,6 +788,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         window.removeEventListener("pointermove", handleWarp);
         window.removeEventListener("pointerup", endWarp);
         window.removeEventListener("pointercancel", endWarp);
+        rerender();
     }
 
     function handlePanelDrag(event) {

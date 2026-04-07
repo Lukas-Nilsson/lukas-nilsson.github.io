@@ -1091,9 +1091,9 @@
 
 .editor-card {
   width: min(100%, 960px);
-  max-height: min(100%, 860px);
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
   border: 0.5px solid var(--separator);
@@ -1106,8 +1106,9 @@
 .editor-toolbar {
   display: flex;
   justify-content: space-between;
-  gap: var(--space-4);
-  align-items: center;
+  gap: var(--space-3);
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .editor-toolbar strong {
@@ -1125,6 +1126,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .editor-inline-actions {
@@ -1136,24 +1138,33 @@
 
 .editor-canvas {
   position: relative;
-  min-height: 280px;
+  min-height: 0;
+  flex: 1 1 0;
   overflow: auto;
   border-radius: var(--radius-sm);
   border: 0.5px solid var(--separator);
   background: var(--bg-secondary);
-  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .editor-image-wrapper {
   position: relative;
-  width: fit-content;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
 }
 
 .editor-image {
-  max-width: min(100%, 760px);
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
   display: block;
   border-radius: var(--radius-sm);
+}
+
+.editor-details-toggle {
+  flex-shrink: 0;
 }
 
 /* ── Bottom Sheet ────────────────────────────────────────────── */
@@ -1356,9 +1367,44 @@
 
   .editor-card {
     width: 100%;
+    height: 100%;
     max-height: 100%;
     border-radius: 0;
-    padding: var(--space-4);
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .editor-toolbar {
+    gap: var(--space-2);
+  }
+
+  .editor-toolbar-actions {
+    gap: 4px;
+  }
+
+  .editor-toolbar-actions .ghost-chip,
+  .editor-toolbar-actions .primary-button,
+  .editor-toolbar-actions .secondary-button {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .editor-form {
+    gap: var(--space-2);
+  }
+
+  .editor-form label span {
+    font-size: 0.75rem;
+  }
+
+  .editor-form input,
+  .editor-form textarea {
+    padding: 8px 10px;
+    font-size: 0.875rem;
+  }
+
+  .editor-image {
+    max-height: 50vh;
   }
 
   .gallery-main {

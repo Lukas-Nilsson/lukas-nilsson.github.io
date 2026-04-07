@@ -40,6 +40,7 @@ export function RoomEditor({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
   const rawUrl = room.latest_revision?.raw_asset?.access_url;
   const initialScene = room.latest_revision?.scene_json || {};
@@ -70,54 +71,38 @@ export function RoomEditor({
   return (
     <div className="editor-modal">
       <div className="editor-card">
+        {/* Toolbar: title + actions */}
         <div className="editor-toolbar">
-          <div>
-            <strong>Edit room</strong>
-            <p>{roomName || "Unnamed Room"}</p>
+          <div style={{ minWidth: 0 }}>
+            <strong>{roomName || "Unnamed Room"}</strong>
+            {room.approval_status === "approved" ? (
+              <p style={{ color: "var(--success)" }}>Approved</p>
+            ) : (
+              <p>Needs review</p>
+            )}
           </div>
           <div className="editor-toolbar-actions">
+            <button className="ghost-chip" id="editorUndo" type="button" style={{ display: "none" }}>Undo</button>
+            <button className="ghost-chip danger" id="editorDelete" type="button" style={{ display: "none" }}>Delete</button>
             {onApprove && room.approval_status !== "approved" ? (
               <button
-                className="secondary-button compact"
+                className="primary-button compact"
                 disabled={isSaving || !imageLoaded}
                 onClick={async () => { setIsSaving(true); try { await onApprove(); } finally { setIsSaving(false); } }}
                 type="button"
-                style={{ background: "var(--success)", color: "var(--foreground)", borderColor: "var(--success)" }}
+                style={{ background: "var(--success)", borderColor: "var(--success)" }}
               >
-                Approve room
+                Approve
               </button>
             ) : null}
-            {onRespond ? (
-              <button
-                className="secondary-button compact"
-                disabled={isSaving || !imageLoaded || !feedbackText.trim()}
-                onClick={async () => { setIsSaving(true); try { await onRespond(feedbackText); } finally { setIsSaving(false); setFeedbackText(""); } }}
-                type="button"
-                style={{ color: "var(--text)" }}
-              >
-                Respond
-              </button>
-            ) : null}
-            <button className="ghost-chip" onClick={onClose} type="button" disabled={isSaving}>Close</button>
             <button className="primary-button compact" disabled={isSaving || !imageLoaded} onClick={handleSave} type="button">
-              {isSaving ? "Saving..." : "Save revision"}
+              {isSaving ? "Saving..." : "Save"}
             </button>
+            <button className="ghost-chip" onClick={onClose} type="button" disabled={isSaving}>&times;</button>
           </div>
         </div>
-        <div className="editor-form">
-          {onRespond ? (
-            <label style={{ gridColumn: "1 / -1", marginBottom: "8px" }}>
-              <span>Chat Feedback</span>
-              <textarea onChange={(e) => setFeedbackText(e.target.value)} rows={1} value={feedbackText} placeholder="e.g. Can you make the floor dirtier?" disabled={isSaving} className="composer-input" />
-            </label>
-          ) : null}
-          <label><span>Room name</span><input onChange={(e) => setRoomName(e.target.value)} value={roomName} placeholder="e.g. Master Bedroom" disabled={isSaving} /></label>
-          <label><span>Supervisor note</span><textarea onChange={(e) => setSupervisorNote(e.target.value)} rows={2} value={supervisorNote} placeholder="Private note for this inspection..." disabled={isSaving} /></label>
-        </div>
-        <div className="editor-inline-actions">
-          <button className="ghost-chip" id="editorUndo" type="button" style={{ display: "none" }}>Undo</button>
-          <button className="ghost-chip danger" id="editorDelete" type="button" style={{ display: "none" }}>Delete selected</button>
-        </div>
+
+        {/* Image canvas — takes all available space */}
         <div className="editor-canvas" id="editorContent">
           <div className="editor-image-wrapper" ref={containerRef} style={{ opacity: imageLoaded ? 1 : 0.5, position: "relative" }}>
             {imageError ? (
@@ -132,6 +117,38 @@ export function RoomEditor({
             )}
           </div>
         </div>
+
+        {/* Collapsible details section */}
+        <div className="editor-details-toggle">
+          <button className="ghost-chip" type="button" onClick={() => setShowDetails(!showDetails)} style={{ width: "100%", justifyContent: "center" }}>
+            {showDetails ? "Hide details" : "Edit details"}
+          </button>
+        </div>
+
+        {showDetails ? (
+          <div className="editor-form">
+            <label><span>Room name</span><input onChange={(e) => setRoomName(e.target.value)} value={roomName} placeholder="e.g. Master Bedroom" disabled={isSaving} /></label>
+            <label><span>Supervisor note</span><textarea onChange={(e) => setSupervisorNote(e.target.value)} rows={2} value={supervisorNote} placeholder="Private note for this inspection..." disabled={isSaving} /></label>
+            {onRespond ? (
+              <label>
+                <span>Chat feedback</span>
+                <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                  <textarea onChange={(e) => setFeedbackText(e.target.value)} rows={1} value={feedbackText} placeholder="Tell AI what to change..." disabled={isSaving} className="composer-input" style={{ flex: 1 }} />
+                  <button
+                    className="primary-button compact"
+                    disabled={isSaving || !feedbackText.trim()}
+                    onClick={async () => { setIsSaving(true); try { await onRespond(feedbackText); } finally { setIsSaving(false); setFeedbackText(""); } }}
+                    type="button"
+                  >
+                    Send
+                  </button>
+                </div>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Bottom sheet for mobile text editing */}
         <div className="bottom-sheet" id="bottomSheet">
           <div className="bottom-sheet-card">
             <div className="bottom-sheet-label" id="bottomSheetLabel">Edit label</div>
