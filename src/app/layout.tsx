@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk, Inter, Inter_Tight } from 'next/font/google';
 import './globals.css';
 import { siteDescription, siteName, siteUrl } from '@/lib/site-content';
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -90,6 +91,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${interTight.variable} ${spaceGrotesk.variable} noise`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
