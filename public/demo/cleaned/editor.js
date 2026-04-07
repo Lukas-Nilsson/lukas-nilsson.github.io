@@ -817,6 +817,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         window.removeEventListener("pointermove", handlePanelDrag);
         window.removeEventListener("pointerup", endPanelDrag);
         window.removeEventListener("pointercancel", endPanelDrag);
+        rerender();
     }
 
     function handleResize(event) {
@@ -826,10 +827,6 @@ function buildInteractiveSVG(container, data, isEditable = true) {
             pushUndoSnapshot();
             activeResize.undoCaptured = true;
         }
-        // Use rAF for resize too
-        if (_dragRafPending) return;
-        _dragRafPending = true;
-        requestAnimationFrame(() => { _dragRafPending = false; });
         const containerRect = container.getBoundingClientRect();
         const scaleX = imageWidth / containerRect.width;
         const scaleY = imageHeight / containerRect.height;
@@ -864,7 +861,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         nextRect.width = Math.min(nextRect.width, imageWidth - nextRect.x);
         nextRect.height = Math.min(nextRect.height, imageHeight - nextRect.y);
         setScenePanelFromRect(nextRect);
-        rerenderDragOnly();
+        rerender();
     }
 
     function endResize() {
@@ -872,6 +869,7 @@ function buildInteractiveSVG(container, data, isEditable = true) {
         window.removeEventListener("pointermove", handleResize);
         window.removeEventListener("pointerup", endResize);
         window.removeEventListener("pointercancel", endResize);
+        rerender();
     }
 
     if (!isEditable) {
