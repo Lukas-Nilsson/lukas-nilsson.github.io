@@ -559,14 +559,39 @@ export function CleanedChatApp({
           noChangePollCount++;
         }
 
-        // Auto-clear activeOperation when report_ready arrives
+        // Auto-clear activeOperation when the expected result arrives
+        const recentEnough = (m: { created_at: string }) =>
+          Date.parse(m.created_at) >= activeOperation.startedAt - 1500;
+
+        if (activeOperation.kind === "upload" && hasRoomChange) {
+          // Room processing complete — new room appeared
+          setActiveOperation(null);
+          setPendingMessages([]);
+          return;
+        }
+        const hasRoomCard = activeOperation.kind === "upload" && data.messages.some(
+          (m: { message_type: string; created_at: string }) =>
+            m.message_type === "room_card" && recentEnough(m)
+        );
+        if (hasRoomCard) {
+          setActiveOperation(null);
+          setPendingMessages([]);
+          return;
+        }
         const hasReportReady = data.messages.some(
-          (m: { message_type: string }) => m.message_type === "report_ready"
-            && Date.parse((m as { created_at: string }).created_at) >= activeOperation.startedAt - 1500
+          (m: { message_type: string; created_at: string }) =>
+            m.message_type === "report_ready" && recentEnough(m)
         );
         if (hasReportReady) {
           setActiveOperation(null);
-          return; // Stop polling
+          return;
+        }
+
+        // Safety timeout: if upload polling has been running > 90s with no result, stop
+        if (activeOperation.kind === "upload" && Date.now() - activeOperation.startedAt > 90_000) {
+          setActiveOperation(null);
+          setPendingMessages([]);
+          return;
         }
       } catch {
         // Keep optimistic state during network drops
@@ -861,13 +886,16 @@ export function CleanedChatApp({
       // Bump version so any in-flight poll discards its stale response
       sessionVersionRef.current++;
       setChatSession(next);
-      setPendingMessages([]);
+      // Keep pending "Processing..." message visible — polling will clear it
+      // when room_card arrives or room count changes.
       setPendingUploadName("");
       setConnectionOk(true);
       // Cache the updated job (which now includes the new room).
       if (next.current_job) {
         cache.putJob(next.current_job);
       }
+      // Don't clear activeOperation here — let polling continue until
+      // the background room processing completes and a room_card arrives.
     } catch (e) {
       setConnectionOk(false);
       setError(typeof e === "string" ? e : "Failed to upload room");
@@ -875,9 +903,9 @@ export function CleanedChatApp({
       setMessageText(note);
       setSelectedFile(file);
       setPendingUploadName("");
+      setActiveOperation(null);
     } finally {
       setBusy(false);
-      setActiveOperation(null);
     }
   }
 
