@@ -16,6 +16,7 @@ import {
   approveRoom,
   createRoomRevision,
   debugActivity,
+  debugCleanupStuck,
   debugClearUserData,
   debugHealth,
   deleteRoom,
@@ -1069,6 +1070,16 @@ export function CleanedChatApp({
           />
           <button className="ghost-chip" onClick={handleClearData} disabled={busy} type="button" style={{ color: "#e55" }}>
             Clear data
+          </button>
+          <button className="ghost-chip" onClick={async () => {
+            if (!accessToken) return;
+            try {
+              const r = await debugCleanupStuck(accessToken);
+              console.log("[debug] cleanup-stuck:", r);
+              refreshSession();
+            } catch (e) { console.error(e); }
+          }} disabled={busy} type="button" style={{ fontSize: "0.7rem" }}>
+            Fix stuck
           </button>
           <button className="ghost-chip" onClick={handleSignOut} type="button">
             Sign out
