@@ -118,7 +118,7 @@ export function RoomEditor({
           <button className="ghost-chip" id="editorUndo" type="button" style={{ display: "none" }}>Undo</button>
           <button className="ghost-chip danger" id="editorDelete" type="button" style={{ display: "none" }}>Delete selected</button>
         </div>
-        <div className="editor-canvas">
+        <div className="editor-canvas" id="editorContent">
           <div className="editor-image-wrapper" ref={containerRef} style={{ opacity: imageLoaded ? 1 : 0.5, position: "relative" }}>
             {imageError ? (
               <div style={{ padding: "40px", textAlign: "center", color: "var(--danger)" }}>

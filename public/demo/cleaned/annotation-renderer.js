@@ -14,8 +14,8 @@
         },
         panel: {
             insetRatio: 0.04,
-            defaultWidthRatio: 0.4,
-            maxWidthRatio: 0.8,
+            defaultWidthRatio: 0.48,
+            maxWidthRatio: 0.85,
             maxHeightRatio: 0.92,
             minWidthPx: 60,
             radiusPx: 12,
@@ -399,7 +399,7 @@
             right: picked.x === "right" ? "4%" : "",
             top: picked.y === "top" ? "4%" : "",
             bottom: picked.y === "bottom" ? "4%" : "",
-            width: "40%",
+            width: "48%",
             x: picked.x,
             y: picked.y
         };
