@@ -111,6 +111,31 @@ function detailTextForMessage(message: ChatMessageResponse) {
   return message.body || "";
 }
 
+/** Convert in-progress pipeline labels to past tense for completed steps. */
+const COMPLETED_LABELS: Record<string, string> = {
+  "Room 1 added": "Room 1 added",
+  "Room 2 added": "Room 2 added",
+  "Room 3 added": "Room 3 added",
+  "Analyzing room": "Room analyzed",
+  "Rendering annotation": "Annotation rendered",
+  "Saving room": "Room saved",
+  "Generating report": "Report generated",
+};
+
+function completedLabel(label: string, isActive: boolean): string {
+  if (isActive) return label;
+  // Try exact match first
+  if (COMPLETED_LABELS[label]) return COMPLETED_LABELS[label];
+  // Handle "Room N added" pattern generically
+  if (/^Room \d+ added$/i.test(label)) return label;
+  // Handle generic "Analyzing ..." / "Rendering ..." / "Saving ..." / "Generating ..."
+  if (label.startsWith("Analyzing ")) return label.replace("Analyzing ", "") + " analyzed";
+  if (label.startsWith("Rendering ")) return label.replace("Rendering ", "") + " rendered";
+  if (label.startsWith("Saving ")) return label.replace("Saving ", "") + " saved";
+  if (label.startsWith("Generating ")) return label.replace("Generating ", "") + " generated";
+  return label;
+}
+
 function isCompactStatusMessage(message: PendingMessage) {
   return (
     message.message_type === "system_event" ||
@@ -832,7 +857,7 @@ export function CleanedChatApp({
                               )}
                             </div>
                             <div className="activity-step-body">
-                              <span className="activity-step-label">{String(step.metadata.status_label)}</span>
+                              <span className="activity-step-label">{completedLabel(String(step.metadata.status_label), isActive)}</span>
                               {step.metadata.status_detail ? (
                                 <span className="activity-step-detail">{String(step.metadata.status_detail)}</span>
                               ) : null}

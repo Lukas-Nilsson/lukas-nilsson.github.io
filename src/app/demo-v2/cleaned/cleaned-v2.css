@@ -525,6 +525,11 @@
   border-radius: 18px 18px 18px 4px;
 }
 
+.bubble.system *,
+.bubble.assistant * {
+  color: inherit;
+}
+
 .bubble.pending {
   opacity: 0.65;
 }
@@ -616,12 +621,12 @@
 }
 
 .activity-step.active .activity-step-label {
-  color: var(--text);
+  color: var(--accent);
 }
 
 .activity-step-detail {
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -836,7 +841,12 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent);
+}
+
+.room-checklist li strong {
+  color: var(--text);
+  font-weight: 500;
 }
 
 /* ── Room Actions ────────────────────────────────────────────── */
