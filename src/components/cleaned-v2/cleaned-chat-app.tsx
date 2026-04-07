@@ -291,6 +291,13 @@ export function CleanedChatApp({
     return map;
   }, [chatMessages]);
 
+  // Only expand the most recent room card globally — older rooms show as compact status lines
+  const latestRoomCardIndex = useMemo(() => {
+    let latest = -1;
+    latestCardIndexByRoomId.forEach((idx) => { if (idx > latest) latest = idx; });
+    return latest;
+  }, [latestCardIndexByRoomId]);
+
   const activityGroupInfo = useMemo(
     () => buildActivityGroups(chatMessages),
     [chatMessages]
@@ -1034,7 +1041,7 @@ export function CleanedChatApp({
               const isCompactStatus = isCompactStatusMessage(message);
               const isThinking = Boolean(message.metadata.thinking);
               const isRoomVisualType = ["room_created", "room_updated", "room_approved", "room_needs_review"].includes(message.message_type);
-              const isObsoleteCard = isRoomVisualType && room && latestCardIndexByRoomId.get(room.id) !== index;
+              const isObsoleteCard = isRoomVisualType && room && (latestCardIndexByRoomId.get(room.id) !== index || index !== latestRoomCardIndex);
 
               const hasCard =
                 (room && isRoomVisualType && !isObsoleteCard) ||
@@ -1066,6 +1073,9 @@ export function CleanedChatApp({
                             </span>
                             {detailTextForMessage(message) && !hasCard ? (
                               <span className="status-detail">{detailTextForMessage(message)}</span>
+                            ) : null}
+                            {isRoomVisualType && isObsoleteCard && room ? (
+                              <button className="ghost-chip" onClick={() => openEditor(room)} type="button" style={{ marginLeft: 8, fontSize: "0.75rem" }}>View &rarr;</button>
                             ) : null}
                           </div>
                           <span className="status-time">{timeLabel(message.created_at)}</span>
