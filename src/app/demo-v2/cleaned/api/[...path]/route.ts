@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 const BACKEND_ORIGIN =
   process.env.CLEANED_DEMO_BACKEND_ORIGIN ??
-  "https://cleaned-demo-api-347926612645.australia-southeast1.run.app";
+  "https://cleaned-demo-api-dqjwhahagq-ts.a.run.app";
 
 const STRIP_REQUEST = ["connection", "content-length", "host", "origin", "referer"];
 const STRIP_RESPONSE = ["connection", "content-encoding", "keep-alive", "transfer-encoding"];
