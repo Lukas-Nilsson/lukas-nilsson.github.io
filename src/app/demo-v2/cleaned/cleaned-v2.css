@@ -746,6 +746,19 @@
   background: var(--bg-secondary);
 }
 
+.room-saving-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .room-card-body,
 .report-card,
 .choice-card {

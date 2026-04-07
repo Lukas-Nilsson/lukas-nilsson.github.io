@@ -965,7 +965,12 @@ export function CleanedChatApp({
   const renderRoomCard = (room: RoomResponse) => (
     <article key={room.id} className="room-card">
       {room.latest_revision?.rendered_asset?.access_url ? (
-        <img alt={room.room_name} src={room.latest_revision.rendered_asset.access_url} />
+        <div style={{ position: "relative" }}>
+          <img alt={room.room_name} src={room.latest_revision.rendered_asset.access_url} />
+          {busyRoomId === room.id ? (
+            <div className="room-saving-overlay">Saving…</div>
+          ) : null}
+        </div>
       ) : null}
       <div className="room-card-body">
         <div className="badge-row">
