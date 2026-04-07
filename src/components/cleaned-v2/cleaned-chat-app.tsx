@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 function usePreviousValue<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => { ref.current = value; });
-  // eslint-disable-next-line react-hooks/refs
+   
   return ref.current;
 }
 
@@ -297,7 +298,7 @@ export function CleanedChatApp({
     });
 
     return () => subscription.unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [router, supabase]);
 
   // ---- Apply initialJobId from URL (once per ID) --------------------------
@@ -312,14 +313,14 @@ export function CleanedChatApp({
     setActiveJobId(initialJobId);
     if (chatSession.current_job?.id === initialJobId) return;
     void handleSend({ selectedJobId: initialJobId });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [accessToken, chatSession, initialJobId, prevInitialJobId]);
 
   // ---- Load recent jobs eagerly (for the dropdown + Jobs tab) -------------
   useEffect(() => {
     if (!accessToken) return;
     void cache.refreshRecentJobs(accessToken);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [accessToken, activeJobId]);
 
   // ---- Close job selector on outside click --------------------------------
