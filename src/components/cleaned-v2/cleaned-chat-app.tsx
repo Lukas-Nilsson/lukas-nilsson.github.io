@@ -571,7 +571,7 @@ export function CleanedChatApp({
         }
         const hasRoomCard = activeOperation.kind === "upload" && data.messages.some(
           (m: { message_type: string; created_at: string }) =>
-            m.message_type === "room_card" && recentEnough(m)
+            m.message_type === "room_created" && recentEnough(m)
         );
         if (hasRoomCard) {
           setActiveOperation(null);
