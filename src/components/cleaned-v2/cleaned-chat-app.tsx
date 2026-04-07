@@ -545,6 +545,16 @@ export function CleanedChatApp({
         } else {
           noChangePollCount++;
         }
+
+        // Auto-clear activeOperation when report_ready arrives
+        const hasReportReady = data.messages.some(
+          (m: { message_type: string }) => m.message_type === "report_ready"
+            && Date.parse((m as { created_at: string }).created_at) >= activeOperation.startedAt - 1500
+        );
+        if (hasReportReady) {
+          setActiveOperation(null);
+          return; // Stop polling
+        }
       } catch {
         // Keep optimistic state during network drops
       } finally {
