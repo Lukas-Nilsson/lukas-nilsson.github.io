@@ -420,6 +420,8 @@ export function CleanedChatApp({
     if (data.current_job) {
       cache.putJob(data.current_job);
       setActiveJobId(data.current_job.id);
+    } else {
+      setActiveJobId(null);
     }
   }
 
@@ -514,6 +516,8 @@ export function CleanedChatApp({
         cache.putJob(next.current_job);
         setActiveJobId(next.current_job.id);
         navigateToJob(next.current_job.id);
+      } else {
+        setActiveJobId(null);
       }
       // Refresh recent jobs list after any job-related action.
       void cache.refreshRecentJobs(accessToken);
