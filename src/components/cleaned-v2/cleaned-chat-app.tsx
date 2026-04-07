@@ -839,12 +839,9 @@ export function CleanedChatApp({
       pending: true
     };
     setPendingMessages((prev) => [...prev, optimistic, processingMessage]);
-    setActiveOperation({
-      kind: "upload",
-      startedAt: Date.now(),
-      baseMessageCount: chatSession?.messages.length ?? 0,
-      baseRoomCount: currentJob.rooms.length
-    });
+    // Don't set activeOperation for uploads — the upload is a single synchronous
+    // request that returns the full session. Polling during upload causes a race
+    // condition where stale poll data overwrites the fresh upload response.
     setBusy(true);
     setError("");
     setMessageText("");
@@ -870,7 +867,6 @@ export function CleanedChatApp({
       setPendingUploadName("");
     } finally {
       setBusy(false);
-      setActiveOperation(null);
     }
   }
 
