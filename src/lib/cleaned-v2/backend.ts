@@ -126,3 +126,13 @@ export async function debugHealth(): Promise<Record<string, unknown>> {
   const res = await fetch(`${API_PREFIX}/v2/debug/health`);
   return res.json();
 }
+
+export async function debugActivity(opts?: { limit?: number; category?: string; level?: string }): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.category) params.set("category", opts.category);
+  if (opts?.level) params.set("level", opts.level);
+  const qs = params.toString();
+  const res = await fetch(`${API_PREFIX}/v2/debug/activity${qs ? `?${qs}` : ""}`);
+  return res.json();
+}

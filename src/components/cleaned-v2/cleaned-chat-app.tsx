@@ -15,6 +15,7 @@ function usePreviousValue<T>(value: T): T | undefined {
 import {
   approveRoom,
   createRoomRevision,
+  debugActivity,
   debugClearUserData,
   debugHealth,
   deleteRoom,
@@ -200,6 +201,125 @@ function buildActivityGroups(messages: PendingMessage[]) {
     groups.set(msg.id, groupMsgs);
   }
   return { skipIds, groups };
+}
+
+// ---------------------------------------------------------------------------
+// Activity Log component for debug tab
+// ---------------------------------------------------------------------------
+
+type ActivityEvent = {
+  ts: string;
+  level: string;
+  category: string;
+  action: string;
+  user: string | null;
+  duration_ms: number | null;
+  detail: Record<string, unknown>;
+  error: string | null;
+};
+
+function ActivityLog() {
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<{ category: string; level: string }>({ category: "", level: "" });
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await debugActivity({
+        limit: 200,
+        category: filter.category || undefined,
+        level: filter.level || undefined,
+      }) as { events: ActivityEvent[] };
+      setEvents(result.events || []);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [filter.category, filter.level]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(fetchEvents, 3000);
+    return () => clearInterval(id);
+  }, [autoRefresh, fetchEvents]);
+
+  const levelColor = (level: string) => {
+    if (level === "error") return "#e55";
+    if (level === "warn") return "#ea0";
+    return "var(--muted)";
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <h3 style={{ fontSize: 14, margin: 0 }}>Activity Log ({events.length})</h3>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <select value={filter.category} onChange={(e) => setFilter(f => ({ ...f, category: e.target.value }))}
+            style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--separator)", background: "var(--bg)" }}>
+            <option value="">All categories</option>
+            {["auth", "chat", "upload", "job", "room", "report", "pipeline", "render"].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select value={filter.level} onChange={(e) => setFilter(f => ({ ...f, level: e.target.value }))}
+            style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--separator)", background: "var(--bg)" }}>
+            <option value="">All levels</option>
+            <option value="error">errors only</option>
+            <option value="warn">warnings</option>
+            <option value="info">info</option>
+          </select>
+          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+            Auto
+          </label>
+          <button className="ghost-chip" onClick={fetchEvents} disabled={loading} type="button" style={{ fontSize: 11, padding: "3px 8px" }}>
+            {loading ? "..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+      <div style={{
+        maxHeight: 400, overflow: "auto", fontSize: 11, fontFamily: "monospace",
+        background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--separator)",
+      }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", borderBottom: "1px solid var(--separator)" }}>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>Time</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>Category</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>Action</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>Duration</th>
+              <th style={{ padding: "6px 8px", textAlign: "left" }}>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((ev, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid var(--separator)", color: levelColor(ev.level) }}>
+                <td style={{ padding: "4px 8px", whiteSpace: "nowrap" }}>{new Date(ev.ts).toLocaleTimeString()}</td>
+                <td style={{ padding: "4px 8px" }}>{ev.category}</td>
+                <td style={{ padding: "4px 8px" }}>{ev.action}</td>
+                <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                  {ev.duration_ms != null ? `${(ev.duration_ms / 1000).toFixed(1)}s` : "—"}
+                </td>
+                <td style={{ padding: "4px 8px", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {ev.error ? <span style={{ color: "#e55" }}>{ev.error}</span> : JSON.stringify(ev.detail)}
+                </td>
+              </tr>
+            ))}
+            {events.length === 0 ? (
+              <tr><td colSpan={5} style={{ padding: "20px 8px", textAlign: "center", color: "var(--muted)" }}>No events yet</td></tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1332,6 +1452,9 @@ export function CleanedChatApp({
                 />
               </div>
             ) : null}
+
+            {/* Activity Log */}
+            <ActivityLog />
           </div>
         </main>
 
