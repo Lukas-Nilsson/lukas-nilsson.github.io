@@ -6,11 +6,11 @@ import type { RoomResponse } from "@/lib/cleaned-v2/types";
 declare global {
   interface Window {
     AnnotationRenderer?: {
-      renderAnnotatedScene: (data: any, opts: any) => { svg: string; layoutMap: any };
-      rectToPercentStyle: (rect: any, w: number, h: number) => any;
-      THEME_V1: any;
+      renderAnnotatedScene: (data: unknown, opts: unknown) => { svg: string; layoutMap: unknown };
+      rectToPercentStyle: (rect: unknown, w: number, h: number) => unknown;
+      THEME_V1: unknown;
     };
-    buildInteractiveSVG?: (container: HTMLElement, data: any, isEditable: boolean) => void;
+    buildInteractiveSVG?: (container: HTMLElement, data: unknown, isEditable: boolean) => void;
     destroyInteractiveSVG?: (container: HTMLElement) => void;
   }
 }

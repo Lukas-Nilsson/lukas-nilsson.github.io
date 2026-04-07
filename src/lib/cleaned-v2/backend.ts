@@ -34,7 +34,7 @@ async function backendFetch<T>(path: string, accessToken: string, init: RequestI
       }
 
       return (await parseResponse(response)) as Promise<T>;
-    } catch (e: any) {
+    } catch (e: unknown) {
       const isTypeError = e instanceof TypeError && e.message.includes("Failed to fetch");
       const isTransient = e instanceof Error && e.message.includes("Transient HTTP");
 

@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
-// Track the previous initialJobId to detect navigation between jobs.
 function usePreviousValue<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => { ref.current = value; });
+  // eslint-disable-next-line react-hooks/refs
   return ref.current;
 }
 
