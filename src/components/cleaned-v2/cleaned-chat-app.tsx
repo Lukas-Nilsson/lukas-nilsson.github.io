@@ -534,80 +534,70 @@ export function CleanedChatApp({
   useEffect(() => {
     if (!accessToken || !activeOperation) return;
     let cancelled = false;
-    let noChangePollCount = 0;
-    let timeoutId: number;
+    let intervalId: ReturnType<typeof setInterval>;
 
     const poll = async () => {
       if (cancelled) return;
-      const versionBefore = sessionVersionRef.current;
       try {
         const data = await getChatSession(accessToken);
         if (cancelled) return;
-        // If the session was updated by another handler (e.g. upload) while we
-        // were polling, discard this stale response.
-        if (sessionVersionRef.current !== versionBefore) return;
-        const hasFreshMessages =
-          data.messages.length > activeOperation.baseMessageCount ||
-          data.messages.some((m) => Date.parse(m.created_at) >= activeOperation.startedAt - 1500);
-        const hasRoomChange = (data.current_job?.rooms.length ?? 0) !== activeOperation.baseRoomCount;
 
+        const roomCountNow = data.current_job?.rooms.length ?? 0;
+        const msgCountNow = data.messages.length;
+        const hasRoomChange = roomCountNow !== activeOperation.baseRoomCount;
+        const hasFreshMessages = msgCountNow > activeOperation.baseMessageCount;
+
+        // Always update the UI with latest data
         setChatSession(data);
-        if (hasFreshMessages || hasRoomChange) {
-          noChangePollCount = 0;
-          setPendingMessages([]);
-        } else {
-          noChangePollCount++;
+
+        // For uploads: stop when a new room appears or room_created message arrives
+        if (activeOperation.kind === "upload") {
+          if (hasRoomChange || hasFreshMessages) {
+            setPendingMessages([]);
+          }
+          const done = hasRoomChange || data.messages.some(
+            (m: { message_type: string; created_at: string }) =>
+              m.message_type === "room_created" &&
+              Date.parse(m.created_at) >= activeOperation.startedAt - 2000
+          );
+          if (done) {
+            setActiveOperation(null);
+            setPendingMessages([]);
+            return;
+          }
         }
 
-        // Auto-clear activeOperation when the expected result arrives
-        const recentEnough = (m: { created_at: string }) =>
-          Date.parse(m.created_at) >= activeOperation.startedAt - 1500;
-
-        if (activeOperation.kind === "upload" && hasRoomChange) {
-          // Room processing complete — new room appeared
-          setActiveOperation(null);
-          setPendingMessages([]);
-          return;
-        }
-        const hasRoomCard = activeOperation.kind === "upload" && data.messages.some(
+        // For messages: stop when report_ready arrives
+        if (data.messages.some(
           (m: { message_type: string; created_at: string }) =>
-            m.message_type === "room_created" && recentEnough(m)
-        );
-        if (hasRoomCard) {
+            m.message_type === "report_ready" &&
+            Date.parse(m.created_at) >= activeOperation.startedAt - 2000
+        )) {
           setActiveOperation(null);
-          setPendingMessages([]);
-          return;
-        }
-        const hasReportReady = data.messages.some(
-          (m: { message_type: string; created_at: string }) =>
-            m.message_type === "report_ready" && recentEnough(m)
-        );
-        if (hasReportReady) {
-          setActiveOperation(null);
-          return;
-        }
-
-        // Safety timeout: if upload polling has been running > 90s with no result, stop
-        if (activeOperation.kind === "upload" && Date.now() - activeOperation.startedAt > 90_000) {
-          setActiveOperation(null);
-          setPendingMessages([]);
           return;
         }
       } catch {
         // Keep optimistic state during network drops
-      } finally {
-        if (!cancelled) {
-          const delay = Math.min(1200 * Math.pow(1.6, noChangePollCount), 5000);
-          timeoutId = window.setTimeout(() => void poll(), delay);
-        }
       }
     };
 
+    // Simple fixed-interval polling: every 2s
+    intervalId = setInterval(() => void poll(), 2000);
+    // Also fire immediately
     void poll();
+
+    // Safety timeout: stop after 90s no matter what
+    const safetyTimeout = setTimeout(() => {
+      if (!cancelled) {
+        setActiveOperation(null);
+        setPendingMessages([]);
+      }
+    }, 90_000);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      clearTimeout(safetyTimeout);
     };
   }, [accessToken, activeOperation]);
 
@@ -883,8 +873,6 @@ export function CleanedChatApp({
 
     try {
       const next = await postChatUpload(accessToken, { file, note });
-      // Bump version so any in-flight poll discards its stale response
-      sessionVersionRef.current++;
       setChatSession(next);
       // Keep pending "Processing..." message visible — polling will clear it
       // when room_card arrives or room count changes.
